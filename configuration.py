@@ -25,3 +25,6 @@ cassandra_host = '127.0.0.1:9160'
 
 # The AMQP host to receive messages from.
 amqp_host = '127.0.0.1'
+
+# The path to the SAN for storing core dumps.
+san_path = '/srv/cores'

@@ -36,9 +36,9 @@ def application(environ, start_response):
         uuid = escape(params['uuid'][0])
         arch = escape(params['arch'][0])
         if environ.has_key('CONTENT_TYPE') and environ['CONTENT_TYPE'] == ostream:
-            path = '/srv/cores/%s' % uuid
+            path = os.path.join(configuration.san_path, uuid)
             queue = 'retrace_%s' % arch
-            with open (path, 'w') as fp:
+            with open(path, 'w') as fp:
                 shutil.copyfileobj(environ['wsgi.input'], fp, 512)
                 channel.queue_declare(queue=queue, durable=True)
                 channel.basic_publish(
