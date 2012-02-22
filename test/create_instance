@@ -1,0 +1,73 @@
+#!/bin/sh
+
+if [ -z "$NOVA_USERNAME" ]; then
+    echo "Please set \$NOVA_USERNAME before running this program."
+    exit 1
+fi
+if [ -z "$1" || -z "$2" ]; then
+    echo "Usage: $0: <user_data_file> <size>"
+    exit 1
+fi
+
+if [ "$2" != small && "$2" != medium && "$2" != large ]; then
+    echo "The size argument $2 should be small, medium, or large."
+fi
+if [ ! -e "$1" ];
+    echo "The file $1 does not exist."
+    exit 1
+fi
+
+INSTANCE=
+start_instance () {
+echo "Starting instance."
+INSTANCE=$(euca-run-instances --key $NOVA_USERNAME \
+           --user-data-file="$1" -t "m1.$2" ami-5 \
+           | tail -n1 | cut -f2)
+echo "Instance started: $INSTANCE."
+}
+
+start_instance
+
+ret=
+errors=0
+timeout=0
+while :; do
+    echo -n .
+    ret=$(euca-describe-instances $INSTANCE --ipv4 | tail -n1)
+    if [ "$(echo "$ret" | cut -f6)" = error ]; then
+        printf '\n'
+        if [ $errors -gt 5 ]; then
+            echo "Retry count exceeded; exiting."
+            exit 1
+        fi
+        echo "Error starting instance; retrying."
+        errors=$((errors+1))
+        euca-terminate-instances $INSTANCE
+        start_instance
+    fi
+    if [ -n "$(echo "$ret" | cut -f5)" ]; then
+        ADDR="$(echo "$ret" | cut -f5)"
+        break
+    fi
+    if [ $timeout -gt 20 ]; then
+        echo "Timeout exceeded; exiting."
+        exit 1
+    fi
+    sleep 3
+    timeout=$((timeout+1))
+done
+printf '\n'
+echo "Instance available: $ADDR"
+timeout=0
+while ssh $ADDR initctl status cloud-init-local | grep -v stop || true; do
+    printf "."
+    if [ $timeout -gt 24 ]; then
+        printf '\n'
+        echo "Timeout exceeded; exiting."
+        exit 1
+    fi
+    timeout=$((timeout+1))
+    sleep 10
+done
+printf '\n'
+echo "Ready."

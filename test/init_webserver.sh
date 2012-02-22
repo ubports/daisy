@@ -25,4 +25,6 @@ cat > /etc/apache2/sites-enabled/000-default << EOF
 </VirtualHost>
 EOF
 bzr branch lp:whoopsie-daisy /var/www/whoopsie-daisy
+bzr branch lp:~ev/oops-repository/whoopsie-daisy /tmp/oops-repository
+(cd /tmp/oops-repository; python setup.py build; sudo python setup.py install)
 sudo /etc/init.d/apache2 restart
