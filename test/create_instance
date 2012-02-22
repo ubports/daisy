@@ -4,15 +4,16 @@ if [ -z "$NOVA_USERNAME" ]; then
     echo "Please set \$NOVA_USERNAME before running this program."
     exit 1
 fi
-if [ -z "$1" || -z "$2" ]; then
+if [ $# -ne 2 ]; then
     echo "Usage: $0: <user_data_file> <size>"
     exit 1
 fi
 
-if [ "$2" != small && "$2" != medium && "$2" != large ]; then
+if [ "$2" != small ] && [ "$2" != medium ] && [ "$2" != large ]; then
     echo "The size argument $2 should be small, medium, or large."
+    exit 1
 fi
-if [ ! -e "$1" ];
+if [ ! -e "$1" ]; then
     echo "The file $1 does not exist."
     exit 1
 fi
