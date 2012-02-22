@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -e
 
 if [ -z "$NOVA_USERNAME" ]; then
     echo "Please set \$NOVA_USERNAME before running this program."
@@ -17,13 +17,21 @@ if [ ! -e "$1" ]; then
     echo "The file $1 does not exist."
     exit 1
 fi
+user_data_file="$1"
+size="$2"
 
 INSTANCE=
 start_instance () {
 echo "Starting instance."
-INSTANCE=$(euca-run-instances --key $NOVA_USERNAME \
-           --user-data-file="$1" -t "m1.$2" ami-5 \
-           | tail -n1 | cut -f2)
+INSTANCE="$(euca-run-instances --key $NOVA_USERNAME --user-data-file="$user_data_file" -t m1."$size" ami-5 | tail -n1 | cut -f2)"
+case "$INSTANCE" in
+    i-*)
+        ;;
+    *)
+        echo "Failed to start instance."
+        exit 1
+        ;;
+esac
 echo "Instance started: $INSTANCE."
 }
 
@@ -60,7 +68,7 @@ done
 printf '\n'
 echo "Instance available: $ADDR"
 timeout=0
-while ssh $ADDR initctl status cloud-init-local | grep -v stop || true; do
+while ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no $ADDR sudo initctl status cloud-config | grep -v stop/waiting; do
     printf "."
     if [ $timeout -gt 24 ]; then
         printf '\n'
