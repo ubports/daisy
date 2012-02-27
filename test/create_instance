@@ -4,7 +4,7 @@ if [ -z "$NOVA_USERNAME" ]; then
     echo "Please set \$NOVA_USERNAME before running this program."
     exit 1
 fi
-if [ $# -ne 2 ]; then
+if [ $# -lt 2 ]; then
     echo "Usage: $0: <user_data_file> <size>"
     exit 1
 fi

@@ -15,4 +15,4 @@ create keyspace crashdb;" | cassandra-cli -B
 sudo easy_install -U distribute
 sudo pip install pycassa
 bzr branch lp:~ev/oops-repository/whoopsie-daisy /tmp/oops-repository
-(cd /tmp/oops-repository; OOPS_KEYSPACE=testing PYTHONPATH=. python oopsrepository/schema.py)
+(cd /tmp/oops-repository; OOPS_KEYSPACE=crashdb PYTHONPATH=. python oopsrepository/schema.py)
