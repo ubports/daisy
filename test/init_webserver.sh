@@ -3,12 +3,16 @@ exec >/var/log/cloud-init.log 2>&1
 packages="apache2 python-pip libapache2-mod-wsgi bzr"
 sudo apt-get update
 DEBCONF_FRONTEND=noninteractive sudo apt-get -y install $packages
+# For bson.
+sudo pip install pymongo
+sudo easy_install -U distribute
 sudo pip install pycassa
 # For talking to the MQ.
 sudo pip install pika
 # Enable mod_rewrite.
 sudo a2enmod rewrite
 cat > /etc/apache2/sites-enabled/000-default << EOF
+WSGIPythonPath /var/www/whoopsie-daisy/backend
 <VirtualHost *:80>
 	ServerAdmin webmaster@localhost
 
