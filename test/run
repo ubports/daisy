@@ -1,11 +1,16 @@
 #!/bin/sh
 set -e
-IP="$(./create_instance init_cassandra.sh medium | grep "Instance available:" | cut -d' ' -f3)"
-if [ -n "$IP" ]; then
+
+OUT="$(./create_instance init_cassandra.sh medium | tee /dev/fd/2 )"
+CASSANDRA_IP="$(echo "$OUT" | grep "Instance available:" | cut -d' ' -f3)"
+CASSANDRA_ID="$(echo "$OUT" | grep "Instance started:" | cut -d' ' -f3)"
+if [ -n "$CASSANDRA_IP" ]; then
     # Sigh. euca2ools doesn't like <(cat foo; cat foo)
     WORKING=$(mktemp)
     cat init_webserver.sh > $WORKING
-    echo "sed -i 's,cassandra_host = .*,cassandra_host = \"$IP\",' /var/www/whoopsie-daisy/backend/configuration.py" >> $WORKING
-    ./create_instance $WORKING medium
+    echo "sed -i 's,cassandra_host = .*,cassandra_host = \"$CASSANDRA_IP\",'" \
+        " /var/www/whoopsie-daisy/backend/configuration.py" >> $WORKING
+    OUT="$(./create_instance $WORKING medium | tee /dev/fd/2 )" || \
+        euca-terminate-instances $CASSANDRA_ID
     rm $WORKING
 fi

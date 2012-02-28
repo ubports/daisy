@@ -32,7 +32,7 @@ case "$INSTANCE" in
         exit 1
         ;;
 esac
-echo "Instance started: $INSTANCE."
+echo "Instance started: $INSTANCE"
 }
 
 start_instance
