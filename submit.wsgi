@@ -39,6 +39,7 @@ oops_config['host'] = [configuration.cassandra_host]
 def application(environ, start_response):
     global oops_config
     data = None
+    output = ""
     if environ.has_key(content_type) and environ[content_type] == ostream:
         data = environ['wsgi.input'].read()
         user_token = None
