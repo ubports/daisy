@@ -1,0 +1,11 @@
+#!/bin/sh
+set -e
+IP="$(./create_instance init_cassandra.sh medium | grep "Instance available:" | cut -d' ' -f3)"
+if [ -n "$IP" ]; then
+    # Sigh. euca2ools doesn't like <(cat foo; cat foo)
+    WORKING=$(mktemp)
+    cat init_webserver.sh > $WORKING
+    echo "sed -i 's,cassandra_host = .*,cassandra_host = \"$IP\",' /var/www/whoopsie-daisy/backend/configuration.py" >> $WORKING
+    ./create_instance $WORKING medium
+    rm $WORKING
+fi

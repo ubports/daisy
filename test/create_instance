@@ -71,7 +71,7 @@ done
 printf '\n'
 echo "Instance available: $ADDR"
 timeout=0
-while ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no $ADDR sudo initctl status cloud-config | grep -v stop/waiting; do
+while ! ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no $ADDR sudo initctl status cloud-run-user-script | grep -qs stop/waiting; do
     printf "."
     if [ $timeout -gt 24 ]; then
         printf '\n'
