@@ -1,13 +1,23 @@
 #!/bin/sh
 set -e
 
+IDS=
+WORKING=
+
+cleanup () {
+    [ -n "$IDS" ] && euca-terminate-instances $IDS
+    [ -n "$WORKING" ] && rm $WORKING
+}
+
+trap cleanup TERM INT
+
 OUT="$(./create_instance init_cassandra.sh medium | tee /dev/fd/2 )"
 CASSANDRA_IP="$(echo "$OUT" | grep "Instance available:" | cut -d' ' -f3)"
-CASSANDRA_ID="$(echo "$OUT" | grep "Instance started:" | cut -d' ' -f3)"
+IDS="$IDS $(echo "$OUT" | grep "Instance started:" | cut -d' ' -f3)"
 
 OUT="$(./create_instance init_rabbitmq.sh medium | tee /dev/fd/2 )"
 RABBIT_IP="$(echo "$OUT" | grep "Instance available:" | cut -d' ' -f3)"
-RABBIT_ID="$(echo "$OUT" | grep "Instance started:" | cut -d' ' -f3)"
+IDS="$IDS $(echo "$OUT" | grep "Instance started:" | cut -d' ' -f3)"
 if [ -n "$CASSANDRA_IP" ] && [ -n "$RABBIT_IP" ]; then
     # Sigh. euca2ools doesn't like <(cat foo; cat foo)
     WORKING=$(mktemp)
@@ -16,7 +26,15 @@ if [ -n "$CASSANDRA_IP" ] && [ -n "$RABBIT_IP" ]; then
         " /var/www/whoopsie-daisy/backend/configuration.py" >> $WORKING
     echo "sed -i 's,amqp_host = .*,amqp_host = \"$RABBIT_IP\",'" \
         " /var/www/whoopsie-daisy/backend/configuration.py" >> $WORKING
-    OUT="$(./create_instance $WORKING medium | tee /dev/fd/2 )" || \
-        euca-terminate-instances $CASSANDRA_ID $RABBIT_ID
-    rm $WORKING
+    OUT="$(./create_instance $WORKING medium | tee /dev/fd/2 )"
+    WEBSERVER_IP="$(echo "$OUT" | grep "Instance available:" | cut -d' ' -f3)"
+    IDS="$IDS $(echo "$OUT" | grep "Instance started:" | cut -d' ' -f3)"
 fi
+# TODO i386 retracer, precise for both (needs python argparse).
+cat init_retracer.sh > $WORKING
+echo "sed -i 's,cassandra_host = .*,cassandra_host = \"$CASSANDRA_IP\",'" \
+    " /home/ubuntu/whoopsie-daisy/backend/configuration.py" >> $WORKING
+echo "sed -i 's,amqp_host = .*,amqp_host = \"$RABBIT_IP\",'" \
+    " /home/ubuntu/whoopsie-daisy/backend/configuration.py" >> $WORKING
+echo "sudo mount -t nfs $WEBSERVER_IP:/srv/cores /srv/cores" >> $WORKING
+./create_instance init_retracer.sh medium

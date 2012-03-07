@@ -1,6 +1,6 @@
 #!/bin/sh
 exec >/var/log/cloud-init.log 2>&1
-packages="apache2 python-pip libapache2-mod-wsgi bzr"
+packages="apache2 python-pip libapache2-mod-wsgi bzr nfs-kernel-server"
 sudo apt-get update
 DEBCONF_FRONTEND=noninteractive sudo apt-get -y install $packages
 # For bson.
@@ -11,6 +11,10 @@ sudo pip install pycassa
 sudo pip install pika
 # Enable mod_rewrite.
 sudo a2enmod rewrite
+cat > /etc/exports << EOF
+/srv/cores 10.55.60.0/24(rw,sync,no_subtree_check)
+EOF
+sudo exportfs -ra
 cat > /etc/apache2/sites-enabled/000-default << EOF
 WSGIPythonPath /var/www/whoopsie-daisy/backend
 <VirtualHost *:80>
