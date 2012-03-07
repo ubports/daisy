@@ -25,23 +25,32 @@ from subprocess import Popen, PIPE
 import apport
 from pycassa.pool import ConnectionPool
 from pycassa.columnfamily import ColumnFamily
-from hashlib import md5
+from pycassa.cassandra.ttypes import NotFoundException
 import argparse
 import configuration
 
 oops_fam = None
 indexes_fam = None
 stack_fam = None
+awaiting_retrace_fam = None
 cache_dir = None
 config_dir = None
 
 def callback(ch, method, props, path):
     print 'Processing', path
+    uuid = path.rsplit('/', 1)[1]
     if not os.path.exists(path):
         print path, 'does not exist, skipping.'
         # We've processed this. Delete it off the MQ.
         ch.basic_ack(delivery_tag=method.delivery_tag)
         os.remove(path)
+        # Also remove it from the retracing index, if we haven't already.
+        try:
+            addr_sig = oops_fam.get(uuid, ['StacktraceAddressSignature'])
+            addr_sig = addr_sig.values()[0]
+            indexes_fam.remove('retracing', [addr_sig])
+        except NotFoundException:
+            pass
 
     new_path = '%s.core' % path
     with open(new_path, 'wb') as fp:
@@ -58,7 +67,6 @@ def callback(ch, method, props, path):
         return
 
     report = apport.Report()
-    uuid = path.rsplit('/', 1)[1]
     # TODO use oops-repository instead
     col = oops_fam.get(uuid)
     for k in col:
@@ -72,26 +80,44 @@ def callback(ch, method, props, path):
     proc = Popen(['apport-retrace', report_path, '-S', config_dir, '-C',
                   cache_dir, '-o', '%s.new' % report_path])
     proc.communicate()
-    # TODO Put failed traces on a failed queue.
-    if proc.returncode == 0:
+    if proc.returncode == 0 and os.path.exists('%s.new' % report_path):
         print 'Writing back to Cassandra'
         report = apport.Report()
         report.load(open('%s.new' % report_path, 'r'))
-        stacktrace_addr_sig = report['StacktraceAddressSignature']
-        stacktrace = report['Stacktrace']
-        hashed_stack = md5(stacktrace).hexdigest()
-
-        # We want really quick lookups of whether we have a stacktrace
-        # for this signature, so that we can quickly tell the client
-        # whether we need a core dump from it.
-        indexes_fam.insert('stacktrace_hashes_by_signature',
-            {stacktrace_addr_sig : hashed_stack})
-        stack_fam.insert(hashed_stack, {'stacktrace' : stacktrace})
+        signature = report.crash_signature()
+        if signature:
+            stacktrace_addr_sig = report['StacktraceAddressSignature']
+            stack_fam.insert(stacktrace_addr_sig, report)
+            # We want really quick lookups of whether we have a stacktrace for
+            # this signature, so that we can quickly tell the client whether we
+            # need a core dump from it.
+            indexes_fam.insert(
+                'crash_signature_for_stacktrace_address_signature',
+                {stacktrace_addr_sig : signature})
     else:
+        # TODO Do we want to ask for another core dump, or do we want to mark
+        # this as failed but still bucket it? What's the likelihood that a new
+        # core dump will behave any differently?
+        stacktrace_addr_sig = report['StacktraceAddressSignature']
+        indexes_fam.insert(
+            'crash_signature_for_stacktrace_address_signature',
+            {stacktrace_addr_sig : 'failed:%s' % stacktrace_addr_sig})
         print 'Could not retrace.'
 
     # We've processed this. Delete it off the MQ.
     ch.basic_ack(delivery_tag=method.delivery_tag)
+    indexes_fam.remove('retracing', [stacktrace_addr_sig])
+
+    oops_ids = [uuid]
+    try:
+        oops_ids = awaiting_retrace_fam.get(stacktrace_addr_sig)
+        oops_ids = oops_ids.keys()
+    except NotFoundException:
+        # Handle eventual consistency. If the writes to AwaitingRetrace haven't
+        # hit this node yet, that's okay. We'll clean up unprocessed OOPS IDs
+        # from that CF at regular intervals later, so just process this OOPS ID
+        # now.
+        pass
     for p in (path, new_path, report_path, '%s.new' % report_path):
         try:
             os.remove(p)
@@ -119,12 +145,13 @@ def get_architecture():
         sys.exit(1)
 
 def setup_cassandra():
-    global oops_fam, indexes_fam, stack_fam
+    global oops_fam, indexes_fam, stack_fam, awaiting_retrace_fam
     pool = ConnectionPool(configuration.cassandra_keyspace,
                           [configuration.cassandra_host])
     oops_fam = ColumnFamily(pool, 'OOPS')
     indexes_fam = ColumnFamily(pool, 'Indexes')
     stack_fam = ColumnFamily(pool, 'Stacktrace')
+    awaiting_retrace_fam = ColumnFamily(pool, 'AwaitingRetrace')
 
 def main():
     global cache_dir, config_dir
