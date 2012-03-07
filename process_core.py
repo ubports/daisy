@@ -176,8 +176,7 @@ def main():
     atexit.register(connection.close)
     channel = connection.channel()
 
-    for queue in ('retrace_amd64', 'retrace_i386'):
-        channel.queue_declare(queue=queue, durable=True)
+    channel.queue_declare(queue='retrace_%s' % arch, durable=True)
     channel.queue_declare(queue='bucket', durable=True)
 
     channel.basic_qos(prefetch_count=1)
