@@ -118,6 +118,15 @@ def callback(ch, method, props, path):
         # from that CF at regular intervals later, so just process this OOPS ID
         # now.
         pass
+    for oops_id in oops_ids:
+        ch.basic_publish(exchange='', routing_key='bucket', body=oops_id,
+            properties=pika.BasicProperties(delivery_mode=2))
+    try:
+        awaiting_retrace_fam.remove(stacktrace_addr_sig, oops_ids)
+    except NotFoundException:
+        # I'm not sure why this would happen, but we could safely continue on
+        # were it to.
+        pass
     for p in (path, new_path, report_path, '%s.new' % report_path):
         try:
             os.remove(p)
@@ -169,6 +178,7 @@ def main():
 
     for queue in ('retrace_amd64', 'retrace_i386'):
         channel.queue_declare(queue=queue, durable=True)
+    channel.queue_declare(queue='bucket', durable=True)
 
     channel.basic_qos(prefetch_count=1)
     print 'Waiting for messages. ^C to exit.'
