@@ -25,7 +25,7 @@ from oopsrepository import config, oopses
 import pycassa
 from pycassa.cassandra.ttypes import NotFoundException
 import configuration
-import pika
+import amqplib.client_0_8 as amqp
 import atexit
 
 os.environ['OOPS_KEYSPACE'] = configuration.cassandra_keyspace
@@ -39,12 +39,11 @@ indexes_fam = pycassa.ColumnFamily(pool, 'Indexes')
 awaiting_retrace_fam = pycassa.ColumnFamily(pool, 'AwaitingRetrace')
 
 # Rabbit MQ bucket queue.
-params = pika.ConnectionParameters(host=configuration.amqp_host)
-connection = pika.BlockingConnection(params)
-atexit.register(connection.close)
+connection = amqp.Connection(host=configuration.amqp_host)
 channel = connection.channel()
-channel.queue_declare(queue='bucket', durable=True)
-pika_props = pika.BasicProperties(delivery_mode=2)
+atexit.register(connection.close)
+atexit.register(channel.close)
+channel.queue_declare(queue='bucket', durable=True, auto_delete=False)
 
 content_type = 'CONTENT_TYPE'
 ostream = 'application/octet-stream'
@@ -64,7 +63,7 @@ def bad_request_response(start_response):
 def application(environ, start_response):
     global oops_config
     global pool, indexes_fam, awaiting_retrace_fam
-    global channel, pika_props
+    global channel
 
     if not environ.has_key(content_type) and environ[content_type] == ostream:
         return ok_response(start_response)
@@ -86,8 +85,9 @@ def application(environ, start_response):
 
     if 'InterpreterPath' in data:
         # Python crashes can be immediately bucketed.
-        channel.basic_publish(exchange='', routing_key='bucket',
-                              body=oops_id, properties=pika_props)
+        body = amqp.Message(oops_id)
+        body.properties['delivery_mode'] = 2
+        channel.basic_publish(body, exchange='', routing_key='bucket')
         return ok_response(start_response)
 
     addr_sig = data.get('StacktraceAddressSignature', None)
@@ -106,9 +106,9 @@ def application(environ, start_response):
     if crash_sig:
         # We have already retraced for this address signature, so this crash
         # can be immediately bucketed.
-        channel.basic_publish(exchange='', routing_key='bucket',
-                              body=oops_id, properties=pika_props)
-        pass
+        body = amqp.Message(oops_id)
+        body.properties['delivery_mode'] = 2
+        channel.basic_publish(body, exchange='', routing_key='bucket')
     else:
         # Are we already waiting for this stacktrace address signature to be
         # retraced?

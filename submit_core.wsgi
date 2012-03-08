@@ -18,7 +18,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from cgi import parse_qs, escape
-import pika
+import amqplib.client_0_8 as amqp
 import pycassa
 from pycassa.cassandra.ttypes import NotFoundException
 import shutil
@@ -27,10 +27,10 @@ import configuration
 import os
 
 ostream = 'application/octet-stream'
-params = pika.ConnectionParameters(host=configuration.amqp_host)
-connection = pika.BlockingConnection(params)
+connection = amqp.Connection(host=configuration.amqp_host)
 channel = connection.channel()
 atexit.register(connection.close)
+atexit.register(channel.close)
 
 # Cassandra connections. These may move into oopsrepository in the future.
 pool = pycassa.ConnectionPool(configuration.cassandra_keyspace,
@@ -39,6 +39,7 @@ indexes_fam = pycassa.ColumnFamily(pool, 'Indexes')
 oops_fam = pycassa.ColumnFamily(pool, 'OOPS')
 
 def application(environ, start_response):
+    global channel
     params = parse_qs(environ.get('QUERY_STRING'))
     uuid = ''
     if params and 'uuid' in params and 'arch' in params:
@@ -63,10 +64,10 @@ def application(environ, start_response):
             with open(path, 'w') as fp:
                 shutil.copyfileobj(environ['wsgi.input'], fp, 512)
             os.chmod(path, 0o666)
-            channel.queue_declare(queue=queue, durable=True)
-            channel.basic_publish(
-                exchange='', routing_key=queue, body=path,
-                properties=pika.BasicProperties(delivery_mode=2))
+            channel.queue_declare(queue=queue, durable=True, auto_delete=False)
+            body = amqp.Message(path)
+            body.properties['delivery_mode'] = 2
+            channel.basic_publish(body, exchange='', routing_key=queue)
             indexes_fam.insert('retracing', {addr_sig : ''})
         
     start_response('200 OK', [])

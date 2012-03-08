@@ -17,7 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import pika
+import amqplib.client_0_8 as amqp
 import atexit
 import os
 import sys
@@ -36,13 +36,14 @@ awaiting_retrace_fam = None
 cache_dir = None
 config_dir = None
 
-def callback(ch, method, props, path):
-    print 'Processing', path
-    uuid = path.rsplit('/', 1)[1]
+def callback(msg):
+    print 'Processing', msg.body
+    path = msg.body
+    uuid = msg.body.rsplit('/', 1)[1]
     if not os.path.exists(path):
         print path, 'does not exist, skipping.'
         # We've processed this. Delete it off the MQ.
-        ch.basic_ack(delivery_tag=method.delivery_tag)
+        msg.channel.basic_ack(msg.delivery_tag)
         os.remove(path)
         # Also remove it from the retracing index, if we haven't already.
         try:
@@ -61,7 +62,7 @@ def callback(ch, method, props, path):
     if p2.returncode != 0:
         print >>sys.stderr, 'Error processing %s:\n%s' % (path, ret[1])
         # We've processed this. Delete it off the MQ.
-        ch.basic_ack(delivery_tag=method.delivery_tag)
+        msg.channel.basic_ack(msg.delivery_tag)
         os.remove(path)
         os.remove(new_path)
         return
@@ -105,7 +106,7 @@ def callback(ch, method, props, path):
         print 'Could not retrace.'
 
     # We've processed this. Delete it off the MQ.
-    ch.basic_ack(delivery_tag=method.delivery_tag)
+    msg.channel.basic_ack(msg.delivery_tag)
     indexes_fam.remove('retracing', [stacktrace_addr_sig])
 
     oops_ids = [uuid]
@@ -119,8 +120,9 @@ def callback(ch, method, props, path):
         # now.
         pass
     for oops_id in oops_ids:
-        ch.basic_publish(exchange='', routing_key='bucket', body=oops_id,
-            properties=pika.BasicProperties(delivery_mode=2))
+        body = amqp.Message(oops_id)
+        body.properties['delivery_mode'] = 2
+        msg.channel.basic_publish(body, exchange='', routing_key='bucket')
     try:
         awaiting_retrace_fam.remove(stacktrace_addr_sig, oops_ids)
     except NotFoundException:
@@ -171,21 +173,24 @@ def main():
     arch = get_architecture()
     setup_cassandra()
 
-    params = pika.ConnectionParameters(host=configuration.amqp_host)
-    connection = pika.BlockingConnection(params)
-    atexit.register(connection.close)
+    connection = amqp.Connection(host=configuration.amqp_host)
     channel = connection.channel()
+    atexit.register(connection.close)
+    atexit.register(channel.close)
 
-    channel.queue_declare(queue='retrace_%s' % arch, durable=True)
-    channel.queue_declare(queue='bucket', durable=True)
+    retrace = 'retrace_%s' % arch
+    channel.queue_declare(queue=retrace, durable=True, auto_delete=False)
+    channel.queue_declare(queue='bucket', durable=True, auto_delete=False)
 
-    channel.basic_qos(prefetch_count=1)
+    channel.basic_qos(0, 1, False)
     print 'Waiting for messages. ^C to exit.'
-    channel.basic_consume(callback, queue='retrace_%s' % arch)
+    tag = channel.basic_consume(callback=callback, queue='retrace_%s' % arch)
     try:
-        channel.start_consuming()
+        while True:
+            channel.wait()
     except KeyboardInterrupt:
         pass
+    channel.basic_cancel(tag)
 
 if __name__ == '__main__':
     main()
