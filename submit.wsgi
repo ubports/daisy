@@ -83,7 +83,7 @@ def application(environ, start_response):
 
     data = bson.BSON(data).decode()
 
-    if 'InterpreterPath' in data:
+    if 'InterpreterPath' in data and not 'StacktraceAddressSignature' in data:
         # Python crashes can be immediately bucketed.
         body = amqp.Message(oops_id)
         body.properties['delivery_mode'] = 2
