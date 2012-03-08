@@ -85,6 +85,9 @@ def callback(msg):
         print 'Writing back to Cassandra'
         report = apport.Report()
         report.load(open('%s.new' % report_path, 'r'))
+        # Unnecessary to hold onto this, plus it causes pycassa to timeout on
+        # insert.
+        del report['CoreDump']
         signature = report.crash_signature()
         if signature:
             stacktrace_addr_sig = report['StacktraceAddressSignature']
