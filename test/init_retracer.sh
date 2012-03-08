@@ -13,7 +13,7 @@ sudo mkdir -p /srv/cores
 # Retracer config.
 h=/home/ubuntu
 sudo -u ubuntu mkdir -p "$h/config/Ubuntu 12.04"
-echo > "$h/config/Ubuntu 12.04/sources.list" << EOF
+cat > "$h/config/Ubuntu 12.04/sources.list" << EOF
 deb http://archive.ubuntu.com/ubuntu precise main restricted universe multiverse
 deb http://archive.ubuntu.com/ubuntu precise-updates main restricted universe multiverse
 deb http://archive.ubuntu.com/ubuntu precise-proposed main restricted universe multiverse
