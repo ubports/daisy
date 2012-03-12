@@ -33,13 +33,15 @@ oops_fam = None
 indexes_fam = None
 stack_fam = None
 awaiting_retrace_fam = None
+bucket_fam = None
+
 cache_dir = None
 config_dir = None
 
 def callback(msg):
     print 'Processing', msg.body
     path = msg.body
-    uuid = msg.body.rsplit('/', 1)[1]
+    oops_id = msg.body.rsplit('/', 1)[1]
     if not os.path.exists(path):
         print path, 'does not exist, skipping.'
         # We've processed this. Delete it off the MQ.
@@ -47,7 +49,7 @@ def callback(msg):
         os.remove(path)
         # Also remove it from the retracing index, if we haven't already.
         try:
-            addr_sig = oops_fam.get(uuid, ['StacktraceAddressSignature'])
+            addr_sig = oops_fam.get(oops_id, ['StacktraceAddressSignature'])
             addr_sig = addr_sig.values()[0]
             indexes_fam.remove('retracing', [addr_sig])
         except NotFoundException:
@@ -69,7 +71,7 @@ def callback(msg):
 
     report = apport.Report()
     # TODO use oops-repository instead
-    col = oops_fam.get(uuid)
+    col = oops_fam.get(oops_id)
     for k in col:
         report[k] = col[k]
     
@@ -85,34 +87,35 @@ def callback(msg):
         print 'Writing back to Cassandra'
         report = apport.Report()
         report.load(open('%s.new' % report_path, 'r'))
-        # Unnecessary to hold onto this, plus it causes pycassa to timeout on
+        # Unnecessary to hold onto this, plus it causes pycassa to time out on
         # insert.
         del report['CoreDump']
-        signature = report.crash_signature()
+        crash_signature = report.crash_signature()
         if signature:
             stacktrace_addr_sig = report['StacktraceAddressSignature']
             stack_fam.insert(stacktrace_addr_sig, report)
-            # We want really quick lookups of whether we have a stacktrace for
-            # this signature, so that we can quickly tell the client whether we
-            # need a core dump from it.
-            indexes_fam.insert(
-                'crash_signature_for_stacktrace_address_signature',
-                {stacktrace_addr_sig : signature})
+        else:
+            # I do not expect to ever see these.
+            crash_signature = 'failed'
     else:
-        # TODO Do we want to ask for another core dump, or do we want to mark
-        # this as failed but still bucket it? What's the likelihood that a new
-        # core dump will behave any differently?
+        # Given that we do not as yet keep debugging symbols around for every
+        # package version ever released, it's worth knowing the extent of the
+        # problem. If we ever decide to keep debugging symbols for every
+        # package version, we can reprocess these with a map/reduce job.
         stacktrace_addr_sig = report['StacktraceAddressSignature']
-        indexes_fam.insert(
-            'crash_signature_for_stacktrace_address_signature',
-            {stacktrace_addr_sig : 'failed:%s' % stacktrace_addr_sig})
+        crash_signature = 'failed:%s' % stacktrace_addr_sig
         print 'Could not retrace.'
 
-    # We've processed this. Delete it off the MQ.
-    msg.channel.basic_ack(msg.delivery_tag)
+    # We want really quick lookups of whether we have a stacktrace for
+    # this signature, so that we can quickly tell the client whether we
+    # need a core dump from it.
+    indexes_fam.insert(
+        'crash_signature_for_stacktrace_address_signature',
+        {stacktrace_addr_sig : crash_signature})
+
     indexes_fam.remove('retracing', [stacktrace_addr_sig])
 
-    oops_ids = [uuid]
+    oops_ids = [oops_id]
     try:
         oops_ids = awaiting_retrace_fam.get(stacktrace_addr_sig)
         oops_ids = oops_ids.keys()
@@ -123,9 +126,8 @@ def callback(msg):
         # now.
         pass
     for oops_id in oops_ids:
-        body = amqp.Message(oops_id)
-        body.properties['delivery_mode'] = 2
-        msg.channel.basic_publish(body, exchange='', routing_key='bucket')
+        bucket_fam.insert(crash_signature, {oops_id : ''}
+
     try:
         awaiting_retrace_fam.remove(stacktrace_addr_sig, oops_ids)
     except NotFoundException:
@@ -139,6 +141,8 @@ def callback(msg):
             if e.errno != 2:
                 raise
     print 'Done processing', path
+    # We've processed this. Delete it off the MQ.
+    msg.channel.basic_ack(msg.delivery_tag)
 
 def parse_options():
     parser = argparse.ArgumentParser(description='Process core dumps.')
@@ -166,6 +170,7 @@ def setup_cassandra():
     indexes_fam = ColumnFamily(pool, 'Indexes')
     stack_fam = ColumnFamily(pool, 'Stacktrace')
     awaiting_retrace_fam = ColumnFamily(pool, 'AwaitingRetrace')
+    bucket_fam = ColumnFamily(pool, 'Buckets')
 
 def main():
     global cache_dir, config_dir
@@ -183,7 +188,6 @@ def main():
 
     retrace = 'retrace_%s' % arch
     channel.queue_declare(queue=retrace, durable=True, auto_delete=False)
-    channel.queue_declare(queue='bucket', durable=True, auto_delete=False)
 
     channel.basic_qos(0, 1, False)
     print 'Waiting for messages. ^C to exit.'

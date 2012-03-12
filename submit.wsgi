@@ -27,6 +27,7 @@ from pycassa.cassandra.ttypes import NotFoundException
 import configuration
 import amqplib.client_0_8 as amqp
 import atexit
+import apport
 
 os.environ['OOPS_KEYSPACE'] = configuration.cassandra_keyspace
 oops_config = config.get_config()
@@ -37,6 +38,7 @@ pool = pycassa.ConnectionPool(configuration.cassandra_keyspace,
                           [configuration.cassandra_host])
 indexes_fam = pycassa.ColumnFamily(pool, 'Indexes')
 awaiting_retrace_fam = pycassa.ColumnFamily(pool, 'AwaitingRetrace')
+bucket_fam = pycassa.ColumnFamily(pool, 'Buckets')
 
 # Rabbit MQ bucket queue.
 connection = amqp.Connection(host=configuration.amqp_host)
@@ -62,7 +64,7 @@ def bad_request_response(start_response):
 
 def application(environ, start_response):
     global oops_config
-    global pool, indexes_fam, awaiting_retrace_fam
+    global pool, indexes_fam, awaiting_retrace_fam, bucket_fam
     global channel
 
     if not environ.has_key(content_type) and environ[content_type] == ostream:
@@ -85,9 +87,12 @@ def application(environ, start_response):
 
     if 'InterpreterPath' in data and not 'StacktraceAddressSignature' in data:
         # Python crashes can be immediately bucketed.
-        body = amqp.Message(oops_id)
-        body.properties['delivery_mode'] = 2
-        channel.basic_publish(body, exchange='', routing_key='bucket')
+        report = apport.Report()
+        try:
+            for key in ('ExecutablePath', 'Traceback', 'ProblemType'):
+                report[key] = data[key]
+        crash_signature = report.crash_signature()
+        bucket_fam.insert(crash_signature, {oops_id : ''})
         return ok_response(start_response)
 
     addr_sig = data.get('StacktraceAddressSignature', None)
