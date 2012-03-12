@@ -91,7 +91,7 @@ def callback(msg):
         # insert.
         del report['CoreDump']
         crash_signature = report.crash_signature()
-        if signature:
+        if crash_signature:
             stacktrace_addr_sig = report['StacktraceAddressSignature']
             stack_fam.insert(stacktrace_addr_sig, report)
         else:
@@ -126,7 +126,7 @@ def callback(msg):
         # now.
         pass
     for oops_id in oops_ids:
-        bucket_fam.insert(crash_signature, {oops_id : ''}
+        bucket_fam.insert(crash_signature, {oops_id : ''})
 
     try:
         awaiting_retrace_fam.remove(stacktrace_addr_sig, oops_ids)
@@ -163,7 +163,7 @@ def get_architecture():
         sys.exit(1)
 
 def setup_cassandra():
-    global oops_fam, indexes_fam, stack_fam, awaiting_retrace_fam
+    global oops_fam, indexes_fam, stack_fam, awaiting_retrace_fam, bucket_fam
     pool = ConnectionPool(configuration.cassandra_keyspace,
                           [configuration.cassandra_host])
     oops_fam = ColumnFamily(pool, 'OOPS')
