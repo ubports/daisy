@@ -82,7 +82,7 @@ def application(environ, start_response):
                 return bad_request_response(start_response)
         crash_signature = report.crash_signature()
         if crash_signature:
-            oopses.bucket(oops_config, oopsid, crash_signature)
+            oopses.bucket(oops_config, oops_id, crash_signature)
             return ok_response(start_response)
         else:
             return bad_request_response(start_response)
