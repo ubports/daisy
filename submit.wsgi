@@ -56,8 +56,8 @@ def application(environ, start_response):
     global oops_config
     global pool, indexes_fam, awaiting_retrace_fam
 
-    if not environ.has_key(content_type) and environ[content_type] == ostream:
-        return ok_response(start_response)
+    if not environ.has_key(content_type) or environ[content_type] != ostream:
+        return bad_request_response(start_response)
 
     user_token = None
     # / + 128 character system UUID
@@ -68,7 +68,7 @@ def application(environ, start_response):
     data = environ['wsgi.input'].read()
     data = bson.BSON(data).decode()
     try:
-        oopses.insert_bson(oops_config, oops_id, data, user_token)
+        oopses.insert_dict(oops_config, oops_id, data, user_token)
     except bson.errors.InvalidBSON:
         return bad_request_response(start_response)
 
