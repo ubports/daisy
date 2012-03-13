@@ -38,22 +38,13 @@ pool = pycassa.ConnectionPool(configuration.cassandra_keyspace,
                           [configuration.cassandra_host])
 indexes_fam = pycassa.ColumnFamily(pool, 'Indexes')
 awaiting_retrace_fam = pycassa.ColumnFamily(pool, 'AwaitingRetrace')
-bucket_fam = pycassa.ColumnFamily(pool, 'Buckets')
-
-# Rabbit MQ bucket queue.
-connection = amqp.Connection(host=configuration.amqp_host)
-channel = connection.channel()
-atexit.register(connection.close)
-atexit.register(channel.close)
-channel.queue_declare(queue='bucket', durable=True, auto_delete=False)
 
 content_type = 'CONTENT_TYPE'
 ostream = 'application/octet-stream'
-response_headers = [('Content-type', 'text/plain')]
 
 def ok_response(start_response, data=''):
     if data:
-        start_response('200 OK', response_headers)
+        start_response('200 OK', [('Content-type', 'text/plain')])
     else:
         start_response('200 OK', [])
     return [data]
@@ -64,26 +55,24 @@ def bad_request_response(start_response):
 
 def application(environ, start_response):
     global oops_config
-    global pool, indexes_fam, awaiting_retrace_fam, bucket_fam
+    global pool, indexes_fam, awaiting_retrace_fam
     global channel
 
     if not environ.has_key(content_type) and environ[content_type] == ostream:
         return ok_response(start_response)
 
-    data = environ['wsgi.input'].read()
     user_token = None
     # / + 128 character system UUID
     if len(environ['PATH_INFO']) == 129:
         user_token = environ['PATH_INFO'][1:]
+
     oops_id = str(uuid.uuid1())
+    data = environ['wsgi.input'].read()
+    data = bson.BSON(data).decode()
     try:
-        # TODO: Remove the insert_bson method from oopsrepository, replacing it
-        # with insert_dict.
         oopses.insert_bson(oops_config, oops_id, data, user_token)
     except bson.errors.InvalidBSON:
         return bad_request_response(start_response)
-
-    data = bson.BSON(data).decode()
 
     if 'InterpreterPath' in data and not 'StacktraceAddressSignature' in data:
         # Python crashes can be immediately bucketed.
@@ -92,7 +81,7 @@ def application(environ, start_response):
             for key in ('ExecutablePath', 'Traceback', 'ProblemType'):
                 report[key] = data[key]
         crash_signature = report.crash_signature()
-        bucket_fam.insert(crash_signature, {oops_id : ''})
+        oopses.bucket(oops_config, oopsid, crash_signature)
         return ok_response(start_response)
 
     addr_sig = data.get('StacktraceAddressSignature', None)
@@ -111,9 +100,7 @@ def application(environ, start_response):
     if crash_sig:
         # We have already retraced for this address signature, so this crash
         # can be immediately bucketed.
-        body = amqp.Message(oops_id)
-        body.properties['delivery_mode'] = 2
-        channel.basic_publish(body, exchange='', routing_key='bucket')
+        oopses.bucket(oops_config, oopsid, crash_sig)
     else:
         # Are we already waiting for this stacktrace address signature to be
         # retraced?
