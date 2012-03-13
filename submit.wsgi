@@ -25,7 +25,6 @@ from oopsrepository import config, oopses
 import pycassa
 from pycassa.cassandra.ttypes import NotFoundException
 import configuration
-import amqplib.client_0_8 as amqp
 import atexit
 import apport
 
