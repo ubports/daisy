@@ -28,12 +28,16 @@ from pycassa.columnfamily import ColumnFamily
 from pycassa.cassandra.ttypes import NotFoundException
 import argparse
 import configuration
+from oopsrepository import config, oopses
+
+os.environ['OOPS_KEYSPACE'] = configuration.cassandra_keyspace
+oops_config = config.get_config()
+oops_config['host'] = [configuration.cassandra_host]
 
 oops_fam = None
 indexes_fam = None
 stack_fam = None
 awaiting_retrace_fam = None
-bucket_fam = None
 
 cache_dir = None
 config_dir = None
@@ -126,7 +130,7 @@ def callback(msg):
         # now.
         pass
     for oops_id in oops_ids:
-        bucket_fam.insert(crash_signature, {oops_id : ''})
+        oopses.bucket(oops_config, oops_id, crash_signature)
 
     try:
         awaiting_retrace_fam.remove(stacktrace_addr_sig, oops_ids)
@@ -163,14 +167,13 @@ def get_architecture():
         sys.exit(1)
 
 def setup_cassandra():
-    global oops_fam, indexes_fam, stack_fam, awaiting_retrace_fam, bucket_fam
+    global oops_fam, indexes_fam, stack_fam, awaiting_retrace_fam
     pool = ConnectionPool(configuration.cassandra_keyspace,
                           [configuration.cassandra_host])
     oops_fam = ColumnFamily(pool, 'OOPS')
     indexes_fam = ColumnFamily(pool, 'Indexes')
     stack_fam = ColumnFamily(pool, 'Stacktrace')
     awaiting_retrace_fam = ColumnFamily(pool, 'AwaitingRetrace')
-    bucket_fam = ColumnFamily(pool, 'Buckets')
 
 def main():
     global cache_dir, config_dir
