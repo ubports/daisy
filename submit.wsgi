@@ -76,12 +76,17 @@ def application(environ, start_response):
     if 'InterpreterPath' in data and not 'StacktraceAddressSignature' in data:
         # Python crashes can be immediately bucketed.
         report = apport.Report()
-        try:
-            for key in ('ExecutablePath', 'Traceback', 'ProblemType'):
+        for key in ('ExecutablePath', 'Traceback', 'ProblemType'):
+            try:
                 report[key] = data[key]
+            except KeyError:
+                return bad_request_response(start_response)
         crash_signature = report.crash_signature()
-        oopses.bucket(oops_config, oopsid, crash_signature)
-        return ok_response(start_response)
+        if crash_signature:
+            oopses.bucket(oops_config, oopsid, crash_signature)
+            return ok_response(start_response)
+        else:
+            return bad_request_response(start_response)
 
     addr_sig = data.get('StacktraceAddressSignature', None)
     if not addr_sig:
