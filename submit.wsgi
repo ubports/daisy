@@ -56,7 +56,6 @@ def bad_request_response(start_response):
 def application(environ, start_response):
     global oops_config
     global pool, indexes_fam, awaiting_retrace_fam
-    global channel
 
     if not environ.has_key(content_type) and environ[content_type] == ostream:
         return ok_response(start_response)
