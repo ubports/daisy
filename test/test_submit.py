@@ -153,6 +153,8 @@ class TestCoreSubmission(TestSubmission):
     def setUp(self):
         super(TestCoreSubmission, self).setUp()
         self.conn_mock = mock.MagicMock()
+        # TODO in the future, we may want to just set up a local Rabbit MQ,
+        # like we do with Cassandra.
         amqp_connection = mock.patch('amqplib.client_0_8.Connection', self.conn_mock)
         amqp_connection.start()
         self.msg_mock = mock.MagicMock()
