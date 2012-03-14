@@ -102,7 +102,7 @@ def application(environ, start_response):
     if crash_sig:
         # We have already retraced for this address signature, so this crash
         # can be immediately bucketed.
-        oopses.bucket(oops_config, oopsid, crash_sig)
+        oopses.bucket(oops_config, oops_id, crash_sig)
     else:
         # Are we already waiting for this stacktrace address signature to be
         # retraced?
