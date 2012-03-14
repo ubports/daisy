@@ -1,0 +1,22 @@
+There are a minimum of five servers:
+- One for the web frontend that the crash reporting daemon talks to.
+- One for the Cassandra server that the web frontend talks to.
+- One for the RabbitMQ server.
+- Two architecture retracer servers, one for amd64 and one for i386.
+
+Obviously you'll want more than this.
+
+Set up oops-repository on the webserver:
+  bzr branch lp:~ev/oops-repository/whoopsie-daisy oops-repository
+  (cd oops-repository; python setup.py build; sudo python setup.py install)
+
+Install pycassa on the webserver. Run oopsrepository/schema.py from
+oops-repository and backend/schema.py from whoopsie-daisy to create the default
+schema.
+Install pika on the webserver for talking to the MQ.
+Install rabbitmq-server on the RabbitMQ server.  Make sure this is at least 2.0.
+Install libapache2-mod-wsgi on the webserver, enable mod_rewrite, and configure
+using the sample file.
+
+Run `python process_core.py` on a server with access to the location where the
+core files are written.
