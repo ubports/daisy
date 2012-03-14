@@ -39,7 +39,7 @@ oops_fam = pycassa.ColumnFamily(pool, 'OOPS')
 
 def application(environ, start_response):
     global channel
-    params = parse_qs(environ.get('QUERY_STRING'))
+    params = parse_qs(environ.get('QUERY_STRING', ''))
     uuid = ''
     if params and 'uuid' in params and 'arch' in params:
         uuid = escape(params['uuid'][0])
