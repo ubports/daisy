@@ -97,7 +97,8 @@ def application(environ, start_response):
     try:
         crash_sig = indexes_fam.get(
             'crash_signature_for_stacktrace_address_signature', [addr_sig])
-    except NotFoundException:
+        crash_sig = crash_sig.values()[0]
+    except (NotFoundException, KeyError):
         pass
     if crash_sig:
         # We have already retraced for this address signature, so this crash
