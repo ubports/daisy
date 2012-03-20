@@ -23,11 +23,14 @@ import os
 from oopsrepository import config, oopses
 import pycassa
 from pycassa.cassandra.ttypes import NotFoundException
+
+configuration = None
 try:
     import local_config as configuration
 except ImportError:
+    pass
+if not configuration:
     import configuration
-import atexit
 import apport
 
 os.environ['OOPS_KEYSPACE'] = configuration.cassandra_keyspace

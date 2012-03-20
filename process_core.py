@@ -26,10 +26,15 @@ from pycassa.pool import ConnectionPool
 from pycassa.columnfamily import ColumnFamily
 from pycassa.cassandra.ttypes import NotFoundException
 import argparse
+
+configuration = None
 try:
     import local_config as configuration
 except ImportError:
+    pass
+if not configuration:
     import configuration
+
 from oopsrepository import config, oopses
 
 os.environ['OOPS_KEYSPACE'] = configuration.cassandra_keyspace

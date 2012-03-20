@@ -20,9 +20,13 @@ from pycassa.system_manager import (
     SystemManager,
     UTF8_TYPE,
     )
+
+configuration = None
 try:
     import local_config as configuration
 except ImportError:
+    pass
+if not configuration:
     import configuration
 from oopsrepository.cassandra import workaround_1779
 

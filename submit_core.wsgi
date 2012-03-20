@@ -22,9 +22,13 @@ import pycassa
 from pycassa.cassandra.ttypes import NotFoundException
 import shutil
 import atexit
+
+configuration = None
 try:
     import local_config as configuration
 except ImportError:
+    pass
+if not configuration:
     import configuration
 import os
 
