@@ -22,7 +22,10 @@ import pycassa
 from pycassa.cassandra.ttypes import NotFoundException
 import shutil
 import atexit
-import configuration
+try:
+    import local_config as configuration
+except ImportError:
+    import configuration
 import os
 
 ostream = 'application/octet-stream'

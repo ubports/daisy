@@ -23,7 +23,10 @@ import os
 from oopsrepository import config, oopses
 import pycassa
 from pycassa.cassandra.ttypes import NotFoundException
-import configuration
+try:
+    import local_config as configuration
+except ImportError:
+    import configuration
 import atexit
 import apport
 
