@@ -78,11 +78,11 @@ def application(environ, start_response):
             return bad_request_response(start_response)
         else:
             raise
-    data = bson.BSON(data).decode()
     try:
-        oopses.insert_dict(oops_config, oops_id, data, user_token)
+        data = bson.BSON(data).decode()
     except bson.errors.InvalidBSON:
         return bad_request_response(start_response)
+    oopses.insert_dict(oops_config, oops_id, data, user_token)
 
     if 'InterpreterPath' in data and not 'StacktraceAddressSignature' in data:
         # Python crashes can be immediately bucketed.
