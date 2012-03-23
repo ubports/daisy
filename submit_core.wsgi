@@ -67,8 +67,22 @@ def application(environ, start_response):
             if not addr_sig:
                 start_response('400 Bad Request', [])
                 return ['']
+            copied = False
             with open(path, 'w') as fp:
-                shutil.copyfileobj(environ['wsgi.input'], fp, 512)
+                try:
+                    shutil.copyfileobj(environ['wsgi.input'], fp, 512)
+                    copied = True
+                except IOError, e:
+                    if e.message != 'request data read error':
+                        raise
+            if not copied:
+                try:
+                    os.remove(path)
+                except OSError:
+                    pass
+                start_response('400 Bad Request', [])
+                return ['']
+
             os.chmod(path, 0o666)
             channel.queue_declare(queue=queue, durable=True, auto_delete=False)
             body = amqp.Message(path)

@@ -70,7 +70,14 @@ def application(environ, start_response):
         user_token = environ['PATH_INFO'][1:]
 
     oops_id = str(uuid.uuid1())
-    data = environ['wsgi.input'].read()
+    try:
+        data = environ['wsgi.input'].read()
+    except IOError, e:
+        if e.message == 'request data read error':
+            # The client disconnected while sending the report.
+            return bad_request_response(start_response)
+        else:
+            raise
     data = bson.BSON(data).decode()
     try:
         oopses.insert_dict(oops_config, oops_id, data, user_token)
