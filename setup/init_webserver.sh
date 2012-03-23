@@ -1,14 +1,9 @@
 #!/bin/sh
 exec >/var/log/cloud-init.log 2>&1
-packages="apache2 python-pip libapache2-mod-wsgi bzr nfs-kernel-server"
+packages="apache2 libapache2-mod-wsgi bzr nfs-kernel-server python-bson python-pycassa python-amqplib oops-repository"
+echo "deb http://archive.admin.canonical.com lucid-cat main" >> /etc/apt/sources.list
 sudo apt-get update
 DEBCONF_FRONTEND=noninteractive sudo apt-get -y install $packages
-# For bson.
-sudo pip install pymongo
-sudo easy_install -U distribute
-sudo pip install pycassa
-# For talking to the MQ.
-sudo pip install pika
 # Enable mod_rewrite.
 sudo a2enmod rewrite
 cat > /etc/exports << EOF
@@ -33,6 +28,4 @@ WSGIPythonPath /var/www/whoopsie-daisy/backend
 </VirtualHost>
 EOF
 bzr branch lp:whoopsie-daisy /var/www/whoopsie-daisy
-bzr branch lp:~ev/oops-repository/whoopsie-daisy /tmp/oops-repository
-(cd /tmp/oops-repository; python setup.py build; sudo python setup.py install)
 sudo /etc/init.d/apache2 restart
