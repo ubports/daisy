@@ -1,0 +1,11 @@
+deb http://archive.ubuntu.com/ubuntu/ natty main restricted universe multiverse
+deb http://archive.ubuntu.com/ubuntu/ natty-updates main restricted universe multiverse
+deb http://archive.ubuntu.com/ubuntu/ natty-proposed main restricted universe multiverse
+deb http://security.ubuntu.com/ubuntu/ natty-security main restricted universe multiverse
+
+deb http://ddebs.ubuntu.com natty main restricted universe multiverse
+deb http://ddebs.ubuntu.com natty-updates main restricted universe multiverse
+deb http://ddebs.ubuntu.com natty-proposed main restricted universe multiverse
+deb http://ddebs.ubuntu.com natty-security main restricted universe multiverse
+
+

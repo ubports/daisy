@@ -1,0 +1,11 @@
+deb http://archive.ubuntu.com/ubuntu/ lucid main restricted universe multiverse
+deb http://archive.ubuntu.com/ubuntu/ lucid-updates main restricted universe multiverse
+deb http://archive.ubuntu.com/ubuntu/ lucid-proposed main restricted universe multiverse
+deb http://security.ubuntu.com/ubuntu/ lucid-security main restricted universe multiverse
+
+deb http://ddebs.ubuntu.com lucid main restricted universe multiverse
+deb http://ddebs.ubuntu.com lucid-updates main restricted universe multiverse
+deb http://ddebs.ubuntu.com lucid-proposed main restricted universe multiverse
+deb http://ddebs.ubuntu.com lucid-security main restricted universe multiverse
+
+

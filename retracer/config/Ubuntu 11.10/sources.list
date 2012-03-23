@@ -1,0 +1,14 @@
+deb http://archive.ubuntu.com/ubuntu/ oneiric main restricted universe multiverse
+deb http://archive.ubuntu.com/ubuntu/ oneiric-updates main restricted universe multiverse
+deb http://archive.ubuntu.com/ubuntu/ oneiric-proposed main restricted universe multiverse
+deb http://security.ubuntu.com/ubuntu/ oneiric-security main restricted universe multiverse
+
+deb http://ddebs.ubuntu.com natty main restricted universe multiverse
+deb http://ddebs.ubuntu.com natty-updates main restricted universe multiverse
+deb http://ddebs.ubuntu.com natty-proposed main restricted universe multiverse
+deb http://ddebs.ubuntu.com natty-security main restricted universe multiverse
+
+deb http://ddebs.ubuntu.com oneiric main restricted universe multiverse
+deb http://ddebs.ubuntu.com oneiric-updates main restricted universe multiverse
+deb http://ddebs.ubuntu.com oneiric-proposed main restricted universe multiverse
+deb http://ddebs.ubuntu.com oneiric-security main restricted universe multiverse

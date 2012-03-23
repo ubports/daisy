@@ -1,0 +1,10 @@
+deb http://archive.ubuntu.com/ubuntu/ precise main restricted universe multiverse
+deb http://archive.ubuntu.com/ubuntu/ precise-updates main restricted universe multiverse
+deb http://archive.ubuntu.com/ubuntu/ precise-proposed main restricted universe multiverse
+deb http://security.ubuntu.com/ubuntu/ precise-security main restricted universe multiverse
+
+deb http://ddebs.ubuntu.com oneiric main restricted universe multiverse
+deb http://ddebs.ubuntu.com oneiric-updates main restricted universe multiverse
+deb http://ddebs.ubuntu.com oneiric-proposed main restricted universe multiverse
+deb http://ddebs.ubuntu.com oneiric-security main restricted universe multiverse
+deb http://ddebs.ubuntu.com precise main restricted universe multiverse
