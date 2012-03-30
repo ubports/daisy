@@ -53,16 +53,16 @@ def ok_response(start_response, data=''):
         start_response('200 OK', [])
     return [data]
 
-def bad_request_response(start_response):
+def bad_request_response(start_response, text=''):
     start_response('400 Bad Request', [])
-    return ['']
+    return [text]
 
 def application(environ, start_response):
     global oops_config
     global pool, indexes_fam, awaiting_retrace_fam
 
     if not environ.has_key(content_type) or environ[content_type] != ostream:
-        return bad_request_response(start_response)
+        return bad_request_response(start_response, 'Incorrect Content-Type.')
 
     user_token = None
     # / + 128 character system UUID
@@ -75,13 +75,13 @@ def application(environ, start_response):
     except IOError, e:
         if e.message == 'request data read error':
             # The client disconnected while sending the report.
-            return bad_request_response(start_response)
+            return bad_request_response(start_response, 'Connection dropped.')
         else:
             raise
     try:
         data = bson.BSON(data).decode()
     except bson.errors.InvalidBSON:
-        return bad_request_response(start_response)
+        return bad_request_response(start_response, 'Invalid BSON.')
     oopses.insert_dict(oops_config, oops_id, data, user_token)
 
     if 'InterpreterPath' in data and not 'StacktraceAddressSignature' in data:
@@ -91,18 +91,21 @@ def application(environ, start_response):
             try:
                 report[key] = data[key]
             except KeyError:
-                return bad_request_response(start_response)
+                return bad_request_response(start_response,
+                    'Missing keys in interpreted report.')
         crash_signature = report.crash_signature()
         if crash_signature:
             oopses.bucket(oops_config, oops_id, crash_signature)
             return ok_response(start_response)
         else:
-            return bad_request_response(start_response)
+            return bad_request_response(start_response,
+                'Could not generate crash signature for interpreted report.')
 
     addr_sig = data.get('StacktraceAddressSignature', None)
     if not addr_sig:
         # We received BSON data with unexpected keys.
-        return bad_request_response(start_response)
+        return bad_request_response(start_response,
+            'No StacktraceAddressSignature found in report.')
 
     # Binary
     output = ''
