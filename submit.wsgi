@@ -89,7 +89,7 @@ def application(environ, start_response):
         report = apport.Report()
         for key in ('ExecutablePath', 'Traceback', 'ProblemType'):
             try:
-                report[key] = data[key].encode('UTF-8')
+                report[key.encode('UTF-8')] = data[key].encode('UTF-8')
             except KeyError:
                 return bad_request_response(start_response,
                     'Missing keys in interpreted report.')

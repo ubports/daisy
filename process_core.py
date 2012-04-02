@@ -84,7 +84,7 @@ def callback(msg):
     # TODO use oops-repository instead
     col = oops_fam.get(oops_id)
     for k in col:
-        report[k] = col[k].encode('UTF-8')
+        report[k.encode('UTF-8')] = col[k].encode('UTF-8')
     
     report['CoreDump'] = (new_path,)
     report_path = '%s.crash' % path
