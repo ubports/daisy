@@ -108,7 +108,7 @@ def callback(msg):
             stack_fam.insert(stacktrace_addr_sig, report)
         else:
             # I do not expect to ever see these.
-            crash_signature = 'failed'
+            crash_signature = 'failed:%s' % stacktrace_addr_sig
     else:
         # Given that we do not as yet keep debugging symbols around for every
         # package version ever released, it's worth knowing the extent of the
