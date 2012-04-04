@@ -57,7 +57,6 @@ def callback(msg):
         print path, 'does not exist, skipping.'
         # We've processed this. Delete it off the MQ.
         msg.channel.basic_ack(msg.delivery_tag)
-        os.remove(path)
         # Also remove it from the retracing index, if we haven't already.
         try:
             addr_sig = oops_fam.get(oops_id, ['StacktraceAddressSignature'])
@@ -76,8 +75,16 @@ def callback(msg):
         print >>sys.stderr, 'Error processing %s:\n%s' % (path, ret[1])
         # We've processed this. Delete it off the MQ.
         msg.channel.basic_ack(msg.delivery_tag)
-        os.remove(path)
-        os.remove(new_path)
+        try:
+            os.remove(path)
+        except OSError, e:
+            if e.errno != 2:
+                raise
+        try:
+            os.remove(new_path)
+        except OSError, e:
+            if e.errno != 2:
+                raise
         return
 
     report = apport.Report()
