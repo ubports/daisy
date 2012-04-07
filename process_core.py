@@ -98,7 +98,7 @@ def callback(msg):
     with open(report_path, 'w') as fp:
         report.write(fp)
     print 'Retracing'
-    proc = Popen(['apport-retrace', report_path, '-S', config_dir, '-C',
+    proc = Popen(['apport-retrace', report_path, '-c', '-S', config_dir, '-C',
                   cache_dir, '-o', '%s.new' % report_path])
     proc.communicate()
     if proc.returncode == 0 and os.path.exists('%s.new' % report_path):
@@ -107,9 +107,6 @@ def callback(msg):
         report.load(open('%s.new' % report_path, 'r'))
         stacktrace_addr_sig = report['StacktraceAddressSignature']
 
-        # Unnecessary to hold onto this, plus it causes pycassa to time out on
-        # insert.
-        del report['CoreDump']
         crash_signature = report.crash_signature()
         if crash_signature:
             stack_fam.insert(stacktrace_addr_sig, report)
