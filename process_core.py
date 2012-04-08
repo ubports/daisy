@@ -134,6 +134,7 @@ def callback(msg):
 
     oops_ids = [oops_id]
     try:
+        # This will contain the OOPS ID we're currently processing as well.
         oops_ids = awaiting_retrace_fam.get(stacktrace_addr_sig)
         oops_ids = oops_ids.keys()
     except NotFoundException:
