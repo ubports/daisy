@@ -86,6 +86,7 @@ def application(environ, start_response):
             os.chmod(path, 0o666)
             channel.queue_declare(queue=queue, durable=True, auto_delete=False)
             body = amqp.Message(path)
+            # Persistent
             body.properties['delivery_mode'] = 2
             channel.basic_publish(body, exchange='', routing_key=queue)
             indexes_fam.insert('retracing', {addr_sig : ''})
