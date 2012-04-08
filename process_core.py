@@ -104,7 +104,8 @@ def callback(msg):
     if proc.returncode == 0 and os.path.exists('%s.new' % report_path):
         print 'Writing back to Cassandra'
         report = apport.Report()
-        report.load(open('%s.new' % report_path, 'r'))
+        with open('%s.new' % report_path, 'r') as fp:
+            report.load(fp)
         stacktrace_addr_sig = report['StacktraceAddressSignature']
 
         crash_signature = report.crash_signature()
