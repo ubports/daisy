@@ -64,6 +64,7 @@ def callback(msg):
             indexes_fam.remove('retracing', [addr_sig])
         except NotFoundException:
             pass
+        return
 
     new_path = '%s.core' % path
     with open(new_path, 'wb') as fp:
