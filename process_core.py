@@ -48,6 +48,7 @@ awaiting_retrace_fam = None
 
 cache_dir = None
 config_dir = None
+sandbox_dir = None
 
 def callback(msg):
     print 'Processing', msg.body
@@ -100,7 +101,8 @@ def callback(msg):
         report.write(fp)
     print 'Retracing'
     proc = Popen(['apport-retrace', report_path, '-c', '-S', config_dir, '-C',
-                  cache_dir, '-o', '%s.new' % report_path])
+                  cache_dir, '--sandbox-dir', sandbox_dir, '-o',
+                  '%s.new' % report_path])
     proc.communicate()
     if proc.returncode == 0 and os.path.exists('%s.new' % report_path):
         print 'Writing back to Cassandra'
@@ -171,6 +173,10 @@ def parse_options():
     parser.add_argument('--cache',
                         help='Cache directory for packages downloaded in the '
                              'sandbox.')
+    parser.add_argument('--sandbox-dir',
+                        help='Directory for unpacked packages. Future runs '
+                        'will assume that any already downloaded package is '
+                        'also extracted to this sandbox.')
     return parser.parse_args()
 
 def get_architecture():
@@ -191,10 +197,11 @@ def setup_cassandra():
     awaiting_retrace_fam = ColumnFamily(pool, 'AwaitingRetrace')
 
 def main():
-    global cache_dir, config_dir
+    global cache_dir, config_dir, sandbox_dir
     options = parse_options()
     cache_dir = options.cache
     config_dir = options.config_dir
+    sandbox_dir = options.sandbox_dir
 
     arch = get_architecture()
     setup_cassandra()
