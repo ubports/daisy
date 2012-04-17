@@ -20,6 +20,8 @@ import amqplib.client_0_8 as amqp
 import atexit
 import os
 import sys
+import tempfile
+import shutil
 from subprocess import Popen, PIPE
 import apport
 from pycassa.pool import ConnectionPool
@@ -46,7 +48,6 @@ indexes_fam = None
 stack_fam = None
 awaiting_retrace_fam = None
 
-cache_dir = None
 config_dir = None
 sandbox_dir = None
 
@@ -100,9 +101,18 @@ def callback(msg):
     with open(report_path, 'w') as fp:
         report.write(fp)
     print 'Retracing'
-    proc = Popen(['apport-retrace', report_path, '-c', '-S', config_dir, '-C',
-                  cache_dir, '--sandbox-dir', sandbox_dir, '-o',
-                  '%s.new' % report_path])
+    sandbox_release = os.path.join(sandbox_dir, report['DistroRelease'])
+    if not os.path.exists(sandbox_release):
+        os.makedirs(sandbox_release)
+    instance_sandbox = tempfile.mkdtemp(dir=sandbox_release)
+    sandbox = os.path.join(instance_sandbox, 'sandbox')
+    cache = os.path.join(instance_sandbox, 'cache')
+    os.mkdir(sandbox)
+    os.mkdir(cache)
+    atexit.register(shutil.rmtree, instance_sandbox)
+    proc = Popen(['apport-retrace', report_path, '-c', '-S', config_dir,
+                  '-C', cache, '--sandbox-dir', sandbox,
+                  '-o', '%s.new' % report_path])
     proc.communicate()
     if proc.returncode == 0 and os.path.exists('%s.new' % report_path):
         print 'Writing back to Cassandra'
@@ -170,13 +180,13 @@ def parse_options():
     parser.add_argument('--config-dir',
                         help='Packaging system configuration base directory.',
                         required=True)
-    parser.add_argument('--cache',
-                        help='Cache directory for packages downloaded in the '
-                             'sandbox.')
     parser.add_argument('--sandbox-dir',
-                        help='Directory for unpacked packages. Future runs '
-                        'will assume that any already downloaded package is '
-                        'also extracted to this sandbox.')
+                        help='Directory for state information. Subdirectories '
+                        'will be created for each release for which crashes '
+                        'have been seen, with subdirectories under those for '
+                        'each instance of this program. Future runs will '
+                        'assume that any already downloaded package is also '
+                        'extracted to this sandbox.')
     return parser.parse_args()
 
 def get_architecture():
@@ -197,9 +207,8 @@ def setup_cassandra():
     awaiting_retrace_fam = ColumnFamily(pool, 'AwaitingRetrace')
 
 def main():
-    global cache_dir, config_dir, sandbox_dir
+    global config_dir, sandbox_dir
     options = parse_options()
-    cache_dir = options.cache
     config_dir = options.config_dir
     sandbox_dir = options.sandbox_dir
 
