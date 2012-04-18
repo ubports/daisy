@@ -50,6 +50,7 @@ awaiting_retrace_fam = None
 
 config_dir = None
 sandbox_dir = None
+_sandboxes = {}
 
 def callback(msg):
     print 'Processing', msg.body
@@ -101,19 +102,7 @@ def callback(msg):
     with open(report_path, 'w') as fp:
         report.write(fp)
     print 'Retracing'
-    sandbox_release = os.path.join(sandbox_dir, report['DistroRelease'])
-    if not os.path.exists(sandbox_release):
-        os.makedirs(sandbox_release)
-    instance_sandbox = tempfile.mkdtemp(dir=sandbox_release)
-    atexit.register(shutil.rmtree, instance_sandbox)
-    # Write a pid file so that if we have to wipe out a cache that has grown
-    # too large we can stop the retracer responsible for it before doing so.
-    with open(os.path.join(instance_sandbox, 'pid'), 'w') as fp:
-        fp.write('%d' % os.getpid())
-    sandbox = os.path.join(instance_sandbox, 'sandbox')
-    cache = os.path.join(instance_sandbox, 'cache')
-    os.mkdir(sandbox)
-    os.mkdir(cache)
+    sandbox, cache = setup_cache(sandbox_dir, report['DistroRelease'])
     proc = Popen(['apport-retrace', report_path, '-c', '-S', config_dir,
                   '-C', cache, '--sandbox-dir', sandbox,
                   '-o', '%s.new' % report_path])
@@ -209,6 +198,25 @@ def setup_cassandra():
     indexes_fam = ColumnFamily(pool, 'Indexes')
     stack_fam = ColumnFamily(pool, 'Stacktrace')
     awaiting_retrace_fam = ColumnFamily(pool, 'AwaitingRetrace')
+
+def setup_cache(sandbox_dir, release):
+    if release in _sandboxes:
+        return _sandboxes[release]
+    sandbox_release = os.path.join(sandbox_dir, release)
+    if not os.path.exists(sandbox_release):
+        os.makedirs(sandbox_release)
+    instance_sandbox = tempfile.mkdtemp(dir=sandbox_release)
+    atexit.register(shutil.rmtree, instance_sandbox)
+    # Write a pid file so that if we have to wipe out a cache that has grown
+    # too large we can stop the retracer responsible for it before doing so.
+    with open(os.path.join(instance_sandbox, 'pid'), 'w') as fp:
+        fp.write('%d' % os.getpid())
+    sandbox = os.path.join(instance_sandbox, 'sandbox')
+    cache = os.path.join(instance_sandbox, 'cache')
+    os.mkdir(sandbox)
+    os.mkdir(cache)
+    _sandboxes[release] = (sandbox, cache)
+    return _sandboxes[release]
 
 def main():
     global config_dir, sandbox_dir
