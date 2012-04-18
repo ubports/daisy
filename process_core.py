@@ -105,11 +105,15 @@ def callback(msg):
     if not os.path.exists(sandbox_release):
         os.makedirs(sandbox_release)
     instance_sandbox = tempfile.mkdtemp(dir=sandbox_release)
+    atexit.register(shutil.rmtree, instance_sandbox)
+    # Write a pid file so that if we have to wipe out a cache that has grown
+    # too large we can stop the retracer responsible for it before doing so.
+    with open(os.path.join(instance_sandbox, 'pid'), 'w') as fp:
+        fp.write('%d' % os.getpid())
     sandbox = os.path.join(instance_sandbox, 'sandbox')
     cache = os.path.join(instance_sandbox, 'cache')
     os.mkdir(sandbox)
     os.mkdir(cache)
-    atexit.register(shutil.rmtree, instance_sandbox)
     proc = Popen(['apport-retrace', report_path, '-c', '-S', config_dir,
                   '-C', cache, '--sandbox-dir', sandbox,
                   '-o', '%s.new' % report_path])
