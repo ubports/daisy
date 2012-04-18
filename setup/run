@@ -30,11 +30,11 @@ if [ -n "$CASSANDRA_IP" ] && [ -n "$RABBIT_IP" ]; then
     WEBSERVER_IP="$(echo "$OUT" | grep "Instance available:" | cut -d' ' -f3)"
     IDS="$IDS $(echo "$OUT" | grep "Instance started:" | cut -d' ' -f3)"
 fi
-# TODO i386 retracer, precise for both (needs python argparse).
+# TODO i386 retracer
 cat init_retracer.sh > $WORKING
 echo "sed -i 's,cassandra_host = .*,cassandra_host = \"$CASSANDRA_IP\",'" \
     " /home/ubuntu/whoopsie-daisy/backend/configuration.py" >> $WORKING
 echo "sed -i 's,amqp_host = .*,amqp_host = \"$RABBIT_IP\",'" \
     " /home/ubuntu/whoopsie-daisy/backend/configuration.py" >> $WORKING
 echo "sudo mount -t nfs $WEBSERVER_IP:/srv/cores /srv/cores" >> $WORKING
-./create_instance init_retracer.sh medium
+./create_instance init_retracer.sh medium ami-97
