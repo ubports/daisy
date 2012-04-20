@@ -28,6 +28,8 @@ from pycassa.pool import ConnectionPool
 from pycassa.columnfamily import ColumnFamily
 from pycassa.cassandra.ttypes import NotFoundException
 import argparse
+import time
+import socket
 
 configuration = None
 try:
@@ -218,6 +220,31 @@ def setup_cache(sandbox_dir, release):
     _sandboxes[release] = (sandbox, cache)
     return _sandboxes[release]
 
+_lost_connection = None
+def run_forever(channel, callback, queue):
+    global _lost_connection
+    tag = channel.basic_consume(callback=callback, queue=queue)
+    try:
+        while (not _lost_connection or time.time() < _lost_connection + 120):
+            try:
+                channel.wait()
+            except (socket.error, IOError), e:
+                is_amqplib_ioerror = (type(e) is IOError and
+                                      e.args == ('Socket error',))
+                amqplib_conn_errors = (socket.error,
+                                       amqp.AMQPConnectionException)
+                is_amqplib_conn_error = isinstance(e, amqplib_conn_errors)
+                if is_amqplib_conn_error or is_amqplib_ioerror:
+                    _lost_connection = time.time()
+                    # Don't probe immediately, give the network/process time to
+                    # come back.
+                    time.sleep(0.1)
+                else:
+                    raise
+    except KeyboardInterrupt:
+        pass
+    channel.basic_cancel(tag)
+
 def main():
     global config_dir, sandbox_dir
     options = parse_options()
@@ -237,13 +264,7 @@ def main():
 
     channel.basic_qos(0, 1, False)
     print 'Waiting for messages. ^C to exit.'
-    tag = channel.basic_consume(callback=callback, queue='retrace_%s' % arch)
-    try:
-        while True:
-            channel.wait()
-    except KeyboardInterrupt:
-        pass
-    channel.basic_cancel(tag)
+    run_forever(channel, callback, queue='retrace_%s' % arch)
 
 if __name__ == '__main__':
     main()
