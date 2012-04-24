@@ -27,6 +27,7 @@ import apport
 from pycassa.pool import ConnectionPool
 from pycassa.columnfamily import ColumnFamily
 from pycassa.cassandra.ttypes import NotFoundException
+from pycassa.types import IntegerType, FloatType
 import argparse
 import time
 import socket
@@ -49,6 +50,7 @@ oops_fam = None
 indexes_fam = None
 stack_fam = None
 awaiting_retrace_fam = None
+retrace_stats_fam = None
 
 config_dir = None
 sandbox_dir = None
@@ -104,11 +106,15 @@ def callback(msg):
     with open(report_path, 'w') as fp:
         report.write(fp)
     print 'Retracing'
-    sandbox, cache = setup_cache(sandbox_dir, report['DistroRelease'])
+    release = report['DistroRelease']
+    sandbox, cache = setup_cache(sandbox_dir, release)
+    day_key = time.strftime('%Y%m%d', time.gmtime())
+    retracing_start_time = time.time()
     proc = Popen(['apport-retrace', report_path, '-c', '-S', config_dir,
                   '-C', cache, '--sandbox-dir', sandbox,
                   '-o', '%s.new' % report_path])
     proc.communicate()
+    retracing_time = time.time() - retracing_start_time
     if proc.returncode == 0 and os.path.exists('%s.new' % report_path):
         print 'Writing back to Cassandra'
         report = apport.Report()
@@ -119,9 +125,11 @@ def callback(msg):
         crash_signature = report.crash_signature()
         if crash_signature:
             stack_fam.insert(stacktrace_addr_sig, report)
+            update_retrace_stats(release, day_key, retracing_time, True)
         else:
-            # I do not expect to ever see these.
             crash_signature = 'failed:%s' % stacktrace_addr_sig
+            print 'Could not retrace.'
+            update_retrace_stats(release, day_key, retracing_time, False)
     else:
         # Given that we do not as yet keep debugging symbols around for every
         # package version ever released, it's worth knowing the extent of the
@@ -130,6 +138,7 @@ def callback(msg):
         stacktrace_addr_sig = report['StacktraceAddressSignature']
         crash_signature = 'failed:%s' % stacktrace_addr_sig
         print 'Could not retrace.'
+        update_retrace_stats(release, day_key, retracing_time, False)
 
     # We want really quick lookups of whether we have a stacktrace for
     # this signature, so that we can quickly tell the client whether we
@@ -170,6 +179,30 @@ def callback(msg):
     # We've processed this. Delete it off the MQ.
     msg.channel.basic_ack(msg.delivery_tag)
 
+def update_retrace_stats(release, day_key, retracing_time, success=True):
+    status = ':success'
+    if not success:
+        status = ':failed'
+    # We can't mix counters and other data types
+    retrace_stats_fam.add(day_key, release + status)
+
+    # Compute the cumulative moving average
+    mean_key = '%s:%s' % (day_key, release)
+    count_key = '%s:count' % mean_key
+    indexes_fam.column_validators = {mean_key: FloatType(),
+                                    count_key: IntegerType()}
+    try:
+        mean = indexes_fam.get('mean_retracing_time', column_start=mean_key,
+                               column_finish=count_key)
+    except NotFoundException:
+        mean = {mean_key: 0.0, count_key: 0}
+
+    new_mean = float((retracing_time + mean[count_key] * mean[mean_key]) /
+                      mean[count_key] + 1)
+    mean[mean_key] = new_mean
+    mean[count_key] += 1
+    indexes_fam.insert('mean_retracing_time', mean)
+
 def parse_options():
     parser = argparse.ArgumentParser(description='Process core dumps.')
     parser.add_argument('--config-dir',
@@ -194,12 +227,14 @@ def get_architecture():
 
 def setup_cassandra():
     global oops_fam, indexes_fam, stack_fam, awaiting_retrace_fam
+    global retrace_stats_fam
     pool = ConnectionPool(configuration.cassandra_keyspace,
                           [configuration.cassandra_host])
     oops_fam = ColumnFamily(pool, 'OOPS')
     indexes_fam = ColumnFamily(pool, 'Indexes')
     stack_fam = ColumnFamily(pool, 'Stacktrace')
     awaiting_retrace_fam = ColumnFamily(pool, 'AwaitingRetrace')
+    retrace_stats_fam = ColumnFamily(pool, 'RetraceStats')
 
 def setup_cache(sandbox_dir, release):
     if release in _sandboxes:
