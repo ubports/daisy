@@ -29,6 +29,7 @@ except ImportError:
 if not configuration:
     import configuration
 from oopsrepository.cassandra import workaround_1779
+from pycassa.types import CounterColumnType
 
 def create():
     keyspace = configuration.cassandra_keyspace
@@ -40,6 +41,9 @@ def create():
             comparator_type=UTF8_TYPE)
         workaround_1779(mgr.create_column_family, keyspace, 'AwaitingRetrace',
             comparator_type=UTF8_TYPE)
+        workaround_1779(mgr.create_column_family, keyspace, 'RetraceStats',
+            comparator_type=UTF8_TYPE,
+            default_validation_class=CounterColumnType())
     finally:
         mgr.close()
 

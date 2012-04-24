@@ -1,0 +1,5 @@
+#!/bin/sh
+
+for path in backend/test/*.py; do
+    PYTHONPATH=backend python $path
+done
