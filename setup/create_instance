@@ -61,8 +61,8 @@ while :; do
         timeout=0
     fi
     if [ "$(echo "$ret" | cut -f6)" = running ]; then
-        if [ -n "$(echo "$ret" | cut -f5)" ]; then
-            ADDR="$(echo "$ret" | cut -f5)"
+        if [ -n "$(echo "$ret" | cut -f17)" ]; then
+            ADDR="$(echo "$ret" | cut -f17)"
             break
         fi
     fi
