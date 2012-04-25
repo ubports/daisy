@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 exec >/var/log/cloud-init.log 2>&1
-PACKAGES="apport-retrace bzr python-pycassa python-amqplib nfs-common"
+PACKAGES="apport-retrace bzr python-pycassa python-amqplib nfs-common oops-repository"
 echo "deb http://archive.admin.canonical.com lucid-cat main" >> /etc/apt/sources.list
 sudo add-apt-repository ppa:ev/whoopsie-daisy
 sudo apt-get update
