@@ -47,7 +47,7 @@ errors=0
 timeout=0
 while :; do
     echo -n .
-    ret=$(euca-describe-instances $INSTANCE --ipv4 | tail -n1)
+    ret=$(euca-describe-instances $INSTANCE | tail -n1)
     if [ "$(echo "$ret" | cut -f6)" = error ]; then
         printf '\n'
         if [ $errors -gt 5 ]; then
