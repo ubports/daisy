@@ -31,6 +31,7 @@ from pycassa.types import IntegerType, FloatType
 import argparse
 import time
 import socket
+import utils
 
 configuration = None
 try:
@@ -278,7 +279,12 @@ class Retracer:
             # just process this OOPS ID now.
             pass
         for oops_id in oops_ids:
-            oopses.bucket(self.oops_config, oops_id, crash_signature)
+            try:
+                vals = self.oops_fam.get(oops_id, ['DistroRelease', 'Package'])
+                fields = utils.get_fields_for_bucket_counters(vals)
+            except NotFoundException:
+                fields = []
+            oopses.bucket(self.oops_config, oops_id, crash_signature, fields)
 
         try:
             self.awaiting_retrace_fam.remove(stacktrace_addr_sig, oops_ids)

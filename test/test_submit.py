@@ -14,6 +14,8 @@ import schema
 import tempfile
 import shutil
 import os
+import time
+import itertools
 
 # SHA-512 of the system-uuid
 sha512_system_uuid = ('/d78abb0542736865f94704521609c230dac03a2f369d043ac212d6'
@@ -49,6 +51,8 @@ class TestCrashSubmission(TestSubmission):
         report['ProblemType'] = 'Crash'
         report['InterpreterPath'] = '/usr/bin/python'
         report['ExecutablePath'] = '/usr/bin/foo'
+        report['DistroRelease'] = 'Ubuntu 12.04'
+        report['Package'] = 'ubiquity 2.34'
         report['Traceback'] = ('Traceback (most recent call last):\n'
                                '  File "/usr/bin/foo", line 1, in <module>\n'
                                '    sys.exit(1)')
@@ -73,6 +77,32 @@ class TestCrashSubmission(TestSubmission):
         for fam in ('AwaitingRetrace', 'Stacktrace', 'Indexes'):
             cf = pycassa.ColumnFamily(pool, fam)
             self.assertEqual([x for x in cf.get_range()], [])
+        cf = pycassa.ColumnFamily(pool, 'DayBucketsCount')
+        counts = [x for x in cf.get_range()]
+        for count in counts:
+            print count
+        day_key = time.strftime('%Y%m%d', time.gmtime())
+        resolutions = (day_key, day_key[:4], day_key[:6])
+        release = report['DistroRelease']
+        keys = []
+        for resolution in resolutions:
+            keys.append('Ubuntu 12.04:%s' % resolution)
+        for resolution in resolutions:
+            keys.append('Ubuntu 12.04:ubiquity:%s' % resolution)
+        for resolution in resolutions:
+            keys.append('Ubuntu 12.04:ubiquity:2.34:%s' % resolution)
+        for resolution in resolutions:
+            keys.append('ubiquity:2.34:%s' % resolution)
+        'ubiquity:2.34'
+
+        for key in keys:
+            found = False
+            for count in counts:
+                if count[0] == key:
+                    found = True
+            self.assertTrue(found, 'Could not find %s' % key)
+            for count in counts:
+                self.assertEqual(count[1].values(), [1])
 
 class TestBinarySubmission(TestCrashSubmission):
     def setUp(self):
@@ -84,6 +114,8 @@ class TestBinarySubmission(TestCrashSubmission):
         report['ProblemType'] = 'Crash'
         report['StacktraceAddressSignature'] = self.stack_addr_sig
         report['ExecutablePath'] = '/usr/bin/foo'
+        report['Package'] = 'whoopsie 1.2.3'
+        report['DistroRelease'] = 'Ubuntu 12.04'
         report_bson = bson.BSON.encode(report.data)
         report_io = StringIO(report_bson)
         self.environ = { 'CONTENT_TYPE' : 'application/octet-stream',

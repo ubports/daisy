@@ -32,6 +32,7 @@ except ImportError:
 if not configuration:
     import configuration
 import apport
+import utils
 
 os.environ['OOPS_KEYSPACE'] = configuration.cassandra_keyspace
 oops_config = config.get_config()
@@ -95,7 +96,8 @@ def application(environ, start_response):
                     'Missing keys in interpreted report.')
         crash_signature = report.crash_signature()
         if crash_signature:
-            oopses.bucket(oops_config, oops_id, crash_signature)
+            fields = utils.get_fields_for_bucket_counters(data)
+            oopses.bucket(oops_config, oops_id, crash_signature, fields)
             return ok_response(start_response)
         else:
             return bad_request_response(start_response,
@@ -119,7 +121,8 @@ def application(environ, start_response):
     if crash_sig:
         # We have already retraced for this address signature, so this crash
         # can be immediately bucketed.
-        oopses.bucket(oops_config, oops_id, crash_sig)
+        fields = utils.get_fields_for_bucket_counters(data)
+        oopses.bucket(oops_config, oops_id, crash_sig, fields)
     else:
         # Are we already waiting for this stacktrace address signature to be
         # retraced?
