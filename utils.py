@@ -2,7 +2,7 @@ def get_fields_for_bucket_counters(report_dict):
     fields = []
     if 'DistroRelease' in report_dict:
         if 'Package' in report_dict:
-            package, version = report_dict['Package'].split(' ')
+            package, version = report_dict['Package'].split()[:2]
             release = report_dict['DistroRelease']
             fields.append('%s:%s:%s' % (release, package, version))
             fields.append('%s:%s' % (release, package))
@@ -11,6 +11,6 @@ def get_fields_for_bucket_counters(report_dict):
         else:
             fields.append(report_dict['DistroRelease'])
     elif 'Package' in report_dict:
-        package, version = report_dict['Package'].split(' ')
+        package, version = report_dict['Package'].split()[:2]
         fields.append('%s:%s' % (package, version))
     return fields
