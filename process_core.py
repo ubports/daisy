@@ -156,7 +156,7 @@ class Retracer:
         sandbox_release = os.path.join(sandbox_dir, release)
         if not os.path.exists(sandbox_release):
             os.makedirs(sandbox_release)
-        instance_sandbox = tempfile.mkdtemp(dir=sandbox_release)
+        instance_sandbox = tempfile.mkdtemp(prefix='cache-', dir=sandbox_release)
         atexit.register(shutil.rmtree, instance_sandbox)
         # Write a pid file so that if we have to wipe out a cache that has
         # grown too large we can stop the retracer responsible for it before
