@@ -41,8 +41,6 @@ def create():
             comparator_type=UTF8_TYPE)
         workaround_1779(mgr.create_column_family, keyspace, 'AwaitingRetrace',
             comparator_type=UTF8_TYPE)
-        workaround_1779(mgr.create_column_family, keyspace, 'BucketMetadata',
-            comparator_type=UTF8_TYPE)
         workaround_1779(mgr.create_column_family, keyspace, 'RetraceStats',
             comparator_type=UTF8_TYPE,
             default_validation_class=CounterColumnType())

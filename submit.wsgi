@@ -58,6 +58,7 @@ def bad_request_response(start_response, text=''):
     start_response('400 Bad Request', [])
     return [text]
 
+# TODO refactor into a class
 def application(environ, start_response):
     global oops_config
     global pool, indexes_fam, awaiting_retrace_fam
@@ -96,8 +97,7 @@ def application(environ, start_response):
                     'Missing keys in interpreted report.')
         crash_signature = report.crash_signature()
         if crash_signature:
-            fields = utils.get_fields_for_bucket_counters(data)
-            oopses.bucket(oops_config, oops_id, crash_signature, fields)
+            utils.bucket(oops_config, oops_id, crash_signature, data)
             return ok_response(start_response)
         else:
             return bad_request_response(start_response,
@@ -121,8 +121,7 @@ def application(environ, start_response):
     if crash_sig:
         # We have already retraced for this address signature, so this crash
         # can be immediately bucketed.
-        fields = utils.get_fields_for_bucket_counters(data)
-        oopses.bucket(oops_config, oops_id, crash_sig, fields)
+        utils.bucket(oops_config, oops_id, crash_sig, data)
     else:
         # Are we already waiting for this stacktrace address signature to be
         # retraced?

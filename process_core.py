@@ -281,10 +281,9 @@ class Retracer:
         for oops_id in oops_ids:
             try:
                 vals = self.oops_fam.get(oops_id, ['DistroRelease', 'Package'])
-                fields = utils.get_fields_for_bucket_counters(vals)
             except NotFoundException:
-                fields = []
-            oopses.bucket(self.oops_config, oops_id, crash_signature, fields)
+                vals = {}
+            utils.bucket(self.oops_config, oops_id, crash_signature, vals)
 
         try:
             self.awaiting_retrace_fam.remove(stacktrace_addr_sig, oops_ids)
