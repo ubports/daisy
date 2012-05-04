@@ -1,3 +1,4 @@
+#!/usr/bin/python
 import pycassa
 import sys
 from pycassa.cassandra.ttypes import NotFoundException

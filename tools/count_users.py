@@ -1,3 +1,4 @@
+#!/usr/bin/python
 import pycassa
 from pycassa.cassandra.ttypes import NotFoundException
 pool = pycassa.ConnectionPool('crashdb', ['localhost'], timeout=10)
