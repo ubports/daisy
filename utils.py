@@ -9,6 +9,7 @@ def get_fields_for_bucket_counters(release, package, version):
             fields.append('%s:%s' % (release, package))
             fields.append(release)
             fields.append('%s:%s' % (package, version))
+            fields.append(package)
         else:
             fields.append(release)
     elif package:
