@@ -41,7 +41,7 @@ except ImportError:
 if not configuration:
     import configuration
 
-from oopsrepository import config, oopses
+from oopsrepository import config
 
 def get_architecture():
     try:
@@ -56,6 +56,7 @@ class Retracer:
         self.setup_cassandra()
         self.config_dir = config_dir
         self.sandbox_dir = sandbox_dir
+        self.architecture = get_architecture()
         # A mapping of release names to temporary sandbox and cache
         # directories, so that we can remove them at the end of the run.
         # TODO: we should create a single temporary directory that all of these
@@ -78,7 +79,7 @@ class Retracer:
         self.retrace_stats_fam = ColumnFamily(pool, 'RetraceStats')
 
     def listen(self):
-        retrace = 'retrace_%s' % get_architecture()
+        retrace = 'retrace_%s' % self.architecture
         connection = None
         channel = None
         try:
@@ -134,7 +135,7 @@ class Retracer:
         self.retrace_stats_fam.add(day_key, release + status)
 
         # Compute the cumulative moving average
-        mean_key = '%s:%s' % (day_key, release)
+        mean_key = '%s:%s:%s' % (day_key, release, self.architecture)
         count_key = '%s:count' % mean_key
         self.indexes_fam.column_validators = {mean_key: FloatType(),
                                               count_key: IntegerType()}
