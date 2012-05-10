@@ -11,5 +11,5 @@ sudo mkdir -p /srv/cores
 # Retracer config.
 h=/home/ubuntu
 sudo -u ubuntu mkdir -p $h/cache
-sudo -u ubuntu bzr branch lp:whoopsie-daisy $h/whoopsie-daisy
-sudo -u ubuntu nohup $h/whoopsie-daisy/backend/process_core.py --config-dir $h/whoopsie-daisy/backend/retracer/config --cache $h/cache > /var/log/retrace.log 2>&1 < /dev/null &
+sudo -u ubuntu bzr branch lp:daisy $h/daisy
+sudo -u ubuntu nohup $h/daisy/process_core.py --config-dir $h/daisy/retracer/config --cache $h/cache > /var/log/retrace.log 2>&1 < /dev/null &

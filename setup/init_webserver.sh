@@ -11,15 +11,15 @@ cat > /etc/exports << EOF
 EOF
 sudo exportfs -ra
 cat > /etc/apache2/sites-enabled/000-default << EOF
-WSGIPythonPath /var/www/whoopsie-daisy/backend
+WSGIPythonPath /var/www/daisy
 <VirtualHost *:80>
 	ServerAdmin webmaster@localhost
 
-	DocumentRoot /var/www/whoopsie-daisy/backend
-	WSGIScriptAlias / /var/www/whoopsie-daisy/backend/submit.wsgi
+	DocumentRoot /var/www/daisy
+	WSGIScriptAlias / /var/www/daisy/submit.wsgi
 	RewriteEngine on
 	RewriteRule ^/([^/]+)/submit-core/([^/]+)/([^/]+) /submit_core.wsgi?uuid=\$1&arch=\$2&systemuuid=\$3 [L]
-	<Directory /var/www/whoopsie-daisy/backend>
+	<Directory /var/www/daisy>
 		SetHandler wsgi-script
 	</Directory>
 	ErrorLog /var/log/apache2/error.log
@@ -27,5 +27,5 @@ WSGIPythonPath /var/www/whoopsie-daisy/backend
 	CustomLog /var/log/apache2/access.log combined
 </VirtualHost>
 EOF
-bzr branch lp:whoopsie-daisy /var/www/whoopsie-daisy
+bzr branch lp:daisy /var/www/daisy
 sudo /etc/init.d/apache2 restart

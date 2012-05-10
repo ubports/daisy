@@ -15,7 +15,7 @@ sed -i 's/rpc_address:.*/rpc_address: 0.0.0.0/g' /etc/cassandra/cassandra.yaml
 echo "connect localhost/9160; 
 create keyspace crashdb;" | cassandra-cli -B
 OOPS_KEYSPACE=crashdb python /usr/share/pyshared/oopsrepository/schema.py
-bzr branch lp:whoopsie-daisy
-python whoopsie-daisy/backend/schema.py
+bzr branch lp:daisy
+python daisy/schema.py
 # To pick up the change to rpc_address
 sudo /etc/init.d/cassandra restart

@@ -23,9 +23,9 @@ if [ -n "$CASSANDRA_IP" ] && [ -n "$RABBIT_IP" ]; then
     WORKING=$(mktemp)
     cat init_webserver.sh > $WORKING
     echo "sed -i 's,cassandra_host = .*,cassandra_host = \"$CASSANDRA_IP\",'" \
-        " /var/www/whoopsie-daisy/backend/configuration.py" >> $WORKING
+        " /var/www/daisy/configuration.py" >> $WORKING
     echo "sed -i 's,amqp_host = .*,amqp_host = \"$RABBIT_IP\",'" \
-        " /var/www/whoopsie-daisy/backend/configuration.py" >> $WORKING
+        " /var/www/daisy/configuration.py" >> $WORKING
     OUT="$(./create_instance $WORKING medium | tee /dev/fd/2 )"
     WEBSERVER_IP="$(echo "$OUT" | grep "Instance available:" | cut -d' ' -f3)"
     IDS="$IDS $(echo "$OUT" | grep "Instance started:" | cut -d' ' -f3)"
@@ -33,8 +33,8 @@ fi
 # TODO i386 retracer
 cat init_retracer.sh > $WORKING
 echo "sed -i 's,cassandra_host = .*,cassandra_host = \"$CASSANDRA_IP\",'" \
-    " /home/ubuntu/whoopsie-daisy/backend/configuration.py" >> $WORKING
+    " /home/ubuntu/daisy/configuration.py" >> $WORKING
 echo "sed -i 's,amqp_host = .*,amqp_host = \"$RABBIT_IP\",'" \
-    " /home/ubuntu/whoopsie-daisy/backend/configuration.py" >> $WORKING
+    " /home/ubuntu/daisy/configuration.py" >> $WORKING
 echo "sudo mount -t nfs $WEBSERVER_IP:/srv/cores /srv/cores" >> $WORKING
 ./create_instance init_retracer.sh medium ami-97
