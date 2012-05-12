@@ -33,7 +33,7 @@ from pycassa.types import CounterColumnType
 
 def create():
     keyspace = configuration.cassandra_keyspace
-    mgr = SystemManager()
+    mgr = SystemManager(configuration.cassandra_host)
     try:
         workaround_1779(mgr.create_column_family, keyspace, 'Indexes',
             comparator_type=UTF8_TYPE)
