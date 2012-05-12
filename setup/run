@@ -37,4 +37,4 @@ echo "sed -i 's,cassandra_host = .*,cassandra_host = \"$CASSANDRA_IP\",'" \
 echo "sed -i 's,amqp_host = .*,amqp_host = \"$RABBIT_IP\",'" \
     " /home/ubuntu/daisy/configuration.py" >> $WORKING
 echo "sudo mount -t nfs $WEBSERVER_IP:/srv/cores /srv/cores" >> $WORKING
-./create_instance init_retracer.sh medium ami-97
+./create_instance $WORKING medium ami-97

@@ -34,16 +34,21 @@ from pycassa.types import CounterColumnType
 def create():
     keyspace = configuration.cassandra_keyspace
     mgr = SystemManager(configuration.cassandra_host)
+    cfs = mgr.get_keyspace_column_families(keyspace).keys()
     try:
-        workaround_1779(mgr.create_column_family, keyspace, 'Indexes',
-            comparator_type=UTF8_TYPE)
-        workaround_1779(mgr.create_column_family, keyspace, 'Stacktrace',
-            comparator_type=UTF8_TYPE)
-        workaround_1779(mgr.create_column_family, keyspace, 'AwaitingRetrace',
-            comparator_type=UTF8_TYPE)
-        workaround_1779(mgr.create_column_family, keyspace, 'RetraceStats',
-            comparator_type=UTF8_TYPE,
-            default_validation_class=CounterColumnType())
+        if 'Indexes' not in cfs:
+            workaround_1779(mgr.create_column_family, keyspace, 'Indexes',
+                comparator_type=UTF8_TYPE)
+        if 'Stacktrace' not in cfs:
+            workaround_1779(mgr.create_column_family, keyspace, 'Stacktrace',
+                comparator_type=UTF8_TYPE)
+        if 'AwaitingRetrace' not in cfs:
+            workaround_1779(mgr.create_column_family, keyspace, 'AwaitingRetrace',
+                comparator_type=UTF8_TYPE)
+        if 'RetraceStats' not in cfs:
+            workaround_1779(mgr.create_column_family, keyspace, 'RetraceStats',
+                comparator_type=UTF8_TYPE,
+                default_validation_class=CounterColumnType())
     finally:
         mgr.close()
 

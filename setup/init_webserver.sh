@@ -6,6 +6,10 @@ sudo apt-get update
 DEBCONF_FRONTEND=noninteractive sudo apt-get -y install $packages
 # Enable mod_rewrite.
 sudo a2enmod rewrite
+mkdir /srv/cores
+sudo chmod www-data:users /srv/cores
+# *whistles*
+sudo chmod 777 /srv/cores
 cat > /etc/exports << EOF
 /srv/cores 10.55.60.0/24(rw,sync,no_subtree_check)
 EOF
