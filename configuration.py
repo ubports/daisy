@@ -27,3 +27,6 @@ amqp_host = '127.0.0.1'
 
 # The path to the SAN for storing core dumps.
 san_path = '/srv/cores'
+
+# The path to store OOPS reports in for http://errors.ubuntu.com.
+oops_repository = '/srv/local-oopses-whoopsie'
