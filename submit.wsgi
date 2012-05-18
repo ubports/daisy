@@ -59,7 +59,7 @@ def bad_request_response(start_response, text=''):
     return [text]
 
 # TODO refactor into a class
-def application(environ, start_response):
+def wsgi_handler(environ, start_response):
     global oops_config
     global pool, indexes_fam, awaiting_retrace_fam
 
@@ -140,3 +140,7 @@ def application(environ, start_response):
         awaiting_retrace_fam.insert(addr_sig, {oops_id : ''})
             
     return ok_response(start_response, output)
+
+application = utils.wrap_in_oops_wsgi(wsgi_handler,
+                                      configuration.oops_repository,
+                                      'daisy.ubuntu.com')

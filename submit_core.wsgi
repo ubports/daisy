@@ -22,6 +22,7 @@ import pycassa
 from pycassa.cassandra.ttypes import NotFoundException
 import shutil
 import atexit
+import utils
 
 configuration = None
 try:
@@ -44,7 +45,7 @@ pool = pycassa.ConnectionPool(configuration.cassandra_keyspace,
 indexes_fam = pycassa.ColumnFamily(pool, 'Indexes')
 oops_fam = pycassa.ColumnFamily(pool, 'OOPS')
 
-def application(environ, start_response):
+def wsgi_handler(environ, start_response):
     global channel
     params = parse_qs(environ.get('QUERY_STRING', ''))
     uuid = ''
@@ -93,3 +94,7 @@ def application(environ, start_response):
         
     start_response('200 OK', [])
     return [uuid]
+
+application = utils.wrap_in_oops_wsgi(wsgi_handler,
+                                      configuration.oops_repository,
+                                      'daisy.ubuntu.com')
