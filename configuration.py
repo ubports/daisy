@@ -30,3 +30,8 @@ san_path = '/srv/cores'
 
 # The path to store OOPS reports in for http://errors.ubuntu.com.
 oops_repository = '/srv/local-oopses-whoopsie'
+
+# The host and port of the txstatsd server.
+statsd_host = 'localhost'
+
+statsd_port = 8125
