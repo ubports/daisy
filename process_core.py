@@ -32,6 +32,7 @@ import argparse
 import time
 import socket
 import utils
+import re
 
 configuration = None
 try:
@@ -217,12 +218,23 @@ class Retracer:
         for k in col:
             report[k.encode('UTF-8')] = col[k].encode('UTF-8')
         
+        release = report.get('DistroRelease', '')
+        bad = '[^-a-zA-Z0-9_.() ]+'
+        if not release or re.search(bad, release) or len(release) > 1024:
+            msg.channel.basic_ack(msg.delivery_tag)
+            for p in (path, new_path):
+                try:
+                    os.remove(p)
+                except OSError, e:
+                    if e.errno != 2:
+                        raise
+            return
+
         report['CoreDump'] = (new_path,)
         report_path = '%s.crash' % path
         with open(report_path, 'w') as fp:
             report.write(fp)
         print 'Retracing'
-        release = report['DistroRelease']
         sandbox, cache = self.setup_cache(self.sandbox_dir, release)
         day_key = time.strftime('%Y%m%d', time.gmtime())
         retracing_start_time = time.time()
