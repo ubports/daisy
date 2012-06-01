@@ -32,6 +32,7 @@ except ImportError:
 if not configuration:
     import configuration
 import os
+import metrics
 
 ostream = 'application/octet-stream'
 connection = amqp.Connection(host=configuration.amqp_host)
@@ -40,8 +41,7 @@ atexit.register(connection.close)
 atexit.register(channel.close)
 
 # Cassandra connections. These may move into oopsrepository in the future.
-pool = pycassa.ConnectionPool(configuration.cassandra_keyspace,
-                              [configuration.cassandra_host])
+pool = metrics.failure_wrapped_connection_pool()
 indexes_fam = pycassa.ColumnFamily(pool, 'Indexes')
 oops_fam = pycassa.ColumnFamily(pool, 'OOPS')
 

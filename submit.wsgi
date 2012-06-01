@@ -33,14 +33,14 @@ if not configuration:
     import configuration
 import apport
 import utils
+import metrics
 
 os.environ['OOPS_KEYSPACE'] = configuration.cassandra_keyspace
 oops_config = config.get_config()
 oops_config['host'] = [configuration.cassandra_host]
 
 # Cassandra connections. These may move into oopsrepository in the future.
-pool = pycassa.ConnectionPool(configuration.cassandra_keyspace,
-                          [configuration.cassandra_host])
+pool = metrics.failure_wrapped_connection_pool()
 indexes_fam = pycassa.ColumnFamily(pool, 'Indexes')
 awaiting_retrace_fam = pycassa.ColumnFamily(pool, 'AwaitingRetrace')
 

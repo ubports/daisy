@@ -24,7 +24,6 @@ import tempfile
 import shutil
 from subprocess import Popen, PIPE
 import apport
-from pycassa.pool import ConnectionPool
 from pycassa.columnfamily import ColumnFamily
 from pycassa.cassandra.ttypes import NotFoundException
 from pycassa.types import IntegerType, FloatType
@@ -33,6 +32,7 @@ import time
 import socket
 import utils
 import re
+import metrics
 
 configuration = None
 try:
@@ -71,8 +71,7 @@ class Retracer:
         self.oops_config = config.get_config()
         self.oops_config['host'] = [configuration.cassandra_host]
 
-        pool = ConnectionPool(configuration.cassandra_keyspace,
-                              [configuration.cassandra_host])
+        pool = metrics.failure_wrapped_connection_pool()
         self.oops_fam = ColumnFamily(pool, 'OOPS')
         self.indexes_fam = ColumnFamily(pool, 'Indexes')
         self.stack_fam = ColumnFamily(pool, 'Stacktrace')
