@@ -27,7 +27,8 @@ class FailureListener(pycassa.pool.PoolListener):
         name = 'cassandra_connection_failures'
         get_metrics().increment(name)
 
-def failure_wrapped_connection_pool(namespace):
+# TODO: Specifying a separate namespace for the retracers.
+def failure_wrapped_connection_pool():
     return pycassa.ConnectionPool(configuration.cassandra_keyspace,
                                   [configuration.cassandra_host],
                                   listeners=[FailureListener()])
