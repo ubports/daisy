@@ -1,5 +1,6 @@
 #!/usr/bin/python
 import sys
+import os
 import pycassa
 from pycassa.cassandra.ttypes import NotFoundException
 import amqplib.client_0_8 as amqp
@@ -18,17 +19,17 @@ if len(sys.argv) < 2:
     sys.exit(1)
 
 path = sys.argv[1]
+uuid = os.path.basename(path)
 pool = pycassa.ConnectionPool(configuration.cassandra_keyspace,
                               [configuration.cassandra_host])
 oops_fam = pycassa.ColumnFamily(pool, 'OOPS')
-uuid = ''
+arch = ''
 try:
-    uuid = path.rsplit('/', 1)[1]
     arch = oops_fam.get(uuid, columns=['Architecture'])['Architecture']
-    queue = 'retrace_%s' % arch
 except NotFoundException:
     print >>sys.stderr, 'could not find architecture for %s' % uuid
     sys.exit(1)
+queue = 'retrace_%s' % arch
 
 connection = amqp.Connection(host=configuration.amqp_host)
 channel = connection.channel()
