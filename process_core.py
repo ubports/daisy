@@ -174,7 +174,14 @@ class Retracer:
     def callback(self, msg):
         print 'Processing', msg.body
         path = msg.body
-        oops_id = msg.body.rsplit('/', 1)[1]
+        try:
+            oops_id = msg.body.rsplit('/', 1)[1]
+        except IndexError:
+            # If we accidentally put something other than a full path on the
+            # queue.
+            print 'Could not parse message:', path
+            msg.channel.basic_ack(msg.delivery_tag)
+            return
         if not os.path.exists(path):
             print path, 'does not exist, skipping.'
             # We've processed this. Delete it off the MQ.
