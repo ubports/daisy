@@ -17,11 +17,13 @@ if len(sys.argv) < 2:
     print >>sys.stderr, 'usage: %s <uuid>'
     sys.exit(1)
 
-uuid = sys.argv[1]
+path = sys.argv[1]
 pool = pycassa.ConnectionPool(configuration.cassandra_keyspace,
                               [configuration.cassandra_host])
 oops_fam = pycassa.ColumnFamily(pool, 'OOPS')
+uuid = ''
 try:
+    uuid = path.rsplit('/', 1)[1]
     arch = oops_fam.get(uuid, columns=['Architecture'])['Architecture']
     queue = 'retrace_%s' % arch
 except NotFoundException:
@@ -33,8 +35,8 @@ channel = connection.channel()
 atexit.register(connection.close)
 atexit.register(channel.close)
 channel.queue_declare(queue=queue, durable=True, auto_delete=False)
-body = amqp.Message(uuid)
+body = amqp.Message(path)
 # Persistent
 body.properties['delivery_mode'] = 2
 channel.basic_publish(body, exchange='', routing_key=queue)
-print 'published %s' % uuid
+print 'published %s' % path
