@@ -26,7 +26,7 @@ def bucket(oops_config, oops_id, crash_signature, report_dict):
     package = report_dict.get('Package', None)
     version = None
     if package:
-        package, version = package.split()[:2]
+        package, version = package.split()[:2] or (package, '')
 
     fields = get_fields_for_bucket_counters(release, package, version)
     oopses.bucket(oops_config, oops_id, crash_signature, fields)
