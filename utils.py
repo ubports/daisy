@@ -27,6 +27,9 @@ def bucket(oops_config, oops_id, crash_signature, report_dict):
     version = None
     if package:
         package, version = package.split()[:2] or (package, '')
+        if version == '(not':
+            # The version is set to '(not installed)'
+            version = ''
 
     fields = get_fields_for_bucket_counters(release, package, version)
     oopses.bucket(oops_config, oops_id, crash_signature, fields)
