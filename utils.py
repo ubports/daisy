@@ -22,8 +22,17 @@ def get_fields_for_bucket_counters(release, package, version):
     return fields
 
 def bucket(oops_config, oops_id, crash_signature, report_dict):
-    release = report_dict.get('DistroRelease', None)
-    package = report_dict.get('Package', None)
+    release = report_dict.get('DistroRelease', '')
+    package = report_dict.get('Package', '')
+    dependencies = report_dict.get('Dependencies', '')
+    if '[origin:' in package or '[origin:' in dependencies:
+        # This package came from a third-party source. We do not want to show
+        # its version as the Last Seen field on the most common problems table,
+        # so skip updating the bucket metadata.
+        third_party = True
+    else:
+        third_party = False
+
     version = None
     if package:
         package, version = package.split()[:2] or (package, '')
@@ -33,7 +42,7 @@ def bucket(oops_config, oops_id, crash_signature, report_dict):
 
     fields = get_fields_for_bucket_counters(release, package, version)
     oopses.bucket(oops_config, oops_id, crash_signature, fields)
-    if package and version:
+    if (package and version) and not third_party:
         oopses.update_bucket_metadata(oops_config, crash_signature, package,
                                       version, apt.apt_pkg.version_compare)
 
