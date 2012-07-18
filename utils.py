@@ -45,6 +45,8 @@ def bucket(oops_config, oops_id, crash_signature, report_dict):
     if (package and version) and not third_party:
         oopses.update_bucket_metadata(oops_config, crash_signature, package,
                                       version, apt.apt_pkg.version_compare)
+    if version:
+        oopses.update_bucket_versions(oops_config, crash_signature, version)
 
 def wrap_in_oops_wsgi(wsgi_handler, path, hostname):
     config = Config()
