@@ -84,7 +84,11 @@ def wsgi_handler(environ, start_response):
         data = bson.BSON(data).decode()
     except bson.errors.InvalidBSON:
         return bad_request_response(start_response, 'Invalid BSON.')
-    oopses.insert_dict(oops_config, oops_id, data, user_token)
+    fields = []
+    release = data.get('DistroRelease', None)
+    if release:
+        fields.append(release)
+    oopses.insert_dict(oops_config, oops_id, data, user_token, fields)
 
     if 'InterpreterPath' in data and not 'StacktraceAddressSignature' in data:
         # Python crashes can be immediately bucketed.
