@@ -15,10 +15,13 @@ pool = pycassa.ConnectionPool(configuration.cassandra_keyspace,
 bucketmetadata_cf = pycassa.ColumnFamily(pool, 'BucketMetadata')
 
 def main():
-    for key, column_data in bucketmetadata_cf.get_range(columns=['LastSeen']):
+    for key, column_data in bucketmetadata_cf.get_range(columns=['LastSeen', 'FirstSeen']):
         if column_data['LastSeen'] == '(not' and key:
             print 'fixing', key
             bucketmetadata_cf.insert(key, {'LastSeen':''})
+        if column_data['FirstSeen'] == '(not' and key:
+            print 'fixing', key
+            bucketmetadata_cf.insert(key, {'FirstSeen':''})
 
 if __name__ == '__main__':
     main()
