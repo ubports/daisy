@@ -53,10 +53,11 @@ def get_architecture():
         sys.exit(1)
 
 class Retracer:
-    def __init__(self, config_dir, sandbox_dir):
+    def __init__(self, config_dir, sandbox_dir, verbose):
         self.setup_cassandra()
         self.config_dir = config_dir
         self.sandbox_dir = sandbox_dir
+        self.verbose = verbose
         self.architecture = get_architecture()
         # A mapping of release names to temporary sandbox and cache
         # directories, so that we can remove them at the end of the run.
@@ -240,15 +241,21 @@ class Retracer:
         report_path = '%s.crash' % path
         with open(report_path, 'w') as fp:
             report.write(fp)
+
         print 'Retracing'
         sandbox, cache = self.setup_cache(self.sandbox_dir, release)
         day_key = time.strftime('%Y%m%d', time.gmtime())
+
         retracing_start_time = time.time()
-        proc = Popen(['apport-retrace', report_path, '-c',
-                      '-S', self.config_dir, '-C', cache,
-                      '--sandbox-dir', sandbox, '-o', '%s.new' % report_path])
+        cmd = ['apport-retrace', report_path, '-c', '-S', self.config_dir,
+               '-C', cache, '--sandbox-dir', sandbox,
+               '-o', '%s.new' % report_path]
+        if self.verbose:
+            cmd.append('-v')
+        proc = Popen(cmd)
         proc.communicate()
         retracing_time = time.time() - retracing_start_time
+
         if proc.returncode == 0 and os.path.exists('%s.new' % report_path):
             print 'Writing back to Cassandra'
             report = apport.Report()
@@ -274,7 +281,7 @@ class Retracer:
             # map/reduce job.
             stacktrace_addr_sig = report['StacktraceAddressSignature']
             crash_signature = 'failed:%s' % stacktrace_addr_sig
-            print 'Could not retrace.'
+            print 'Could not retrace: apport-retrace returned', proc.returncode
             self.update_retrace_stats(release, day_key, retracing_time, False)
 
         # We want really quick lookups of whether we have a stacktrace for this
@@ -332,11 +339,14 @@ def parse_options():
                         'each instance of this program. Future runs will '
                         'assume that any already downloaded package is also '
                         'extracted to this sandbox.')
+    parser.add_argument('-v', '--verbose',
+                        help='Print extra information during each retrace.')
     return parser.parse_args()
 
 def main():
     options = parse_options()
-    retracer = Retracer(options.config_dir, options.sandbox_dir)
+    retracer = Retracer(options.config_dir, options.sandbox_dir,
+                        options.verbose)
     retracer.listen()
 
 if __name__ == '__main__':
