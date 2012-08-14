@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+import sys
 import time
 import pycassa
 from pycassa.cassandra.ttypes import NotFoundException, InvalidRequestException
@@ -63,7 +64,8 @@ def fetch_oopses(date):
 def fetch_identifiers(oopses):
     kwargs = dict(
         columns=['DistroRelease', 'SystemIdentifier'],
-        buffer_size=25,
+        # 30 is too high. Webops paged.
+        buffer_size=20,
         read_consistency_level=pycassa.ConsistencyLevel.ONE
     )
     # The buffer size here needs to be carefully tuned. If set too high, it
@@ -75,8 +77,13 @@ def fetch_identifiers(oopses):
     return gen
 
 if __name__ == '__main__':
-    today = datetime.date.today()
-    i = _date_range_iterator(today - datetime.timedelta(days=90), today)
+    if len(sys.argv) > 2:
+        start = datetime.datetime.strptime(sys.argv[1], '%Y%m%d')
+        end = datetime.datetime.strptime(sys.argv[2], '%Y%m%d')
+        i = _date_range_iterator(start, end)
+    else:
+        today = datetime.date.today()
+        i = _date_range_iterator(today - datetime.timedelta(days=90), today)
     for date in i:
         print 'looking up', date
 
@@ -91,7 +98,7 @@ if __name__ == '__main__':
             ids = fetch_identifiers(oopses)
 
         with Timer('inserting identifiers'):
-            args = [iter(ids)] * 100
+            args = [iter(ids)] * 200
             for k in itertools.izip_longest(ids):
                 dayusers_cf.insert('Ubuntu 12.04:%s' % date,
                                    pycassa.util.OrderedDict(k))
