@@ -35,3 +35,9 @@ oops_repository = '/srv/local-oopses-whoopsie'
 statsd_host = 'localhost'
 
 statsd_port = 8125
+
+# Use Launchpad staging instead of production.
+lp_use_staging = False
+
+# Directory for httplib2's request cache.
+http_cache_dir = '/tmp/errors.ubuntu.com-httplib2-cache'
