@@ -44,12 +44,16 @@ if not configuration:
 
 from oopsrepository import config
 
+def log(message):
+    sys.stdout.write('%s: ' % time.strftime('%x %X'))
+    print(message)
+
 def get_architecture():
     try:
         p = Popen(['dpkg-architecture', '-qDEB_HOST_ARCH'], stdout=PIPE)
         return p.communicate()[0].strip('\n')
     except OSError, e:
-        print >>sys.stderr, 'Could not determine architecture: %s' % str(e)
+        log('Could not determine architecture: %s' % str(e))
         sys.exit(1)
 
 class Retracer:
@@ -89,7 +93,7 @@ class Retracer:
             channel.queue_declare(queue=retrace, durable=True,
                                   auto_delete=False)
             channel.basic_qos(0, 1, False)
-            print 'Waiting for messages. ^C to exit.'
+            log('Waiting for messages. ^C to exit.')
             self.run_forever(channel, self.callback, queue=retrace)
         finally:
             if connection:
@@ -173,18 +177,18 @@ class Retracer:
         return self._sandboxes[release]
 
     def callback(self, msg):
-        print 'Processing', msg.body
+        log('Processing', msg.body)
         path = msg.body
         try:
             oops_id = msg.body.rsplit('/', 1)[1]
         except IndexError:
             # If we accidentally put something other than a full path on the
             # queue.
-            print 'Could not parse message:', path
+            log('Could not parse message:', path)
             msg.channel.basic_ack(msg.delivery_tag)
             return
         if not os.path.exists(path):
-            print path, 'does not exist, skipping.'
+            log(path, 'does not exist, skipping.')
             # We've processed this. Delete it off the MQ.
             msg.channel.basic_ack(msg.delivery_tag)
             # Also remove it from the retracing index, if we haven't already.
@@ -199,12 +203,12 @@ class Retracer:
 
         new_path = '%s.core' % path
         with open(new_path, 'wb') as fp:
-            print 'Decompressing to', new_path
+            log('Decompressing to', new_path)
             p1 = Popen(['base64', '-d', path], stdout=PIPE)
             p2 = Popen(['zcat'], stdin=p1.stdout, stdout=fp)
             ret = p2.communicate()
         if p2.returncode != 0:
-            print >>sys.stderr, 'Error processing %s:\n%s' % (path, ret[1])
+            log('Error processing %s:\n%s' % (path, ret[1]))
             # We've processed this. Delete it off the MQ.
             msg.channel.basic_ack(msg.delivery_tag)
             try:
@@ -242,7 +246,7 @@ class Retracer:
         with open(report_path, 'w') as fp:
             report.write(fp)
 
-        print 'Retracing'
+        log('Retracing')
         sandbox, cache = self.setup_cache(self.sandbox_dir, release)
         day_key = time.strftime('%Y%m%d', time.gmtime())
 
@@ -256,8 +260,9 @@ class Retracer:
         proc.communicate()
         retracing_time = time.time() - retracing_start_time
 
+        has_signature = False
         if proc.returncode == 0 and os.path.exists('%s.new' % report_path):
-            print 'Writing back to Cassandra'
+            log('Writing back to Cassandra')
             report = apport.Report()
             with open('%s.new' % report_path, 'r') as fp:
                 report.load(fp)
@@ -265,23 +270,29 @@ class Retracer:
 
             crash_signature = report.crash_signature()
             if crash_signature:
-                self.stack_fam.insert(stacktrace_addr_sig, report)
-                self.update_retrace_stats(release, day_key, retracing_time,
-                                          True)
-            else:
-                crash_signature = 'failed:%s' % stacktrace_addr_sig
-                print 'Could not retrace.'
-                self.update_retrace_stats(release, day_key, retracing_time,
-                                          False)
+                has_signature = True
+
+        if has_signature:
+            self.stack_fam.insert(stacktrace_addr_sig, report)
+            self.update_retrace_stats(release, day_key, retracing_time, True)
         else:
             # Given that we do not as yet keep debugging symbols around for
             # every package version ever released, it's worth knowing the
             # extent of the problem. If we ever decide to keep debugging
             # symbols for every package version, we can reprocess these with a
             # map/reduce job.
+
             stacktrace_addr_sig = report['StacktraceAddressSignature']
             crash_signature = 'failed:%s' % stacktrace_addr_sig
-            print 'Could not retrace: apport-retrace returned', proc.returncode
+            log('Could not retrace.')
+            if 'Stacktrace' in report:
+                log('Stacktrace:')
+                log(report['Stacktrace'])
+            else:
+                log('No stacktrace.')
+            if 'RetraceOutdatedPackages' in report:
+                log('RetraceOutdatedPackages:')
+                log(report['RetraceOutdatedPackages'])
             self.update_retrace_stats(release, day_key, retracing_time, False)
 
         # We want really quick lookups of whether we have a stacktrace for this
@@ -323,7 +334,7 @@ class Retracer:
             except OSError, e:
                 if e.errno != 2:
                     raise
-        print 'Done processing', path
+        log('Done processing', path)
         # We've processed this. Delete it off the MQ.
         msg.channel.basic_ack(msg.delivery_tag)
 
