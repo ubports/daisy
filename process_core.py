@@ -177,18 +177,18 @@ class Retracer:
         return self._sandboxes[release]
 
     def callback(self, msg):
-        log('Processing', msg.body)
+        log('Processing %s' % msg.body)
         path = msg.body
         try:
             oops_id = msg.body.rsplit('/', 1)[1]
         except IndexError:
             # If we accidentally put something other than a full path on the
             # queue.
-            log('Could not parse message:', path)
+            log('Could not parse message: %s' % path)
             msg.channel.basic_ack(msg.delivery_tag)
             return
         if not os.path.exists(path):
-            log(path, 'does not exist, skipping.')
+            log(' %s does not exist, skipping.' % path)
             # We've processed this. Delete it off the MQ.
             msg.channel.basic_ack(msg.delivery_tag)
             # Also remove it from the retracing index, if we haven't already.
@@ -203,7 +203,7 @@ class Retracer:
 
         new_path = '%s.core' % path
         with open(new_path, 'wb') as fp:
-            log('Decompressing to', new_path)
+            log('Decompressing to %s' % new_path)
             p1 = Popen(['base64', '-d', path], stdout=PIPE)
             p2 = Popen(['zcat'], stdin=p1.stdout, stdout=fp)
             ret = p2.communicate()
@@ -334,7 +334,7 @@ class Retracer:
             except OSError, e:
                 if e.errno != 2:
                     raise
-        log('Done processing', path)
+        log('Done processing %s' % path)
         # We've processed this. Delete it off the MQ.
         msg.channel.basic_ack(msg.delivery_tag)
 
