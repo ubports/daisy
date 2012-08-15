@@ -41,3 +41,16 @@ lp_use_staging = False
 
 # Directory for httplib2's request cache.
 http_cache_dir = '/tmp/errors.ubuntu.com-httplib2-cache'
+
+# Database configuration for the Errors Django application. This database is
+# used to store OpenID login information.
+django_databases = {
+    'default' : {
+        'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        'NAME': 'django_db',
+        'USER': 'django_login',
+        'PASSWORD': '',
+        'HOST': 'localhost',
+        'PORT': '5432',
+        }
+}
