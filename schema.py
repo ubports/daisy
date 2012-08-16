@@ -19,6 +19,7 @@
 from pycassa.system_manager import (
     SystemManager,
     UTF8_TYPE,
+    LONG_TYPE,
     )
 
 configuration = None
@@ -49,6 +50,11 @@ def create():
             workaround_1779(mgr.create_column_family, keyspace, 'RetraceStats',
                 comparator_type=UTF8_TYPE,
                 default_validation_class=CounterColumnType())
+        if 'UniqueUsers90Days' not in cfs:
+            workaround_1779(mgr.create_column_family, keyspace, 'UniqueUsers90Days',
+                comparator_type=UTF8_TYPE,
+                key_validation_class=UTF8_TYPE,
+                default_validation_class=LONG_TYPE)
     finally:
         mgr.close()
 
