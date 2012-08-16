@@ -31,8 +31,11 @@ def _date_range_iterator(start, finish):
 # Main
 
 if __name__ == '__main__':
-    today = datetime.date.today()
-    i = _date_range_iterator(today - datetime.timedelta(days=90), today)
+    if sys.argv > 1:
+        start = datetime.datetime.strptime(sys.argv[1], '%Y%m%d')
+    else:
+        start = datetime.date.today()
+    i = _date_range_iterator(start - datetime.timedelta(days=90), start)
     users = set()
     for date in i:
         start = ''
