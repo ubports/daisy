@@ -51,21 +51,21 @@ def fetch_oopses(date):
     start = pycassa.util.convert_time_to_uuid(0)
     while True:
         try:
-            buf = dayoops_cf.get(date, column_start=start, column_count=1000)
+            buf = dayoops_cf.get(date, column_start=start, column_count=500)
         except NotFoundException:
             break
         start = buf.keys()[-1]
         buf = buf.values()
         oopses.extend(buf)
-        if len(buf) < 1000:
+        if len(buf) < 500:
             break
     return oopses
 
-def fetch_identifiers(oopses):
+def fetch_identifiers(oopses, release):
     kwargs = dict(
         columns=['DistroRelease', 'SystemIdentifier'],
         # 30 is too high. Webops paged.
-        buffer_size=20,
+        buffer_size=10,
         read_consistency_level=pycassa.ConsistencyLevel.ONE
     )
     # The buffer size here needs to be carefully tuned. If set too high, it
@@ -73,7 +73,7 @@ def fetch_identifiers(oopses):
     gen = ((d['SystemIdentifier'], '')
             for d in oops_cf.multiget(oopses, **kwargs).values()
                 if 'SystemIdentifier' in d
-                    and d.get('DistroRelease', '') == 'Ubuntu 12.04')
+                    and d.get('DistroRelease', '') == release)
     return gen
 
 if __name__ == '__main__':
@@ -84,6 +84,10 @@ if __name__ == '__main__':
     else:
         today = datetime.date.today()
         i = _date_range_iterator(today - datetime.timedelta(days=90), today)
+    if len(sys.argv) > 3:
+        release = sys.argv[3]
+    else:
+        release = 'Ubuntu 12.04'
     for date in i:
         print 'looking up', date
 
@@ -95,11 +99,11 @@ if __name__ == '__main__':
             continue
 
         with Timer('fetching identifiers'):
-            ids = fetch_identifiers(oopses)
+            ids = fetch_identifiers(oopses, release)
 
         with Timer('inserting identifiers'):
             args = [iter(ids)] * 200
             for k in itertools.izip_longest(ids):
-                dayusers_cf.insert('Ubuntu 12.04:%s' % date,
+                dayusers_cf.insert('%s:%s' % (release, date),
                                    pycassa.util.OrderedDict(k))
         print
