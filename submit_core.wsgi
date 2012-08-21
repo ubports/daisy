@@ -16,13 +16,14 @@
 # You should have received a copy of the GNU Affero Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from cgi import parse_qs, escape
+from cgi import parse_qs
 import amqplib.client_0_8 as amqp
 import pycassa
 from pycassa.cassandra.ttypes import NotFoundException
 import shutil
 import atexit
 import utils
+import re
 
 configuration = None
 try:
@@ -45,13 +46,15 @@ pool = metrics.failure_wrapped_connection_pool()
 indexes_fam = pycassa.ColumnFamily(pool, 'Indexes')
 oops_fam = pycassa.ColumnFamily(pool, 'OOPS')
 
+path_filter = re.compile('[^a-zA-Z0-9-_]')
+
 def wsgi_handler(environ, start_response):
     global channel
     params = parse_qs(environ.get('QUERY_STRING', ''))
     uuid = ''
     if params and 'uuid' in params and 'arch' in params:
-        uuid = escape(params['uuid'][0])
-        arch = escape(params['arch'][0])
+        uuid = path_filter.sub('', params['uuid'][0])
+        arch = path_filter.sub('', params['arch'][0])
         if environ.has_key('CONTENT_TYPE') and environ['CONTENT_TYPE'] == ostream:
             path = os.path.join(configuration.san_path, uuid)
             queue = 'retrace_%s' % arch
