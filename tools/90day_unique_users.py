@@ -102,6 +102,13 @@ if __name__ == '__main__':
             ids = fetch_identifiers(oopses, release)
 
         with Timer('inserting identifiers'):
+            # I played around with inserting all ~10K at once, but that was too
+            # much overhead and it never succeeded. As said on the Cassandra
+            # ML:
+            # "There is a fair amount of overhead in the Thrift structures for
+            # columns and mutations, so that's a pretty large mutation. In
+            # general, you'll see better performance inserting many small batch
+            # mutations in parallel."
             args = [iter(ids)] * 200
             for k in itertools.izip_longest(ids):
                 dayusers_cf.insert('%s:%s' % (release, date),
