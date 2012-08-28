@@ -35,7 +35,11 @@ def bucket(oops_config, oops_id, crash_signature, report_dict):
 
     version = None
     if package:
-        package, version = package.split()[:2] or (package, '')
+        s = package.split()[:2]
+        if len(s) == 2:
+            package, version = s
+        else:
+            package, version = (package, '')
         if version == '(not':
             # The version is set to '(not installed)'
             version = ''
