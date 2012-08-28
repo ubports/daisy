@@ -21,7 +21,7 @@ if len(sys.argv) < 2:
 path = sys.argv[1]
 uuid = os.path.basename(path)
 pool = pycassa.ConnectionPool(configuration.cassandra_keyspace,
-                              [configuration.cassandra_host])
+                              configuration.cassandra_hosts)
 oops_fam = pycassa.ColumnFamily(pool, 'OOPS')
 arch = ''
 try:

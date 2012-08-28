@@ -30,5 +30,5 @@ class FailureListener(pycassa.pool.PoolListener):
 # TODO: Specifying a separate namespace for the retracers.
 def failure_wrapped_connection_pool():
     return pycassa.ConnectionPool(configuration.cassandra_keyspace,
-                                  [configuration.cassandra_host],
-                                  listeners=[FailureListener()])
+                                  configuration.cassandra_hosts,
+                                  listeners=[FailureListener()], timeout=30)

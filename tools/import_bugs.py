@@ -13,7 +13,7 @@ if not configuration:
     import configuration
 
 pool = pycassa.ConnectionPool(configuration.cassandra_keyspace,
-                              [configuration.cassandra_host], timeout=15)
+                              configuration.cassandra_hosts, timeout=15)
 bucketmetadata_cf = pycassa.ColumnFamily(pool, 'BucketMetadata')
 
 def import_bug_numbers (path):

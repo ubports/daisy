@@ -14,7 +14,7 @@ if not configuration:
     import configuration
 
 pool = pycassa.ConnectionPool(configuration.cassandra_keyspace,
-                              [configuration.cassandra_host], timeout=15)
+                              configuration.cassandra_hosts, timeout=15)
 
 useroops_cf = pycassa.ColumnFamily(pool, 'UserOOPS')
 oops_cf = pycassa.ColumnFamily(pool, 'OOPS')

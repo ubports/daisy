@@ -74,7 +74,7 @@ class Retracer:
     def setup_cassandra(self):
         os.environ['OOPS_KEYSPACE'] = configuration.cassandra_keyspace
         self.oops_config = config.get_config()
-        self.oops_config['host'] = [configuration.cassandra_host]
+        self.oops_config['host'] = configuration.cassandra_hosts
 
         pool = metrics.failure_wrapped_connection_pool()
         self.oops_fam = ColumnFamily(pool, 'OOPS')

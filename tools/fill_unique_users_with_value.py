@@ -17,7 +17,7 @@ if not configuration:
     import configuration
 
 pool = pycassa.ConnectionPool(configuration.cassandra_keyspace,
-                              [configuration.cassandra_host], timeout=600)
+                              configuration.cassandra_hosts, timeout=600)
 
 uniqueusers_cf = pycassa.ColumnFamily(pool, 'UniqueUsers90Days')
 
