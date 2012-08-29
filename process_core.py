@@ -26,6 +26,7 @@ from subprocess import Popen, PIPE
 import apport
 from pycassa.columnfamily import ColumnFamily
 from pycassa.cassandra.ttypes import NotFoundException
+from pycassa.pool import MaximumRetryException
 from pycassa.types import IntegerType, FloatType
 import argparse
 import time
@@ -273,7 +274,17 @@ class Retracer:
                 has_signature = True
 
         if has_signature:
-            self.stack_fam.insert(stacktrace_addr_sig, report)
+            try:
+                self.stack_fam.insert(stacktrace_addr_sig, report)
+            except MaximumRetryException:
+                total = sum(len(x) for x in report.values())
+                log('Could not fit data in a single insert (%s):' % total)
+                for key in report:
+                    log('%s: %s' % (key, report[key]))
+                for key in report:
+                    # Break this apart into chunks since what we just threw at
+                    # Cassandra was too big to fit in one insert.
+                    self.stack_fam.insert(stacktrace_addr_sig, {key : report[key]})
             self.update_retrace_stats(release, day_key, retracing_time, True)
         else:
             # Given that we do not as yet keep debugging symbols around for
