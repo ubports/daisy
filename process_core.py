@@ -60,7 +60,9 @@ def get_architecture():
 def chunked_insert(cf, row_key, data):
     # The thrift_framed_transport_size_in_mb limit is 15 MB by default, but
     # there seems to be some additional overhead between 64 and 128 bytes.
-    max_size = (1024 * 1024 * 15 - 128)
+    # max_size = (1024 * 1024 * 15 - 128)
+    # Production doesn't seem to like 15 MB, so lets play it conservatively.
+    max_size = (1024 * 1024 * 8)
 
     for key in data:
         val = data[key].encode('utf-8')
@@ -69,6 +71,8 @@ def chunked_insert(cf, row_key, data):
             res = [val[i:i+max_size] for i in riter]
             i = 0
             for r in reversed(res):
+                params = (len(r), key, i, row_key)
+                log('Inserting chunk of size %d into %s-%d for %s' % params)
                 if i == 0:
                     cf.insert(row_key, {key: r})
                 else:
