@@ -57,6 +57,26 @@ def get_architecture():
         log('Could not determine architecture: %s' % str(e))
         sys.exit(1)
 
+def chunked_insert(cf, row_key, data):
+    # The thrift_framed_transport_size_in_mb limit is 15 MB by default, but
+    # there seems to be some additional overhead between 64 and 128 bytes.
+    max_size = (1024 * 1024 * 15 - 128)
+
+    for key in data:
+        val = data[key].encode('utf-8')
+        if len(val) > max_size:
+            riter = reversed(range(0, len(val), max_size))
+            res = [val[i:i+max_size] for i in riter]
+            i = 0
+            for r in reversed(res):
+                if i == 0:
+                    cf.insert(row_key, {key: r})
+                else:
+                    cf.insert(row_key, {'%s-%d' % (key, i): r})
+                i += 1
+        else:
+            cf.insert(row_key, {key: data[key]})
+
 class Retracer:
     def __init__(self, config_dir, sandbox_dir, verbose):
         self.setup_cassandra()
@@ -278,13 +298,8 @@ class Retracer:
                 self.stack_fam.insert(stacktrace_addr_sig, report)
             except MaximumRetryException:
                 total = sum(len(x) for x in report.values())
-                log('Could not fit data in a single insert (%s):' % total)
-                for key in report:
-                    log('%s: %s' % (key, report[key]))
-                for key in report:
-                    # Break this apart into chunks since what we just threw at
-                    # Cassandra was too big to fit in one insert.
-                    self.stack_fam.insert(stacktrace_addr_sig, {key : report[key]})
+                log('Could not fit data in a single insert (%s, %d):' % (path, total))
+                chunked_insert(self.stack_fam, stacktrace_addr_sig, report)
             self.update_retrace_stats(release, day_key, retracing_time, True)
         else:
             # Given that we do not as yet keep debugging symbols around for
