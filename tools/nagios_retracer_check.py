@@ -11,11 +11,11 @@ precise = d["objects"][0]["value"]["Ubuntu 12.04"]
 quantal = d["objects"][0]["value"]["Ubuntu 12.10"]
 
 exit = 0
-if precise.get("failed", -1) < precise.get("success", 0):
-    print >>sys.stderr, 'Precise failure count exceeds success count.'
+if precise.get("failed", -1) > precise.get("success", 0):
+    print >>sys.stderr, 'Precise failure count exceeds success count:', precise
     exit = 1
-if quantal.get("failed", -1) < quantal.get("success", 0):
-    print >>sys.stderr, 'Quantal failure count exceeds success count.'
+if quantal.get("failed", -1) > quantal.get("success", 0):
+    print >>sys.stderr, 'Quantal failure count exceeds success count:', quantal
     exit = 1
 
 sys.exit(exit)
