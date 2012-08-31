@@ -84,10 +84,11 @@ def wsgi_handler(environ, start_response):
         data = bson.BSON(data).decode()
     except bson.errors.InvalidBSON:
         return bad_request_response(start_response, 'Invalid BSON.')
-    fields = []
-    release = data.get('DistroRelease', None)
-    if release:
-        fields.append(release)
+
+    release = data.get('DistroRelease', '')
+    package = data.get('Package', '')
+    package, version = utils.split_package_and_version(package)
+    fields = utils.get_fields_for_bucket_counters(release, package, version)
     oopses.insert_dict(oops_config, oops_id, data, user_token, fields)
 
     if 'InterpreterPath' in data and not 'StacktraceAddressSignature' in data:
