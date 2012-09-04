@@ -55,7 +55,8 @@ def bucket(oops_config, oops_id, crash_signature, report_dict):
     oopses.bucket(oops_config, oops_id, crash_signature, fields)
     if (package and version) and not third_party:
         oopses.update_bucket_metadata(oops_config, crash_signature, package,
-                                      version, apt.apt_pkg.version_compare)
+                                      version, apt.apt_pkg.version_compare,
+                                      release)
     if version:
         oopses.update_bucket_versions(oops_config, crash_signature, version)
 
