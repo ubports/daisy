@@ -284,19 +284,10 @@ class Retracer:
             cmd.append('-v')
         proc = Popen(cmd)
         proc.communicate()
-        if proc.returncode != 0:
-            # apport-retrace will exit 0 even on a failed retrace unless
-            # something has gone wrong at a lower level, as was the case when
-            # python-apt bailed out on invalid sources.list files. Fail hard so
-            # we do not incorrectly write a lot of retraces to the database as
-            # failures.
-            log('Retracer failed')
-            raise SystemError('Retracing failed with status: %i' % proc.returncode)
-
         retracing_time = time.time() - retracing_start_time
 
         has_signature = False
-        if os.path.exists('%s.new' % report_path):
+        if proc.returncode == 0 and os.path.exists('%s.new' % report_path):
             log('Writing back to Cassandra')
             report = apport.Report()
             with open('%s.new' % report_path, 'r') as fp:
