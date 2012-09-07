@@ -136,10 +136,16 @@ def wsgi_handler(environ, start_response):
         except NotFoundException:
             waiting = False
 
-        if not waiting:
+        if not waiting and release.startswith('Ubuntu '):
             # We do not have a core file in the queue, so ask for one. Do
             # not assume we're going to get one, so also add this ID the
             # the AwaitingRetrace CF queue as well.
+
+            # We don't ask derivatives for core dumps. We could technically
+            # check to make sure the Packages and Dependencies fields do not
+            # have '[origin:' lines; however, apport-retrace looks for
+            # configuration data in a directory named by the DistroRelease, so
+            # these would always fail regardless.
             output = '%s CORE' % oops_id
 
         awaiting_retrace_fam.insert(addr_sig, {oops_id : ''})
