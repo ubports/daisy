@@ -271,7 +271,7 @@ class Retracer:
 
         report['CoreDump'] = (new_path,)
         report_path = '%s.crash' % path
-        with open(report_path, 'w') as fp:
+        with open(report_path, 'wb') as fp:
             report.write(fp)
 
         log('Retracing')
@@ -292,7 +292,7 @@ class Retracer:
         if proc.returncode == 0 and os.path.exists('%s.new' % report_path):
             log('Writing back to Cassandra')
             report = apport.Report()
-            with open('%s.new' % report_path, 'r') as fp:
+            with open('%s.new' % report_path, 'rb') as fp:
                 report.load(fp)
             stacktrace_addr_sig = report['StacktraceAddressSignature']
 
