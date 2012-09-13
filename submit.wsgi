@@ -38,6 +38,8 @@ import metrics
 os.environ['OOPS_KEYSPACE'] = configuration.cassandra_keyspace
 oops_config = config.get_config()
 oops_config['host'] = configuration.cassandra_hosts
+oops_config['username'] = configuration.cassandra_username
+oops_config['password'] = configuration.cassandra_password
 
 # Cassandra connections. These may move into oopsrepository in the future.
 pool = metrics.failure_wrapped_connection_pool()
