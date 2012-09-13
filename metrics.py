@@ -31,4 +31,8 @@ class FailureListener(pycassa.pool.PoolListener):
 def failure_wrapped_connection_pool():
     return pycassa.ConnectionPool(configuration.cassandra_keyspace,
                                   configuration.cassandra_hosts,
-                                  listeners=[FailureListener()], timeout=30)
+                                  listeners=[FailureListener()], timeout=30,
+                                  # I have no idea why max_retries is
+                                  # evaluating as 0 when not set, but here we
+                                  # are, brute forcing this.
+                                  max_retries=5)
