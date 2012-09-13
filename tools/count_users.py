@@ -1,7 +1,18 @@
 #!/usr/bin/python
 import pycassa
 from pycassa.cassandra.ttypes import NotFoundException
-pool = pycassa.ConnectionPool('crashdb', ['localhost'], timeout=10)
+configuration = None
+try:
+    import local_config as configuration
+except ImportError:
+        pass
+if not configuration:
+    from daisy import configuration
+
+creds = {'username': configuration.cassandra_username,
+         'password': configuration.cassandra_password}
+pool = pycassa.ConnectionPool('crashdb', ['localhost'], timeout=10,
+                              credentials=creds)
 oops = pycassa.ColumnFamily(pool, 'UserOOPS')
 
 count = 0

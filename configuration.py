@@ -22,6 +22,12 @@ cassandra_keyspace = 'crashdb'
 # The addresses of the Cassandra database nodes.
 cassandra_hosts = ['127.0.0.1:9160']
 
+# The username to connect with.
+cassandra_username = ''
+
+# The password to use.
+cassandra_password = ''
+
 # The AMQP host to receive messages from.
 amqp_host = '127.0.0.1'
 

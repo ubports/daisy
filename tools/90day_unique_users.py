@@ -16,8 +16,11 @@ except ImportError:
 if not configuration:
     import configuration
 
+creds = {'username': configuration.cassandra_username,
+         'password': configuration.cassandra_password}
 pool = pycassa.ConnectionPool(configuration.cassandra_keyspace,
-                              configuration.cassandra_hosts, timeout=600)
+                              configuration.cassandra_hosts, timeout=600,
+                              credentials=creds)
 
 dayoops_cf = pycassa.ColumnFamily(pool, 'DayOOPS')
 dayusers_cf = pycassa.ColumnFamily(pool, 'DayUsers')

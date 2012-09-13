@@ -20,8 +20,10 @@ if len(sys.argv) < 2:
 
 path = sys.argv[1]
 uuid = os.path.basename(path)
+creds = {'username': configuration.cassandra_username,
+         'password': configuration.cassandra_password}
 pool = pycassa.ConnectionPool(configuration.cassandra_keyspace,
-                              configuration.cassandra_hosts)
+                              configuration.cassandra_hosts, credentials=creds)
 oops_fam = pycassa.ColumnFamily(pool, 'OOPS')
 arch = ''
 try:

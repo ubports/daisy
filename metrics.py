@@ -29,10 +29,12 @@ class FailureListener(pycassa.pool.PoolListener):
 
 # TODO: Specifying a separate namespace for the retracers.
 def failure_wrapped_connection_pool():
+    creds = {'username': configuration.cassandra_username,
+             'password': configuration.cassandra_password}
     return pycassa.ConnectionPool(configuration.cassandra_keyspace,
                                   configuration.cassandra_hosts,
                                   listeners=[FailureListener()], timeout=30,
                                   # I have no idea why max_retries is
                                   # evaluating as 0 when not set, but here we
                                   # are, brute forcing this.
-                                  max_retries=5)
+                                  max_retries=5, credentials=creds)

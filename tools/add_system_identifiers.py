@@ -13,8 +13,11 @@ except ImportError:
 if not configuration:
     import configuration
 
+creds = {'username': configuration.cassandra_username,
+         'password': configuration.cassandra_password}
 pool = pycassa.ConnectionPool(configuration.cassandra_keyspace,
-                              configuration.cassandra_hosts, timeout=15)
+                              configuration.cassandra_hosts, timeout=15,
+                              credentials=creds)
 
 useroops_cf = pycassa.ColumnFamily(pool, 'UserOOPS')
 oops_cf = pycassa.ColumnFamily(pool, 'OOPS')

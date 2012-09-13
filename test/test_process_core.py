@@ -16,7 +16,10 @@ class TestSubmission(TestCase):
         super(TestSubmission, self).setUp()
         # We need to set the configuration before importing.
         self.keyspace = self.useFixture(TemporaryOOPSDB()).keyspace
-        self.pool = pycassa.ConnectionPool(self.keyspace, ['localhost:9160'])
+        creds = {'username': configuration.cassandra_username,
+                 'password': configuration.cassandra_password}
+        self.pool = pycassa.ConnectionPool(self.keyspace, ['localhost:9160'],
+                                           credentials=creds)
         configuration.cassandra_keyspace = self.keyspace
         configuration.cassandra_host = 'localhost:9160'
         schema.create()
