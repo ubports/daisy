@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 exec >/var/log/cloud-init.log 2>&1
-echo "deb http://www.apache.org/dist/cassandra/debian 10x main" >> /etc/apt/sources.list
+echo "deb http://www.apache.org/dist/cassandra/debian 11x main" >> /etc/apt/sources.list
 echo "deb http://archive.admin.canonical.com lucid-cat main" >> /etc/apt/sources.list
 gpg --keyserver pgp.mit.edu --recv-keys F758CE318D77295D
 gpg --export --armor F758CE318D77295D | sudo apt-key add -
