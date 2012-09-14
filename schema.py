@@ -41,8 +41,7 @@ def create():
     try:
         if 'Indexes' not in cfs:
             workaround_1779(mgr.create_column_family, keyspace, 'Indexes',
-                comparator_type=UTF8_TYPE,
-                default_validation_class=UTF8_TYPE)
+                comparator_type=UTF8_TYPE)
         if 'Stacktrace' not in cfs:
             workaround_1779(mgr.create_column_family, keyspace, 'Stacktrace',
                 comparator_type=UTF8_TYPE,
