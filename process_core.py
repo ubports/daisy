@@ -27,7 +27,7 @@ import apport
 from pycassa.columnfamily import ColumnFamily
 from pycassa.cassandra.ttypes import NotFoundException
 from pycassa.pool import MaximumRetryException
-from pycassa.types import IntegerType, FloatType
+from pycassa.types import IntegerType, FloatType, UTF8Type
 import argparse
 import time
 import socket
@@ -105,8 +105,10 @@ class Retracer:
 
         pool = metrics.failure_wrapped_connection_pool()
         self.oops_fam = ColumnFamily(pool, 'OOPS')
+        self.oops_fam.default_validation_class = UTF8Type()
         self.indexes_fam = ColumnFamily(pool, 'Indexes')
         self.stack_fam = ColumnFamily(pool, 'Stacktrace')
+        self.stack_fam.default_validation_class = UTF8Type()
         self.awaiting_retrace_fam = ColumnFamily(pool, 'AwaitingRetrace')
         self.retrace_stats_fam = ColumnFamily(pool, 'RetraceStats')
 
