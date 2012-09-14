@@ -86,6 +86,9 @@ def wsgi_handler(environ, start_response):
         data = bson.BSON(data).decode()
     except bson.errors.InvalidBSON:
         return bad_request_response(start_response, 'Invalid BSON.')
+    # Keep a reference to the decoded report data. If we crash, we'll
+    # potentially attach it to the OOPS report.
+    environ['wsgi.input.decoded'] = data
 
     release = data.get('DistroRelease', '')
     package = data.get('Package', '')

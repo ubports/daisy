@@ -60,11 +60,22 @@ def bucket(oops_config, oops_id, crash_signature, report_dict):
     if version:
         oopses.update_bucket_versions(oops_config, crash_signature, version)
 
+def attach_error_report(report, context):
+    # We only attach error report that was submitted by the client if we've hit a MaximumRetryException from Cassandra.
+    if 'type' in report and report['type'] == 'MaximumRetryException':
+        env = context['wsgi_environ']
+        if 'wsgi.input.decoded' in env:
+            data = env['wsgi.input.decoded']
+            if 'req_vars' not in report:
+                report['req_vars'] = {}
+            report['req_vars']['wsgi.input.decoded'] = data
+
 def wrap_in_oops_wsgi(wsgi_handler, path, hostname):
     config = Config()
     if not os.path.exists(path):
         os.mkdir(path)
     repo = DateDirRepo(path, hostname, serializer=serializer_rfc822)
     config.publishers.append(repo.publish)
+    config.on_create.append(attach_error_report)
     install_hooks(config)
     return make_app(wsgi_handler, config, oops_on_status=['500'])
