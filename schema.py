@@ -41,13 +41,16 @@ def create():
     try:
         if 'Indexes' not in cfs:
             workaround_1779(mgr.create_column_family, keyspace, 'Indexes',
-                comparator_type=UTF8_TYPE)
+                comparator_type=UTF8_TYPE,
+                default_validation_class=UTF8_TYPE)
         if 'Stacktrace' not in cfs:
             workaround_1779(mgr.create_column_family, keyspace, 'Stacktrace',
-                comparator_type=UTF8_TYPE)
+                comparator_type=UTF8_TYPE,
+                default_validation_class=UTF8_TYPE)
         if 'AwaitingRetrace' not in cfs:
             workaround_1779(mgr.create_column_family, keyspace, 'AwaitingRetrace',
-                comparator_type=UTF8_TYPE)
+                comparator_type=UTF8_TYPE,
+                default_validation_class=UTF8_TYPE)
         if 'RetraceStats' not in cfs:
             workaround_1779(mgr.create_column_family, keyspace, 'RetraceStats',
                 comparator_type=UTF8_TYPE,
