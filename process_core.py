@@ -105,12 +105,17 @@ class Retracer:
 
         pool = metrics.failure_wrapped_connection_pool()
         self.oops_fam = ColumnFamily(pool, 'OOPS')
-        self.oops_fam.default_validation_class = UTF8Type()
         self.indexes_fam = ColumnFamily(pool, 'Indexes')
         self.stack_fam = ColumnFamily(pool, 'Stacktrace')
-        self.stack_fam.default_validation_class = UTF8Type()
         self.awaiting_retrace_fam = ColumnFamily(pool, 'AwaitingRetrace')
         self.retrace_stats_fam = ColumnFamily(pool, 'RetraceStats')
+
+        # We didn't set a default_validation_class for these in the schema.
+        # Whoops.
+        self.oops_fam.default_validation_class = UTF8Type()
+        self.indexes_fam.default_validation_class = UTF8Type()
+        self.stack_fam.default_validation_class = UTF8Type()
+        self.awaiting_retrace_fam.default_validation_class = UTF8Type()
 
     def listen(self):
         retrace = 'retrace_%s' % self.architecture
@@ -301,6 +306,7 @@ class Retracer:
             crash_signature = report.crash_signature()
             if crash_signature:
                 has_signature = True
+                crash_signature = crash_signature.encode('utf-8')
 
         if has_signature:
             try:
