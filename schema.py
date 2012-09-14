@@ -34,7 +34,9 @@ from pycassa.types import CounterColumnType
 
 def create():
     keyspace = configuration.cassandra_keyspace
-    mgr = SystemManager(configuration.cassandra_host)
+    creds = {'username': configuration.cassandra_username,
+             'password': configuration.cassandra_password}
+    mgr = SystemManager(configuration.cassandra_hosts[0], credentials=creds)
     cfs = mgr.get_keyspace_column_families(keyspace).keys()
     try:
         if 'Indexes' not in cfs:
