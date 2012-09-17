@@ -47,7 +47,7 @@ from oopsrepository import config
 
 def log(message):
     sys.stdout.write('%s: ' % time.strftime('%x %X'))
-    print(message.encode('utf-8'))
+    print(message)
 
 def get_architecture():
     try:
