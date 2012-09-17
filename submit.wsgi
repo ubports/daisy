@@ -34,6 +34,7 @@ if not configuration:
 import apport
 import utils
 import metrics
+import time
 
 os.environ['OOPS_KEYSPACE'] = configuration.cassandra_keyspace
 oops_config = config.get_config()
@@ -45,6 +46,7 @@ oops_config['password'] = configuration.cassandra_password
 pool = metrics.failure_wrapped_connection_pool()
 indexes_fam = pycassa.ColumnFamily(pool, 'Indexes')
 awaiting_retrace_fam = pycassa.ColumnFamily(pool, 'AwaitingRetrace')
+counters_fam = pycassa.ColumnFamily(pool, 'Counters')
 
 content_type = 'CONTENT_TYPE'
 ostream = 'application/octet-stream'
@@ -86,6 +88,15 @@ def wsgi_handler(environ, start_response):
         data = bson.BSON(data).decode()
     except bson.errors.InvalidBSON:
         return bad_request_response(start_response, 'Invalid BSON.')
+
+    if 'KernelCrash' in data or 'VmCore' in data:
+        # We do not process these yet, but we keep track of how many reports
+        # we're receiving to determine when it's worth solving.
+        day_key = time.strftime('%Y%m%d', time.gmtime())
+        counters_fam.add('KernelCrash', day_key)
+        return bad_request_response(start_response,
+                                    'Kernel crashes are not handled yet.')
+
     # Keep a reference to the decoded report data. If we crash, we'll
     # potentially attach it to the OOPS report.
     environ['wsgi.input.decoded'] = data
