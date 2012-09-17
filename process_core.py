@@ -326,11 +326,13 @@ class Retracer:
             stacktrace_addr_sig = report['StacktraceAddressSignature']
             crash_signature = 'failed:%s' % stacktrace_addr_sig
             log('Could not retrace.')
-            if 'Stacktrace' in report:
-                log('Stacktrace:')
-                log(report['Stacktrace'])
-            else:
-                log('No stacktrace.')
+            # FIXME UnicodeDecodeError: 'ascii' codec can't decode byte 0xe2 in
+            # position 66: ordinal not in range(128)
+            #if 'Stacktrace' in report:
+            #    log('Stacktrace:')
+            #    log(report['Stacktrace'])
+            #else:
+            #    log('No stacktrace.')
             if 'RetraceOutdatedPackages' in report:
                 log('RetraceOutdatedPackages:')
                 log(report['RetraceOutdatedPackages'])
