@@ -48,6 +48,7 @@ def create():
                 default_validation_class=UTF8_TYPE)
         if 'AwaitingRetrace' not in cfs:
             workaround_1779(mgr.create_column_family, keyspace, 'AwaitingRetrace',
+                key_validation_class=UTF8_TYPE,
                 comparator_type=UTF8_TYPE,
                 default_validation_class=UTF8_TYPE)
         if 'RetraceStats' not in cfs:
