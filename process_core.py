@@ -109,6 +109,7 @@ class Retracer:
         self.stack_fam = ColumnFamily(pool, 'Stacktrace')
         self.awaiting_retrace_fam = ColumnFamily(pool, 'AwaitingRetrace')
         self.retrace_stats_fam = ColumnFamily(pool, 'RetraceStats')
+        self.bucket_fam = ColumnFamily(pool, 'Buckets')
 
         # We didn't set a default_validation_class for these in the schema.
         # Whoops.
@@ -358,12 +359,8 @@ class Retracer:
             # unprocessed OOPS IDs from that CF at regular intervals later, so
             # just process this OOPS ID now.
             pass
-        for oops_id in oops_ids:
-            try:
-                vals = self.oops_fam.get(oops_id, ['DistroRelease', 'Package'])
-            except NotFoundException:
-                vals = {}
-            utils.bucket(self.oops_config, oops_id, crash_signature, vals)
+
+        self.bucket(oops_ids, crash_signature)
 
         try:
             self.awaiting_retrace_fam.remove(stacktrace_addr_sig, oops_ids)
@@ -371,6 +368,11 @@ class Retracer:
             # I'm not sure why this would happen, but we could safely continue
             # on were it to.
             pass
+
+        if has_signature:
+            if self.rebucket(crash_signature):
+                self.recount(crash_signature, msg.channel)
+
         for p in (path, new_path, report_path, '%s.new' % report_path):
             try:
                 os.remove(p)
@@ -380,6 +382,43 @@ class Retracer:
         log('Done processing %s' % path)
         # We've processed this. Delete it off the MQ.
         msg.channel.basic_ack(msg.delivery_tag)
+
+    def rebucket(self, crash_signature):
+        '''Rebucket any failed retraces into the bucket just created for the
+        given correct crash signature.'''
+
+        ids = []
+        try:
+            # TODO might need to use xget here if the bucket is large.
+            ids = self.bucket_fam.get('failed:' + crash_signature)
+            ids = ids.keys()
+        except NotFoundException:
+            return False
+        self.bucket(ids, crash_signature)
+
+        # We don't have to remove the 'failed:' signature from
+        # crash_signature_for_stacktrace_address_signature as we'll simply
+        # overwrite it with the correct crash signature.
+        return True
+
+    def recount(self, crash_signature, channel):
+        '''Put on another queue to correct all the day counts.'''
+
+        channel.queue_declare(queue='recount', durable=True, auto_delete=False)
+        body = amqp.Message(crash_signature)
+        body.properties['delivery_mode'] = 2
+        channel.basic_publish(body, exchange='', routing_key='recount')
+
+    def bucket(self, ids, crash_signature):
+        '''Insert the provided set of OOPS ids into the bucket with the given
+        crash signature.'''
+
+        for oops_id in ids:
+            try:
+                vals = self.oops_fam.get(oops_id, ['DistroRelease', 'Package'])
+            except NotFoundException:
+                vals = {}
+            utils.bucket(self.oops_config, oops_id, crash_signature, vals)
 
 def parse_options():
     parser = argparse.ArgumentParser(description='Process core dumps.')
