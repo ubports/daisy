@@ -350,8 +350,8 @@ class Retracer:
         oops_ids = [oops_id]
         try:
             # This will contain the OOPS ID we're currently processing as well.
-            oops_ids = self.awaiting_retrace_fam.get(stacktrace_addr_sig)
-            oops_ids = oops_ids.keys()
+            ids = self.awaiting_retrace_fam.get(stacktrace_addr_sig)
+            oops_ids += ids.keys()
         except NotFoundException:
             # Handle eventual consistency. If the writes to AwaitingRetrace
             # haven't hit this node yet, that's okay. We'll clean up
