@@ -267,7 +267,9 @@ class Retracer:
         
         release = report.get('DistroRelease', '')
         bad = '[^-a-zA-Z0-9_.() ]+'
-        if not release or re.search(bad, release) or len(release) > 1024:
+        retraceable = utils.retraceable_release(release)
+        invalid = re.search(bad, release) or len(release) > 1024
+        if not release or invalid or not retraceable:
             msg.channel.basic_ack(msg.delivery_tag)
             for p in (path, new_path):
                 try:

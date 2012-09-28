@@ -152,7 +152,7 @@ def wsgi_handler(environ, start_response):
         except NotFoundException:
             waiting = False
 
-        if not waiting and release.startswith('Ubuntu '):
+        if not waiting and utils.retraceable_release(release):
             # We do not have a core file in the queue, so ask for one. Do
             # not assume we're going to get one, so also add this ID the
             # the AwaitingRetrace CF queue as well.
