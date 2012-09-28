@@ -245,6 +245,10 @@ class Retracer:
             ret = p2.communicate()
         if p2.returncode != 0:
             log('Error processing %s:\n%s' % (path, ret[1]))
+            if p2.returncode == 99:
+                # Transient apt error, like "failed to fetch ... size mismatch"
+                # Throw back onto the queue by not ack'ing it.
+                return
             # We've processed this. Delete it off the MQ.
             msg.channel.basic_ack(msg.delivery_tag)
             try:
