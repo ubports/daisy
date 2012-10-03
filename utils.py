@@ -6,7 +6,7 @@ from oopsrepository import oopses
 import apt
 import os
 
-def get_fields_for_bucket_counters(release, package, version):
+def get_fields_for_bucket_counters(problem_type, release, package, version):
     fields = []
     if release:
         if package and version:
@@ -19,6 +19,9 @@ def get_fields_for_bucket_counters(release, package, version):
             fields.append(release)
     elif package:
         fields.append('%s:%s' % (package, version))
+
+    if problem_type:
+        fields.extend(['%s:%s' % (problem_type, field) for field in fields])
     return fields
 
 def split_package_and_version(package):
@@ -38,6 +41,7 @@ def split_package_and_version(package):
 def bucket(oops_config, oops_id, crash_signature, report_dict):
     release = report_dict.get('DistroRelease', '')
     package = report_dict.get('Package', '')
+    problem_type = report_dict.get('ProblemType', '')
     dependencies = report_dict.get('Dependencies', '')
     if '[origin:' in package or '[origin:' in dependencies:
         # This package came from a third-party source. We do not want to show
@@ -51,7 +55,7 @@ def bucket(oops_config, oops_id, crash_signature, report_dict):
     if package:
         package, version = split_package_and_version(package)
 
-    fields = get_fields_for_bucket_counters(release, package, version)
+    fields = get_fields_for_bucket_counters(problem_type, release, package, version)
     oopses.bucket(oops_config, oops_id, crash_signature, fields)
     if (package and version) and not third_party:
         oopses.update_bucket_metadata(oops_config, crash_signature, package,

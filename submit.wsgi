@@ -103,13 +103,15 @@ def wsgi_handler(environ, start_response):
 
     release = data.get('DistroRelease', '')
     package = data.get('Package', '')
+    problem_type = data.get('ProblemType', '')
     package, version = utils.split_package_and_version(package)
-    fields = utils.get_fields_for_bucket_counters(release, package, version)
+    fields = utils.get_fields_for_bucket_counters(problem_type, release, package, version)
     oopses.insert_dict(oops_config, oops_id, data, user_token, fields)
 
     if 'InterpreterPath' in data and not 'StacktraceAddressSignature' in data:
         # Python crashes can be immediately bucketed.
         report = apport.Report()
+        # TODO just pull in all keys
         for key in ('ExecutablePath', 'Traceback', 'ProblemType'):
             try:
                 report[key.encode('UTF-8')] = data[key].encode('UTF-8')
