@@ -123,7 +123,12 @@ class Retracer:
         connection = None
         channel = None
         try:
-            connection = amqp.Connection(host=configuration.amqp_host)
+            if configuration.amqp_username and configuration.amqp_password:
+                connection = amqp.Connection(host=configuration.amqp_host,
+                                        userid=configuration.amqp_username,
+                                        password=configuration.amqp_password)
+            else:
+                connection = amqp.Connection(host=configuration.amqp_host)
             channel = connection.channel()
             channel.queue_declare(queue=retrace, durable=True,
                                   auto_delete=False)

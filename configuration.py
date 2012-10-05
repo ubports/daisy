@@ -31,6 +31,12 @@ cassandra_password = ''
 # The AMQP host to receive messages from.
 amqp_host = '127.0.0.1'
 
+# The AMQP username.
+amqp_username = ''
+
+# The AMQP username.
+amqp_password = ''
+
 # The path to the SAN for storing core dumps.
 san_path = '/srv/cores'
 

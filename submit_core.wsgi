@@ -36,7 +36,12 @@ import os
 import metrics
 
 ostream = 'application/octet-stream'
-connection = amqp.Connection(host=configuration.amqp_host)
+if configuration.amqp_username and configuration.amqp_password:
+    connection = amqp.Connection(host=configuration.amqp_host,
+                                 userid=configuration.amqp_username,
+                                 password=configuration.amqp_password)
+else:
+    connection = amqp.Connection(host=configuration.amqp_host)
 channel = connection.channel()
 atexit.register(connection.close)
 atexit.register(channel.close)
