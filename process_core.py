@@ -294,7 +294,7 @@ class Retracer:
         day_key = time.strftime('%Y%m%d', time.gmtime())
 
         retracing_start_time = time.time()
-        cmd = ['python3' '/usr/bin/apport-retrace', report_path, '-c',
+        cmd = ['python3', '/usr/bin/apport-retrace', report_path, '-c',
                '-S', self.config_dir, '-C', cache, '--sandbox-dir', sandbox,
                '-o', '%s.new' % report_path]
         if self.verbose:
