@@ -302,7 +302,7 @@ class Retracer:
         proc = Popen(cmd)
         proc.communicate()
         if proc.returncode != 0:
-            if p2.returncode == 99:
+            if proc.returncode == 99:
                 # Transient apt error, like "failed to fetch ... size mismatch"
                 # Throw back onto the queue by not ack'ing it.
                 return
