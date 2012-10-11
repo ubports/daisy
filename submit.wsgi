@@ -108,7 +108,10 @@ def wsgi_handler(environ, start_response):
     fields = utils.get_fields_for_bucket_counters(problem_type, release, package, version)
     oopses.insert_dict(oops_config, oops_id, data, user_token, fields)
 
-    if 'InterpreterPath' in data and not 'StacktraceAddressSignature' in data:
+    if 'DuplicateSignature' in data:
+        utils.bucket(oops_config, oops_id, data['DuplicateSignature'], data)
+        return ok_response(start_response)
+    elif 'InterpreterPath' in data and not 'StacktraceAddressSignature' in data:
         # Python crashes can be immediately bucketed.
         report = apport.Report()
         # TODO just pull in all keys
