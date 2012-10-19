@@ -217,6 +217,18 @@ class Retracer:
         self._sandboxes[release] = (sandbox, cache)
         return self._sandboxes[release]
 
+    def move_to_failed_queue(self, msg):
+        # Remove it from the retracing queue.
+        msg.channel.basic_ack(msg.delivery_tag)
+
+        # Add it to the failed to retrace queue.
+        queue = 'failed_retrace_%s' % self.architecture
+        msg.channel.queue_declare(queue=queue, durable=True, auto_delete=False)
+        body = amqp.Message(msg.body)
+        # Persistent
+        body.properties['delivery_mode'] = 2
+        msg.channel.basic_publish(body, exchange='', routing_key=queue)
+
     def callback(self, msg):
         log('Processing %s' % msg.body)
         path = msg.body
@@ -311,8 +323,9 @@ class Retracer:
             # python-apt bailed out on invalid sources.list files. Fail hard so
             # we do not incorrectly write a lot of retraces to the database as
             # failures.
-            log('Retracer failed')
-            raise SystemError('Retracing failed with status: %i' % proc.returncode)
+            log('Retracer failed: %i' % proc.returncode)
+            self.move_to_failed_queue(msg)
+            return
 
         retracing_time = time.time() - retracing_start_time
 
