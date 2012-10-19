@@ -82,12 +82,13 @@ def chunked_insert(cf, row_key, data):
             cf.insert(row_key, {key: data[key]})
 
 class Retracer:
-    def __init__(self, config_dir, sandbox_dir, verbose):
+    def __init__(self, config_dir, sandbox_dir, verbose, failed=False):
         self.setup_cassandra()
         self.config_dir = config_dir
         self.sandbox_dir = sandbox_dir
         self.verbose = verbose
         self.architecture = get_architecture()
+        self.failed = failed
         # A mapping of release names to temporary sandbox and cache
         # directories, so that we can remove them at the end of the run.
         # TODO: we should create a single temporary directory that all of these
@@ -119,7 +120,11 @@ class Retracer:
         self.awaiting_retrace_fam.default_validation_class = UTF8Type()
 
     def listen(self):
-        retrace = 'retrace_%s' % self.architecture
+        if self.failed:
+            retrace = 'failed_retrace_%s'
+        else:
+            retrace = 'retrace_%s'
+        retrace = retrace % self.architecture
         connection = None
         channel = None
         try:
@@ -467,12 +472,14 @@ def parse_options():
                         'extracted to this sandbox.')
     parser.add_argument('-v', '--verbose',
                         help='Print extra information during each retrace.')
+    parser.add_argument('--failed',
+                        help='Only process previously failed retraces.')
     return parser.parse_args()
 
 def main():
     options = parse_options()
     retracer = Retracer(options.config_dir, options.sandbox_dir,
-                        options.verbose)
+                        options.verbose, failed=options.failed)
     retracer.listen()
 
 if __name__ == '__main__':
