@@ -168,7 +168,7 @@ class Retracer:
                         raise
         except KeyboardInterrupt:
             pass
-        if self.channel.is_open:
+        if channel and channel.is_open:
             channel.basic_cancel(tag)
 
     def update_retrace_stats(self, release, day_key, retracing_time,
