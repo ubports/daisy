@@ -172,16 +172,19 @@ class Retracer:
             channel.basic_cancel(tag)
 
     def update_retrace_stats(self, release, day_key, retracing_time,
-                             success=True):
+                             success=True, crashed=False):
         """
         release: the distribution release, ex. 'Ubuntu 12.04'
         day_key: the date as a YYYYMMDD string.
         retracing_time: the amount of time it took to retrace.
         success: whether crash was retraceable.
         """
-        status = ':success'
-        if not success:
+        if crashed:
+            status = ':crashed'
+        elif not success:
             status = ':failed'
+        else:
+            status = ':success'
         # We can't mix counters and other data types
         self.retrace_stats_fam.add(day_key, release + status)
 
@@ -330,6 +333,9 @@ class Retracer:
             # failures.
             log('Retracer failed: %i' % proc.returncode)
             self.move_to_failed_queue(msg)
+            retracing_time = time.time() - retracing_start_time
+            self.update_retrace_stats(self, release, day_key, retracing_time,
+                                      crashed=True)
             return
 
         retracing_time = time.time() - retracing_start_time
