@@ -68,7 +68,7 @@ def fetch_identifiers(oopses, release):
     kwargs = dict(
         columns=['DistroRelease', 'SystemIdentifier'],
         # 30 is too high. Webops paged.
-        buffer_size=10,
+        buffer_size=5,
         read_consistency_level=pycassa.ConsistencyLevel.ONE
     )
     # The buffer size here needs to be carefully tuned. If set too high, it
@@ -91,6 +91,11 @@ if __name__ == '__main__':
         release = sys.argv[3]
     else:
         release = 'Ubuntu 12.04'
+
+    dry_run = '--dry-run' in sys.argv
+    if dry_run:
+        print 'dry run'
+
     for date in i:
         print 'looking up', date
 
@@ -112,8 +117,16 @@ if __name__ == '__main__':
             # columns and mutations, so that's a pretty large mutation. In
             # general, you'll see better performance inserting many small batch
             # mutations in parallel."
+            if dry_run:
+                print release, date
+                c = 0
             args = [iter(ids)] * 200
             for k in itertools.izip_longest(ids):
-                dayusers_cf.insert('%s:%s' % (release, date),
-                                   pycassa.util.OrderedDict(k))
+                if not dry_run:
+                    dayusers_cf.insert('%s:%s' % (release, date),
+                                       pycassa.util.OrderedDict(k))
+                else:
+                    c += len(k)
+            if dry_run:
+                print c
         print

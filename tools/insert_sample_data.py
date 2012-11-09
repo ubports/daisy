@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 import uuid
 import hashlib
 import datetime
