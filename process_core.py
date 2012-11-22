@@ -89,8 +89,8 @@ class Retracer:
         self.verbose = verbose
         self.architecture = get_architecture()
         self.failed = failed
-        # A mapping of release names to temporary sandbox and cache
-        # directories, so that we can remove them at the end of the run.
+        # A mapping of release names to temporary sandbox directory, so that we
+        # can remove them at the end of the run.
         # TODO: we should create a single temporary directory that all of these
         # live under, saving the multiple calls to atexit.register.
         self._sandboxes = {}
@@ -205,7 +205,7 @@ class Retracer:
         mean[count_key] += 1
         self.indexes_fam.insert('mean_retracing_time', mean)
 
-    def setup_cache(self, sandbox_dir, release):
+    def setup_sandbox(self, sandbox_dir, release):
         if release in self._sandboxes:
             return self._sandboxes[release]
         sandbox_release = os.path.join(sandbox_dir, release)
@@ -219,10 +219,8 @@ class Retracer:
         with open(os.path.join(instance_sandbox, 'pid'), 'w') as fp:
             fp.write('%d' % os.getpid())
         sandbox = os.path.join(instance_sandbox, 'sandbox')
-        cache = os.path.join(instance_sandbox, 'cache')
         os.mkdir(sandbox)
-        os.mkdir(cache)
-        self._sandboxes[release] = (sandbox, cache)
+        self._sandboxes[release] = sandbox
         return self._sandboxes[release]
 
     def move_to_failed_queue(self, msg):
@@ -310,12 +308,12 @@ class Retracer:
             report.write(fp)
 
         log('Retracing')
-        sandbox, cache = self.setup_cache(self.sandbox_dir, release)
+        sandboxi = self.setup_sandbox(self.sandbox_dir, release)
         day_key = time.strftime('%Y%m%d', time.gmtime())
 
         retracing_start_time = time.time()
         cmd = ['python3', '/usr/bin/apport-retrace', report_path, '-c',
-               '-S', self.config_dir, '-C', cache, '--sandbox-dir', sandbox,
+               '-S', self.config_dir, '--sandbox-dir', sandbox,
                '-o', '%s.new' % report_path]
         if self.verbose:
             cmd.append('-v')
