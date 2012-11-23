@@ -308,7 +308,7 @@ class Retracer:
             report.write(fp)
 
         log('Retracing')
-        sandboxi = self.setup_sandbox(self.sandbox_dir, release)
+        sandbox = self.setup_sandbox(self.sandbox_dir, release)
         day_key = time.strftime('%Y%m%d', time.gmtime())
 
         retracing_start_time = time.time()
