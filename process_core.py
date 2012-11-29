@@ -82,20 +82,22 @@ def chunked_insert(cf, row_key, data):
             cf.insert(row_key, {key: data[key]})
 
 class Retracer:
-    def __init__(self, config_dir, sandbox_dir, verbose, failed=False):
+    def __init__(self, config_dir, sandbox_dir, verbose, cache_debs,
+                 failed=False):
         self.setup_cassandra()
         self.config_dir = config_dir
         self.sandbox_dir = sandbox_dir
         self.verbose = verbose
         self.architecture = get_architecture()
         self.failed = failed
-        # A mapping of release names to temporary sandbox directory, so that we
-        # can remove them at the end of the run.
+        # A mapping of release names to temporary sandbox and cache
+        # directories, so that we can remove them at the end of the run.
         # TODO: we should create a single temporary directory that all of these
         # live under, saving the multiple calls to atexit.register.
         self._sandboxes = {}
         # The time we were last able to talk to the AMQP server.
         self._lost_connection = None
+        self.cache_debs = cache_debs
 
     def setup_cassandra(self):
         os.environ['OOPS_KEYSPACE'] = configuration.cassandra_keyspace
@@ -205,7 +207,7 @@ class Retracer:
         mean[count_key] += 1
         self.indexes_fam.insert('mean_retracing_time', mean)
 
-    def setup_sandbox(self, sandbox_dir, release):
+    def setup_cache(self, sandbox_dir, release):
         if release in self._sandboxes:
             return self._sandboxes[release]
         sandbox_release = os.path.join(sandbox_dir, release)
@@ -220,7 +222,11 @@ class Retracer:
             fp.write('%d' % os.getpid())
         sandbox = os.path.join(instance_sandbox, 'sandbox')
         os.mkdir(sandbox)
-        self._sandboxes[release] = sandbox
+        cache = None
+        if self.cache_debs:
+            cache = os.path.join(instance_sandbox, 'cache')
+            os.mkdir(cache)
+        self._sandboxes[release] = (sandbox, cache)
         return self._sandboxes[release]
 
     def move_to_failed_queue(self, msg):
@@ -308,13 +314,15 @@ class Retracer:
             report.write(fp)
 
         log('Retracing')
-        sandbox = self.setup_sandbox(self.sandbox_dir, release)
+        sandbox, cache = self.setup_cache(self.sandbox_dir, release)
         day_key = time.strftime('%Y%m%d', time.gmtime())
 
         retracing_start_time = time.time()
         cmd = ['python3', '/usr/bin/apport-retrace', report_path, '-c',
                '-S', self.config_dir, '--sandbox-dir', sandbox,
                '-o', '%s.new' % report_path]
+        if cache:
+            cmd.extend(['-C', cache])
         if self.verbose:
             cmd.append('-v')
         proc = Popen(cmd)
@@ -474,16 +482,19 @@ def parse_options():
                         'each instance of this program. Future runs will '
                         'assume that any already downloaded package is also '
                         'extracted to this sandbox.')
-    parser.add_argument('-v', '--verbose',
+    parser.add_argument('-v', '--verbose', action='store_true',
                         help='Print extra information during each retrace.')
-    parser.add_argument('--failed',
+    parser.add_argument('--failed', action='store_true',
                         help='Only process previously failed retraces.')
+    parser.add_argument('--nocache-debs', action='store_true',
+                        help='Do not cache downloaded debs.')
     return parser.parse_args()
 
 def main():
     options = parse_options()
     retracer = Retracer(options.config_dir, options.sandbox_dir,
-                        options.verbose, failed=options.failed)
+                        options.verbose, not options.nocache_debs,
+                        failed=options.failed)
     retracer.listen()
 
 if __name__ == '__main__':
