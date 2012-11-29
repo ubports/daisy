@@ -34,6 +34,7 @@ import socket
 import utils
 import re
 import metrics
+import logging
 
 configuration = None
 try:
@@ -45,9 +46,32 @@ if not configuration:
 
 from oopsrepository import config
 
+def log_output(self, msg):
+    '''Default log_output function.
+       This will be replaced if the log to file option is set.'''
+    print('%s:' % time.strftime('%x %X'), msg)
+
 def log(message):
-    sys.stdout.write('%s: ' % time.strftime('%x %X'))
-    print(message)
+    log_output.write(message)
+
+class StreamToFileLogger:
+    def __init__(self, stream, filename):
+        if stream == 'stdout':
+            self.logger = logging.getLogger('stdout')
+            self.log_level = logging.INFO
+        elif stream == 'stderr':
+            self.logger = logging.getLogger('stderr')
+            self.log_level = logging.ERROR
+        else:
+            self.logger = logging.getLogger('')
+            self.log_level = logging.INFO
+        self.linebuf = ''
+        fmt = '%(asctime)s:%(levelname)s:%(name)s:%(message)s'
+        logging.basicConfig(format=fmt, filename=filename, filemode='a')
+
+    def write(self, buf):
+        for line in buf.rstrip().splitlines():
+            self.logger.log(self.log_level, line.rstrip())
 
 def get_architecture():
     try:
@@ -488,10 +512,16 @@ def parse_options():
                         help='Only process previously failed retraces.')
     parser.add_argument('--nocache-debs', action='store_true',
                         help='Do not cache downloaded debs.')
+    parser.add_argument('-o', '--output', help='Log messages to a file.')
     return parser.parse_args()
 
 def main():
+    global log_output
     options = parse_options()
+    if options.output:
+        sys.stderr = StreamToFileLogger('stderr', options.output)
+        sys.stdout = StreamToFileLogger('stdout', options.output)
+        log_output = StreamToFileLogger('main', options.output)
     retracer = Retracer(options.config_dir, options.sandbox_dir,
                         options.verbose, not options.nocache_debs,
                         failed=options.failed)
