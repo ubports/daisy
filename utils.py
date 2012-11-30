@@ -87,8 +87,7 @@ def wrap_in_oops_wsgi(wsgi_handler, path, hostname):
 
 def retraceable_release(release):
     if release.startswith('Ubuntu '):
-        # We only have ddeb sources for these releases.
-        if release[7:] in ['10.04', '11.10', '12.04', '12.10']:
-            return True
-    return False
+        return True
+    else:
+        return False
         
