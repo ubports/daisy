@@ -402,6 +402,7 @@ class Retracer:
 
             stacktrace_addr_sig = report['StacktraceAddressSignature']
             crash_signature = 'failed:%s' % stacktrace_addr_sig
+            crash_signature = crash_signature.encode('utf-8')
             log('Could not retrace.')
             # FIXME UnicodeDecodeError: 'ascii' codec can't decode byte 0xe2 in
             # position 66: ordinal not in range(128)
