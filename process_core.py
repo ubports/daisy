@@ -46,10 +46,11 @@ if not configuration:
 
 from oopsrepository import config
 
-def log_output(self, msg):
+class log_output:
     '''Default log_output function.
        This will be replaced if the log to file option is set.'''
-    print('%s:' % time.strftime('%x %X'), msg)
+    def write(self, msg):
+        print('%s:' % time.strftime('%x %X'), msg)
 
 def log(message):
     log_output.write(message)
