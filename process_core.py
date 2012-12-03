@@ -49,7 +49,8 @@ from oopsrepository import config
 class log_output:
     '''Default log_output function.
        This will be replaced if the log to file option is set.'''
-    def write(self, msg):
+    @classmethod
+    def write(klass, msg):
         print('%s:' % time.strftime('%x %X'), msg)
 
 def log(message):
