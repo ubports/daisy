@@ -47,6 +47,7 @@ pool = metrics.failure_wrapped_connection_pool()
 indexes_fam = pycassa.ColumnFamily(pool, 'Indexes')
 awaiting_retrace_fam = pycassa.ColumnFamily(pool, 'AwaitingRetrace')
 counters_fam = pycassa.ColumnFamily(pool, 'Counters')
+bad_request_fam = pycassa.ColumnFamily(pool, 'BadRequest')
 
 content_type = 'CONTENT_TYPE'
 ostream = 'application/octet-stream'
@@ -59,6 +60,8 @@ def ok_response(start_response, data=''):
     return [data]
 
 def bad_request_response(start_response, text=''):
+    day_key = time.strftime('%Y%m%d', time.gmtime())
+    bad_request_fam.add(text, day_key)
     start_response('400 Bad Request', [])
     return [text]
 
