@@ -368,7 +368,7 @@ class Retracer:
             log('Retracer failed: %i' % proc.returncode)
             self.move_to_failed_queue(msg)
             retracing_time = time.time() - retracing_start_time
-            self.update_retrace_stats(self, release, day_key, retracing_time,
+            self.update_retrace_stats(release, day_key, retracing_time,
                                       crashed=True)
             return
 
