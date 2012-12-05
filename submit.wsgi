@@ -60,8 +60,9 @@ def ok_response(start_response, data=''):
     return [data]
 
 def bad_request_response(start_response, text=''):
-    day_key = time.strftime('%Y%m%d', time.gmtime())
-    bad_request_fam.add(text, day_key)
+    if text:
+        day_key = time.strftime('%Y%m%d', time.gmtime())
+        bad_request_fam.add(text, day_key)
     start_response('400 Bad Request', [])
     return [text]
 
