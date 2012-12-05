@@ -24,6 +24,7 @@ import tempfile
 import shutil
 from subprocess import Popen, PIPE
 import apport
+from pycassa import ConsistencyLevel
 from pycassa.columnfamily import ColumnFamily
 from pycassa.cassandra.ttypes import NotFoundException
 from pycassa.pool import MaximumRetryException
@@ -285,7 +286,8 @@ class Retracer:
             # Also remove it from the retracing index, if we haven't already.
             try:
                 addr_sig = self.oops_fam.get(oops_id,
-                                ['StacktraceAddressSignature'])
+                                ['StacktraceAddressSignature'],
+                                read_consistency_level=ConsistencyLevel.QUORUM)
                 addr_sig = addr_sig.values()[0]
                 self.indexes_fam.remove('retracing', [addr_sig])
             except NotFoundException:
@@ -316,7 +318,7 @@ class Retracer:
 
         report = apport.Report()
         # TODO use oops-repository instead
-        col = self.oops_fam.get(oops_id)
+        col = self.oops_fam.get(oops_id, read_consistency_level=ConsistencyLevel.QUORUM)
         for k in col:
             report[k.encode('UTF-8')] = col[k].encode('UTF-8')
         
@@ -492,7 +494,8 @@ class Retracer:
 
         for oops_id in ids:
             try:
-                vals = self.oops_fam.get(oops_id, ['DistroRelease', 'Package'])
+                vals = self.oops_fam.get(oops_id, ['DistroRelease', 'Package'],
+                                read_consistency_level=ConsistencyLevel.QUORUM)
             except NotFoundException:
                 vals = {}
             utils.bucket(self.oops_config, oops_id, crash_signature, vals)
