@@ -111,7 +111,7 @@ def wsgi_handler(environ, start_response):
     oopses.insert_dict(oops_config, oops_id, data, user_token, fields)
 
     if 'DuplicateSignature' in data:
-        utils.bucket(oops_config, oops_id, data['DuplicateSignature'], data)
+        utils.bucket(oops_config, oops_id, data['DuplicateSignature'].encode('UTF-8'), data)
         return ok_response(start_response)
     elif 'InterpreterPath' in data and not 'StacktraceAddressSignature' in data:
         # Python crashes can be immediately bucketed.
