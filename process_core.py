@@ -47,34 +47,8 @@ if not configuration:
 
 from oopsrepository import config
 
-class log_output:
-    '''Default log_output function.
-       This will be replaced if the log to file option is set.'''
-    @classmethod
-    def write(klass, msg):
-        print('%s: %s' % (time.strftime('%x %X'), msg))
-
-def log(message):
-    log_output.write(message)
-
-class StreamToFileLogger:
-    def __init__(self, stream, filename):
-        if stream == 'stdout':
-            self.logger = logging.getLogger('stdout')
-            self.log_level = logging.INFO
-        elif stream == 'stderr':
-            self.logger = logging.getLogger('stderr')
-            self.log_level = logging.ERROR
-        else:
-            self.logger = logging.getLogger('')
-            self.log_level = logging.INFO
-        self.linebuf = ''
-        fmt = '%(asctime)s:%(levelname)s:%(name)s:%(message)s'
-        logging.basicConfig(format=fmt, filename=filename, filemode='a')
-
-    def write(self, buf):
-        for line in buf.rstrip().splitlines():
-            self.logger.log(self.log_level, line.rstrip())
+def log(message, level=logging.INFO):
+    logging.log(level, message)
 
 def get_architecture():
     try:
@@ -524,10 +498,15 @@ def parse_options():
 def main():
     global log_output
     options = parse_options()
+    fmt = '%(asctime)s:%(levelname)s:%(name)s:%(message)s'
     if options.output:
-        sys.stderr = StreamToFileLogger('stderr', options.output)
-        sys.stdout = StreamToFileLogger('stdout', options.output)
-        log_output = StreamToFileLogger('main', options.output)
+        sys.stdout.close()
+        sys.stdout = open(options.output, 'a')
+        sys.stderr.close()
+        sys.stderr = sys.stdout
+    fmt = '%(asctime)s:%(levelname)s:%(name)s:%(message)s'
+    logging.basicConfig(format=fmt, level=logging.INFO)
+
     retracer = Retracer(options.config_dir, options.sandbox_dir,
                         options.verbose, not options.nocache_debs,
                         failed=options.failed)
