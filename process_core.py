@@ -52,7 +52,7 @@ class log_output:
        This will be replaced if the log to file option is set.'''
     @classmethod
     def write(klass, msg):
-        print('%s:' % time.strftime('%x %X'), msg)
+        print('%s: %s' % (time.strftime('%x %X'), msg))
 
 def log(message):
     log_output.write(message)
