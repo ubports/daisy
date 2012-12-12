@@ -100,8 +100,8 @@ class Retracer:
         self._lost_connection = None
         self.cache_debs = cache_debs
 
-       # determine path of apport-retrace
-       which = Popen(['which', 'apport-retrace'], stdout=PIPE,
+        # determine path of apport-retrace
+        which = Popen(['which', 'apport-retrace'], stdout=PIPE,
                       universal_newlines=True)
         self.apport_retrace_path = which.communicate()[0].strip()
         assert which.returncode == 0, 'Cannot find apport-retrace in $PATH (%s)' % os.environ.get('PATH')
