@@ -100,6 +100,12 @@ class Retracer:
         self._lost_connection = None
         self.cache_debs = cache_debs
 
+       # determine path of apport-retrace
+       which = Popen(['which', 'apport-retrace'], stdout=PIPE,
+                      universal_newlines=True)
+        self.apport_retrace_path = which.communicate()[0].strip()
+        assert which.returncode == 0, 'Cannot find apport-retrace in $PATH (%s)' % os.environ.get('PATH')
+
     def setup_cassandra(self):
         os.environ['OOPS_KEYSPACE'] = configuration.cassandra_keyspace
         self.oops_config = config.get_config()
@@ -320,7 +326,7 @@ class Retracer:
         day_key = time.strftime('%Y%m%d', time.gmtime())
 
         retracing_start_time = time.time()
-        cmd = ['python3', '/usr/bin/apport-retrace', report_path, '-c',
+        cmd = ['python3', self.apport_retrace_path, report_path, '-c',
                '-S', self.config_dir, '--sandbox-dir', sandbox,
                '-o', '%s.new' % report_path]
         if cache:
