@@ -1,8 +1,9 @@
-There are a minimum of five servers:
+There are a minimum of four servers:
 - One for the web frontend that the crash reporting daemon talks to.
 - One for the Cassandra server that the web frontend talks to.
 - One for the RabbitMQ server.
-- Two architecture retracer servers, one for amd64 and one for i386.
+- One retracer server; they can handle reports from any architecture, but for
+  production you need more instances for keeping up with incoming reports.
 
 Obviously you'll want more than this.
 

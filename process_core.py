@@ -50,14 +50,6 @@ from oopsrepository import config
 def log(message, level=logging.INFO):
     logging.log(level, message)
 
-def get_architecture():
-    try:
-        p = Popen(['dpkg-architecture', '-qDEB_HOST_ARCH'], stdout=PIPE)
-        return p.communicate()[0].strip('\n')
-    except OSError, e:
-        log('Could not determine architecture: %s' % str(e))
-        sys.exit(1)
-
 def chunked_insert(cf, row_key, data):
     # The thrift_framed_transport_size_in_mb limit is 15 MB by default, but
     # there seems to be some additional overhead between 64 and 128 bytes.
@@ -83,13 +75,13 @@ def chunked_insert(cf, row_key, data):
             cf.insert(row_key, {key: data[key]})
 
 class Retracer:
-    def __init__(self, config_dir, sandbox_dir, verbose, cache_debs,
-                 failed=False):
+    def __init__(self, config_dir, sandbox_dir, architecture, verbose,
+                 cache_debs, failed=False):
         self.setup_cassandra()
         self.config_dir = config_dir
         self.sandbox_dir = sandbox_dir
         self.verbose = verbose
-        self.architecture = get_architecture()
+        self.architecture = architecture
         self.failed = failed
         # A mapping of release names to temporary sandbox and cache
         # directories, so that we can remove them at the end of the run.
@@ -488,6 +480,9 @@ def parse_options():
     parser.add_argument('--config-dir',
                         help='Packaging system configuration base directory.',
                         required=True)
+    parser.add_argument('-a', '--architecture',
+                        help='architecture to process (e. g. i386 or armhf)',
+                        required=True)
     parser.add_argument('--sandbox-dir',
                         help='Directory for state information. Subdirectories '
                         'will be created for each release for which crashes '
@@ -517,8 +512,8 @@ def main():
     logging.basicConfig(format=fmt, level=logging.INFO)
 
     retracer = Retracer(options.config_dir, options.sandbox_dir,
-                        options.verbose, not options.nocache_debs,
-                        failed=options.failed)
+                        options.architecture, options.verbose,
+                        not options.nocache_debs, failed=options.failed)
     retracer.listen()
 
 if __name__ == '__main__':
