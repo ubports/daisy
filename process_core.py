@@ -327,8 +327,8 @@ class Retracer:
             cmd.extend(['-C', cache])
         if self.verbose:
             cmd.append('-v')
-        proc = Popen(cmd)
-        proc.communicate()
+        proc = Popen(cmd, stderr=PIPE, universal_newlines=True)
+        err = proc.communicate()[1]
         if proc.returncode != 0:
             if proc.returncode == 99:
                 # Transient apt error, like "failed to fetch ... size mismatch"
@@ -339,7 +339,7 @@ class Retracer:
             # python-apt bailed out on invalid sources.list files. Fail hard so
             # we do not incorrectly write a lot of retraces to the database as
             # failures.
-            log('Retrace failed (%i), moving to failed queue' % proc.returncode)
+            log('Retrace failed (%i), moving to failed queue:\n%s' % (proc.returncode, err))
             self.move_to_failed_queue(msg)
             retracing_time = time.time() - retracing_start_time
             self.update_retrace_stats(release, day_key, retracing_time,
