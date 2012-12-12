@@ -333,7 +333,10 @@ class Retracer:
             cmd.extend(['-C', cache])
         if self.verbose:
             cmd.append('-v')
-        proc = Popen(cmd, stderr=PIPE, universal_newlines=True)
+        # use our own crashdb config with all supported architectures
+        env = os.environ.copy()
+        env['APPORT_CRASHDB_CONF'] = os.path.join(self.config_dir, 'crashdb.conf')
+        proc = Popen(cmd, env=env, stderr=PIPE, universal_newlines=True)
         err = proc.communicate()[1]
         if proc.returncode != 0:
             if proc.returncode == 99:
