@@ -110,7 +110,10 @@ class Retracer:
         self.indexes_fam = ColumnFamily(pool, 'Indexes')
         self.stack_fam = ColumnFamily(pool, 'Stacktrace')
         self.awaiting_retrace_fam = ColumnFamily(pool, 'AwaitingRetrace')
-        self.retrace_stats_fam = ColumnFamily(pool, 'RetraceStats')
+        # Retry counter increments. This may result in double counting, but
+        # we'd end up risking that anyway if failing with a timeout exception
+        # and then re-rerunning the retrace later.
+        self.retrace_stats_fam = ColumnFamily(pool, 'RetraceStats', retry_counter_mutations=True)
         self.bucket_fam = ColumnFamily(pool, 'Buckets')
 
         # We didn't set a default_validation_class for these in the schema.
