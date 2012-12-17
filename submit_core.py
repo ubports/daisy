@@ -16,93 +16,73 @@
 # You should have received a copy of the GNU Affero Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from cgi import parse_qs
 import amqplib.client_0_8 as amqp
 import pycassa
 from pycassa.cassandra.ttypes import NotFoundException
 import shutil
-import atexit
-import utils
-import re
 
-configuration = None
+config = None
 try:
-    import local_config as configuration
+    import local_config as config
 except ImportError:
     pass
-if not configuration:
-    import configuration
+if not config:
+    import configuration as config
 import os
-import metrics
 
-ostream = 'application/octet-stream'
-if configuration.amqp_username and configuration.amqp_password:
-    connection = amqp.Connection(host=configuration.amqp_host,
-                                 userid=configuration.amqp_username,
-                                 password=configuration.amqp_password)
-else:
-    connection = amqp.Connection(host=configuration.amqp_host)
-channel = connection.channel()
-atexit.register(connection.close)
-atexit.register(channel.close)
 
-# Cassandra connections. These may move into oopsrepository in the future.
-pool = metrics.failure_wrapped_connection_pool()
-indexes_fam = pycassa.ColumnFamily(pool, 'Indexes')
-oops_fam = pycassa.ColumnFamily(pool, 'OOPS')
+def submit(_pool, fileobj, uuid, arch, system_hash):
+    indexes_fam = pycassa.ColumnFamily(_pool, 'Indexes')
+    oops_fam = pycassa.ColumnFamily(_pool, 'OOPS')
 
-path_filter = re.compile('[^a-zA-Z0-9-_]')
+    path = os.path.join(config.san_path, uuid)
+    try:
+        addr_sig = oops_fam.get(uuid, ['StacktraceAddressSignature'])
+        addr_sig = addr_sig.values()[0]
+    except NotFoundException:
+        # Due to Cassandra's eventual consistency model, we may receive
+        # the core dump before the OOPS has been written to all the
+        # nodes. This is acceptable, as we'll just ask the next user
+        # for a core dump.
+        msg = 'No matching address signature for this core dump.'
+        return (False, msg)
 
-def wsgi_handler(environ, start_response):
-    global channel
-    params = parse_qs(environ.get('QUERY_STRING', ''))
-    uuid = ''
-    if params and 'uuid' in params and 'arch' in params:
-        uuid = path_filter.sub('', params['uuid'][0])
-        arch = path_filter.sub('', params['arch'][0])
-        if environ.has_key('CONTENT_TYPE') and environ['CONTENT_TYPE'] == ostream:
-            path = os.path.join(configuration.san_path, uuid)
-            queue = 'retrace_%s' % arch
-            addr_sig = None
-            try:
-                addr_sig = oops_fam.get(uuid, ['StacktraceAddressSignature'])
-                addr_sig = addr_sig.values()[0]
-            except NotFoundException:
-                # Due to Cassandra's eventual consistency model, we may receive
-                # the core dump before the OOPS has been written to all the
-                # nodes. This is acceptable, as we'll just ask the next user
-                # for a core dump.
-                pass
-            if not addr_sig:
-                start_response('400 Bad Request', [])
-                return ['']
-            copied = False
-            with open(path, 'w') as fp:
-                try:
-                    shutil.copyfileobj(environ['wsgi.input'], fp, 512)
-                    copied = True
-                except IOError, e:
-                    if e.message != 'request data read error':
-                        raise
-            if not copied:
-                try:
-                    os.remove(path)
-                except OSError:
-                    pass
-                start_response('400 Bad Request', [])
-                return ['']
+    copied = False
+    with open(path, 'w') as fp:
+        try:
+            shutil.copyfileobj(fileobj, fp, 512)
+            copied = True
+        except IOError, e:
+            if e.message != 'request data read error':
+                raise
+    if not copied:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+        return (False, '')
 
-            os.chmod(path, 0o666)
-            channel.queue_declare(queue=queue, durable=True, auto_delete=False)
-            body = amqp.Message(path)
-            # Persistent
-            body.properties['delivery_mode'] = 2
-            channel.basic_publish(body, exchange='', routing_key=queue)
-            indexes_fam.insert('retracing', {addr_sig : ''})
+    os.chmod(path, 0o666)
+
+    if config.amqp_username and config.amqp_password:
+        connection = amqp.Connection(host=config.amqp_host,
+                                     userid=config.amqp_username,
+                                     password=config.amqp_password)
+    else:
+        connection = amqp.Connection(host=config.amqp_host)
+    channel = connection.channel()
+
+    try:
+        queue = 'retrace_%s' % arch
+        channel.queue_declare(queue=queue, durable=True, auto_delete=False)
+        body = amqp.Message(path)
+        # Persistent
+        body.properties['delivery_mode'] = 2
+        channel.basic_publish(body, exchange='', routing_key=queue)
+    finally:
+        channel.close()
+        connection.close()
+
+    indexes_fam.insert('retracing', {addr_sig : ''})
         
-    start_response('200 OK', [])
-    return [uuid]
-
-application = utils.wrap_in_oops_wsgi(wsgi_handler,
-                                      configuration.oops_repository,
-                                      'daisy.ubuntu.com')
+    return (True, uuid)
