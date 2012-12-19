@@ -64,6 +64,8 @@ def app(environ, start_response):
         # An error report submission.
         if len(components[1]) == 128:
             system_hash = components[1]
+        else:
+            system_hash = ''
         # We pass a reference to the wsgi environment so we can possibly attach
         # the decoded report to an OOPS report if an exception is raised.
         response = submit.submit(_pool, environ, system_hash)
@@ -74,9 +76,9 @@ def app(environ, start_response):
         response = handle_core_dump(_pool, fileobj, components, content_type)
 
     if response[0]:
-        return ok_response(response[1])
+        return ok_response(start_response, response[1])
     else:
-        return bad_request_response(response[1])
+        return bad_request_response(start_response, response[1])
 
 oops_repo = config.oops_repository
 application = utils.wrap_in_oops_wsgi(app, oops_repo, 'daisy.ubuntu.com')
