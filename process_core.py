@@ -110,7 +110,10 @@ class Retracer:
         self.indexes_fam = ColumnFamily(pool, 'Indexes')
         self.stack_fam = ColumnFamily(pool, 'Stacktrace')
         self.awaiting_retrace_fam = ColumnFamily(pool, 'AwaitingRetrace')
-        self.retrace_stats_fam = ColumnFamily(pool, 'RetraceStats')
+        # Retry counter increments. This may result in double counting, but
+        # we'd end up risking that anyway if failing with a timeout exception
+        # and then re-rerunning the retrace later.
+        self.retrace_stats_fam = ColumnFamily(pool, 'RetraceStats', retry_counter_mutations=True)
         self.bucket_fam = ColumnFamily(pool, 'Buckets')
 
         # We didn't set a default_validation_class for these in the schema.
@@ -240,30 +243,55 @@ class Retracer:
         body.properties['delivery_mode'] = 2
         msg.channel.basic_publish(body, exchange='', routing_key=queue)
 
+    def failed_to_process(self, msg, oops_id):
+        msg.channel.basic_ack(msg.delivery_tag)
+        # Also remove it from the retracing index, if we haven't already.
+        try:
+            addr_sig = self.oops_fam.get(oops_id,
+                            ['StacktraceAddressSignature'],
+                            read_consistency_level=ConsistencyLevel.QUORUM)
+            addr_sig = addr_sig.values()[0]
+            self.indexes_fam.remove('retracing', [addr_sig])
+        except NotFoundException:
+            pass
+
+    def write_s3_bucket_to_disk(self, msg):
+        from boto.s3.connection import S3Connection, OrdinaryCallingFormat
+        from boto.exception import S3ResponseError
+
+        conn = S3Connection(aws_access_key_id=configuration.aws_access_key,
+                            aws_secret_access_key=configuration.aws_secret_key,
+                            port=3333,
+                            host=configuration.ec2_host,
+                            is_secure=False,
+                            calling_format=OrdinaryCallingFormat())
+        try:
+            bucket = conn.get_bucket(configuration.ec2_bucket)
+            key = bucket.get_key(msg.body)
+        except S3ResponseError as e:
+            log('Could not retrieve %s:\n%s' % (msg.body, str(e)))
+            self.failed_to_process(msg, msg.body)
+            return None
+        fp = tempfile.mkstemp()
+        with open(fp[1], 'wb') as fp:
+            for data in key:
+                # 8K at a time.
+                fp.write(data)
+            path = fp.name
+        return path
+
     def callback(self, msg):
         log('Processing %s' % msg.body)
-        path = msg.body
-        try:
+        if not msg.body.startswith('/'):
+            oops_id = msg.body
+            path = self.write_s3_bucket_to_disk(msg)
+        else:
+            path = msg.body
             oops_id = msg.body.rsplit('/', 1)[1]
-        except IndexError:
-            # If we accidentally put something other than a full path on the
-            # queue.
-            log('Could not parse message: %s' % path)
-            msg.channel.basic_ack(msg.delivery_tag)
-            return
+
         if not os.path.exists(path):
-            log(' %s does not exist, skipping.' % path)
-            # We've processed this. Delete it off the MQ.
-            msg.channel.basic_ack(msg.delivery_tag)
-            # Also remove it from the retracing index, if we haven't already.
-            try:
-                addr_sig = self.oops_fam.get(oops_id,
-                                ['StacktraceAddressSignature'],
-                                read_consistency_level=ConsistencyLevel.QUORUM)
-                addr_sig = addr_sig.values()[0]
-                self.indexes_fam.remove('retracing', [addr_sig])
-            except NotFoundException:
-                pass
+            log('Could not find %s' % path)
+            self.failed_to_process(msg, oops_id)
             return
 
         new_path = '%s.core' % path

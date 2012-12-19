@@ -20,6 +20,8 @@ import amqplib.client_0_8 as amqp
 import pycassa
 from pycassa.cassandra.ttypes import NotFoundException
 import shutil
+import tempfile
+import os
 
 config = None
 try:
@@ -28,14 +30,69 @@ except ImportError:
     pass
 if not config:
     import configuration as config
-import os
 
+
+def write_to_s3(fileobj, oops_id):
+    from boto.s3.connection import S3Connection, OrdinaryCallingFormat
+    from boto.exception import S3ResponseError
+
+    conn = S3Connection(aws_access_key_id=config.aws_access_key,
+                        aws_secret_access_key=config.aws_secret_key,
+                        port=3333,
+                        host=config.ec2_host,
+                        is_secure=False,
+                        calling_format=OrdinaryCallingFormat())
+    try:
+        bucket = conn.get_bucket(config.ec2_bucket)
+    except S3ResponseError as e:
+        bucket = conn.create_bucket(config.ec2_bucket)
+
+    with tempfile.NamedTemporaryFile(mode='w+b') as fp:
+        try:
+            shutil.copyfileobj(fileobj, fp, 512)
+        except IOError as e:
+            if e.message != 'request data read error':
+                raise
+            return False
+
+        fp.seek(0)
+        key = bucket.new_key(oops_id)
+        try:
+            key.set_contents_from_file(fp)
+        except IOError, e:
+            if e.message == 'request data read error':
+                return False
+            else:
+                raise
+
+    return True
+
+def write_to_san(fileobj, oops_id):
+    '''Write the core file to SAN/NFS.'''
+
+    path = os.path.join(config.san_path, oops_id)
+    with open(path, 'w') as fp:
+        try:
+            shutil.copyfileobj(fileobj, fp, 512)
+            copied = True
+        except IOError, e:
+            if e.message != 'request data read error':
+                raise
+
+    if copied:
+        os.chmod(path, 0o666)
+        return True
+    else:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+        return False
 
 def submit(_pool, fileobj, uuid, arch, system_hash):
     indexes_fam = pycassa.ColumnFamily(_pool, 'Indexes')
     oops_fam = pycassa.ColumnFamily(_pool, 'OOPS')
 
-    path = os.path.join(config.san_path, uuid)
     try:
         addr_sig = oops_fam.get(uuid, ['StacktraceAddressSignature'])
         addr_sig = addr_sig.values()[0]
@@ -47,22 +104,17 @@ def submit(_pool, fileobj, uuid, arch, system_hash):
         msg = 'No matching address signature for this core dump.'
         return (False, msg)
 
-    copied = False
-    with open(path, 'w') as fp:
-        try:
-            shutil.copyfileobj(fileobj, fp, 512)
-            copied = True
-        except IOError, e:
-            if e.message != 'request data read error':
-                raise
-    if not copied:
-        try:
-            os.remove(path)
-        except OSError:
-            pass
-        return (False, '')
 
-    os.chmod(path, 0o666)
+    written = False
+    if not config.ec2_bucket:
+        written = write_to_san(fileobj, uuid)
+        message = os.path.join(config.san_path, uuid)
+    else:
+        written = write_to_s3(fileobj, uuid)
+        message = uuid
+
+    if not written:
+        return (False, '')
 
     if config.amqp_username and config.amqp_password:
         connection = amqp.Connection(host=config.amqp_host,
@@ -75,7 +127,7 @@ def submit(_pool, fileobj, uuid, arch, system_hash):
     try:
         queue = 'retrace_%s' % arch
         channel.queue_declare(queue=queue, durable=True, auto_delete=False)
-        body = amqp.Message(path)
+        body = amqp.Message(message)
         # Persistent
         body.properties['delivery_mode'] = 2
         channel.basic_publish(body, exchange='', routing_key=queue)
@@ -84,5 +136,5 @@ def submit(_pool, fileobj, uuid, arch, system_hash):
         connection.close()
 
     indexes_fam.insert('retracing', {addr_sig : ''})
-        
+
     return (True, uuid)
