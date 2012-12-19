@@ -266,6 +266,7 @@ class Retracer:
             bucket = conn.get_bucket(configuration.ec2_bucket)
             key = bucket.get_key(msg.body)
         except S3ResponseError as e:
+            log('Could not retrieve %s:\n%s' % (msg.body, str(e)))
             self.failed_to_process(msg, msg.body)
             return None
         fp = tempfile.mkstemp()
@@ -286,6 +287,7 @@ class Retracer:
             oops_id = msg.body.rsplit('/', 1)[1]
 
         if not os.path.exists(path):
+            log('Could not find %s' % path)
             self.failed_to_process(msg, oops_id)
             return
 
