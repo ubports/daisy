@@ -29,11 +29,12 @@ def bad_request_response(start_response, text=''):
 def handle_core_dump(_pool, fileobj, components, content_type):
     l = len(components)
     operation = ''
-    if l == 4:
+    if l >= 4:
+        # We also accept a system_hash parameter on the end of the URL, but do
+        # not actually do anything with it.
         uuid, operation, arch = components[1:4]
-        system_hash = ''
-    elif l > 4:
-        uuid, operation, arch, system_hash = components[1:5]
+    else:
+        return False
 
     if not operation or operation != 'submit-core':
         # Unknown operation.
@@ -46,7 +47,7 @@ def handle_core_dump(_pool, fileobj, components, content_type):
     uuid = path_filter.sub('', uuid)
     arch = path_filter.sub('', arch)
 
-    return submit_core.submit(_pool, fileobj, uuid, arch, system_hash)
+    return submit_core.submit(_pool, fileobj, uuid, arch)
 
 def app(environ, start_response):
     global _pool
