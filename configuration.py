@@ -71,3 +71,11 @@ django_databases = {
         'PORT': '5432',
         }
 }
+
+# EC2/OpenStack configuration.
+aws_access_key = ''
+aws_secret_key = ''
+ec2_host = ''
+
+# The bucket to place core files in.
+ec2_bucket = ''

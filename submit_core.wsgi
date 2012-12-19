@@ -24,6 +24,7 @@ import shutil
 import atexit
 import utils
 import re
+import tempfile
 
 configuration = None
 try:
@@ -53,6 +54,64 @@ oops_fam = pycassa.ColumnFamily(pool, 'OOPS')
 
 path_filter = re.compile('[^a-zA-Z0-9-_]')
 
+def write_to_s3(fileobj, oops_id):
+    from boto.s3.connection import S3Connection, OrdinaryCallingFormat
+    from boto.exception import S3ResponseError
+
+    conn = S3Connection(aws_access_key_id=configuration.aws_access_key,
+                        aws_secret_access_key=configuration.aws_secret_key,
+                        port=3333,
+                        host=configuration.ec2_host,
+                        is_secure=False,
+                        calling_format=OrdinaryCallingFormat())
+
+    try:
+        bucket = conn.get_bucket(configuration.ec2_bucket)
+    except S3ResponseError as e:
+        bucket = conn.create_bucket(configuration.ec2_bucket)
+
+    with tempfile.NamedTemporaryFile(mode='w+b') as fp:
+        try:
+            shutil.copyfileobj(fileobj, fp, 512)
+        except IOError as e:
+            if e.message != 'request data read error':
+                raise
+            return False
+
+        fp.seek(0)
+        key = bucket.new_key(oops_id)
+        try:
+            key.set_contents_from_file(fp)
+        except IOError, e:
+            if e.message == 'request data read error':
+                return False
+            else:
+                raise
+
+    return True
+
+def write_to_san(fileobj, oops_id):
+    '''Write the core file to SAN/NFS.'''
+
+    path = os.path.join(configuration.san_path, oops_id)
+    with open(path, 'w') as fp:
+        try:
+            shutil.copyfileobj(environ['wsgi.input'], fp, 512)
+            copied = True
+        except IOError, e:
+            if e.message != 'request data read error':
+                raise
+
+    if copied:
+        os.chmod(path, 0o666)
+        return True
+    else:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+        return False
+
 def wsgi_handler(environ, start_response):
     global channel
     params = parse_qs(environ.get('QUERY_STRING', ''))
@@ -61,7 +120,6 @@ def wsgi_handler(environ, start_response):
         uuid = path_filter.sub('', params['uuid'][0])
         arch = path_filter.sub('', params['arch'][0])
         if environ.has_key('CONTENT_TYPE') and environ['CONTENT_TYPE'] == ostream:
-            path = os.path.join(configuration.san_path, uuid)
             queue = 'retrace_%s' % arch
             addr_sig = None
             try:
@@ -76,25 +134,21 @@ def wsgi_handler(environ, start_response):
             if not addr_sig:
                 start_response('400 Bad Request', [])
                 return ['']
-            copied = False
-            with open(path, 'w') as fp:
-                try:
-                    shutil.copyfileobj(environ['wsgi.input'], fp, 512)
-                    copied = True
-                except IOError, e:
-                    if e.message != 'request data read error':
-                        raise
-            if not copied:
-                try:
-                    os.remove(path)
-                except OSError:
-                    pass
+
+            written = False
+            if not configuration.ec2_bucket:
+                written = write_to_san(fileobj, uuid)
+                message = os.path.join(configuration.san_path, uuid)
+            else:
+                written = write_to_s3(environ['wsgi.input'], uuid)
+                message = uuid
+
+            if not written:
                 start_response('400 Bad Request', [])
                 return ['']
 
-            os.chmod(path, 0o666)
             channel.queue_declare(queue=queue, durable=True, auto_delete=False)
-            body = amqp.Message(path)
+            body = amqp.Message(message)
             # Persistent
             body.properties['delivery_mode'] = 2
             channel.basic_publish(body, exchange='', routing_key=queue)
