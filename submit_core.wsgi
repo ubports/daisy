@@ -96,7 +96,7 @@ def write_to_san(fileobj, oops_id):
     path = os.path.join(configuration.san_path, oops_id)
     with open(path, 'w') as fp:
         try:
-            shutil.copyfileobj(environ['wsgi.input'], fp, 512)
+            shutil.copyfileobj(fileobj, fp, 512)
             copied = True
         except IOError, e:
             if e.message != 'request data read error':
@@ -137,7 +137,7 @@ def wsgi_handler(environ, start_response):
 
             written = False
             if not configuration.ec2_bucket:
-                written = write_to_san(fileobj, uuid)
+                written = write_to_san(environ['wsgi.input'], uuid)
                 message = os.path.join(configuration.san_path, uuid)
             else:
                 written = write_to_s3(environ['wsgi.input'], uuid)
