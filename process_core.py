@@ -252,7 +252,7 @@ class Retracer:
         except NotFoundException:
             pass
 
-    def write_s3_bucket_to_disk(self, bucket_id):
+    def write_s3_bucket_to_disk(self, msg):
         from boto.s3.connection import S3Connection, OrdinaryCallingFormat
         from boto.exception import S3ResponseError
 
@@ -264,7 +264,7 @@ class Retracer:
                             calling_format=OrdinaryCallingFormat())
         try:
             bucket = conn.get_bucket(configuration.ec2_bucket)
-            key = bucket.get_key(bucket_id)
+            key = bucket.get_key(msg.body)
         except S3ResponseError as e:
             self.failed_to_process(msg, msg.body)
             return None
@@ -280,7 +280,7 @@ class Retracer:
         log('Processing %s' % msg.body)
         if not msg.body.startswith('/'):
             oops_id = msg.body
-            path = self.write_s3_bucket_to_disk(oops_id)
+            path = self.write_s3_bucket_to_disk(msg)
         else:
             path = msg.body
             oops_id = msg.body.rsplit('/', 1)[1]
