@@ -51,6 +51,12 @@ counters_fam = pycassa.ColumnFamily(pool, 'Counters')
 content_type = 'CONTENT_TYPE'
 ostream = 'application/octet-stream'
 
+def update_package_count(release, package, date):
+    # only store four weeks worth of data
+    time_to_live = 60*60*24*28
+    counters_fam.insert('%s:%s' % (release, package), {date: 1},
+        ttl=time_to_live)
+
 def ok_response(start_response, data=''):
     if data:
         start_response('200 OK', [('Content-type', 'text/plain')])
@@ -89,10 +95,10 @@ def wsgi_handler(environ, start_response):
     except bson.errors.InvalidBSON:
         return bad_request_response(start_response, 'Invalid BSON.')
 
+    day_key = time.strftime('%Y%m%d', time.gmtime())
     if 'KernelCrash' in data or 'VmCore' in data:
         # We do not process these yet, but we keep track of how many reports
         # we're receiving to determine when it's worth solving.
-        day_key = time.strftime('%Y%m%d', time.gmtime())
         counters_fam.add('KernelCrash', day_key)
         return bad_request_response(start_response,
                                     'Kernel crashes are not handled yet.')
@@ -104,6 +110,9 @@ def wsgi_handler(environ, start_response):
     release = data.get('DistroRelease', '')
     package = data.get('Package', '')
     problem_type = data.get('ProblemType', '')
+    foreign = False
+    if '[origin:' in package:
+        foreign = True
     package, version = utils.split_package_and_version(package)
     fields = utils.get_fields_for_bucket_counters(problem_type, release, package, version)
     if user_token:
@@ -112,6 +121,8 @@ def wsgi_handler(environ, start_response):
 
     if 'DuplicateSignature' in data:
         utils.bucket(oops_config, oops_id, data['DuplicateSignature'].encode('UTF-8'), data)
+        if not foreign:
+            update_package_count(release, package, day_key)
         return ok_response(start_response)
     elif 'InterpreterPath' in data and not 'StacktraceAddressSignature' in data:
         # Python crashes can be immediately bucketed.
@@ -126,6 +137,8 @@ def wsgi_handler(environ, start_response):
         crash_signature = report.crash_signature()
         if crash_signature:
             utils.bucket(oops_config, oops_id, crash_signature, data)
+            if not foreign:
+                update_package_count(release, package, day_key)
             return ok_response(start_response)
         else:
             return bad_request_response(start_response,
@@ -172,7 +185,8 @@ def wsgi_handler(environ, start_response):
             output = '%s CORE' % oops_id
 
         awaiting_retrace_fam.insert(addr_sig, {oops_id : ''})
-            
+    if not foreign:
+        update_package_count(release, package, day_key)
     return ok_response(start_response, output)
 
 application = utils.wrap_in_oops_wsgi(wsgi_handler,
