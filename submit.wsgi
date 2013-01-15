@@ -146,6 +146,7 @@ def wsgi_handler(environ, start_response):
 
     addr_sig = data.get('StacktraceAddressSignature', None)
     if not addr_sig:
+        counters_fam.add('MissingSAS', day_key)
         # We received BSON data with unexpected keys.
         return bad_request_response(start_response,
             'No StacktraceAddressSignature found in report.')
