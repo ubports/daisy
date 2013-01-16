@@ -60,6 +60,9 @@ def create():
                 comparator_type=UTF8_TYPE,
                 key_validation_class=UTF8_TYPE,
                 default_validation_class=LONG_TYPE)
+        if 'BadRequest' not in cfs:
+            workaround_1779(mgr.create_column_family, keyspace, 'BadRequest',
+                default_validation_class=CounterColumnType())
     finally:
         mgr.close()
 
