@@ -261,10 +261,7 @@ class Retracer:
 
         conn = S3Connection(aws_access_key_id=configuration.aws_access_key,
                             aws_secret_access_key=configuration.aws_secret_key,
-                            port=3333,
-                            host=configuration.ec2_host,
-                            is_secure=False,
-                            calling_format=OrdinaryCallingFormat())
+                            host=configuration.ec2_host)
         try:
             bucket = conn.get_bucket(configuration.ec2_bucket)
             key = bucket.get_key(msg.body)
@@ -278,6 +275,7 @@ class Retracer:
                 # 8K at a time.
                 fp.write(data)
             path = fp.name
+        key.delete()
         return path
 
     def callback(self, msg):
