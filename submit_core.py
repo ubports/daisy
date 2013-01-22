@@ -89,7 +89,7 @@ def write_to_san(fileobj, oops_id):
             pass
         return False
 
-def submit(_pool, fileobj, uuid, arch, system_hash):
+def submit(_pool, fileobj, uuid, arch):
     indexes_fam = pycassa.ColumnFamily(_pool, 'Indexes')
     oops_fam = pycassa.ColumnFamily(_pool, 'OOPS')
 
