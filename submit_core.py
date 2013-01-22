@@ -33,15 +33,12 @@ if not config:
 
 
 def write_to_s3(fileobj, oops_id):
-    from boto.s3.connection import S3Connection, OrdinaryCallingFormat
+    from boto.s3.connection import S3Connection
     from boto.exception import S3ResponseError
 
     conn = S3Connection(aws_access_key_id=config.aws_access_key,
                         aws_secret_access_key=config.aws_secret_key,
-                        port=3333,
-                        host=config.ec2_host,
-                        is_secure=False,
-                        calling_format=OrdinaryCallingFormat())
+                        host=config.ec2_host)
     try:
         bucket = conn.get_bucket(config.ec2_bucket)
     except S3ResponseError as e:
