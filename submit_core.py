@@ -32,6 +32,21 @@ if not config:
     import configuration as config
 
 
+def write_to_swift(fileobj, oops_id):
+    import swiftclient
+    opts = {'tenant_name': config.os_tenant_name, 
+            'region_name': config.os_region_name}
+    conn = swiftclient.client.Connection(config.os_auth_url,
+                                         config.os_username,
+                                         config.os_password,
+                                         os_options=opts,
+                                         auth_version='2.0')
+    conn.put_container(config.swift_bucket)
+    # Don't set a content_length (that we don't have) to force a chunked
+    # transfer.
+    conn.put_object(config.swift_bucket, oops_id, fileobj)
+    return True
+
 def write_to_s3(fileobj, oops_id):
     from boto.s3.connection import S3Connection
     from boto.exception import S3ResponseError
@@ -103,12 +118,15 @@ def submit(_pool, fileobj, uuid, arch):
 
 
     written = False
-    if not config.ec2_bucket:
-        written = write_to_san(fileobj, uuid)
-        message = os.path.join(config.san_path, uuid)
-    else:
+    if config.swift_bucket:
+        written = write_to_swift(fileobj, uuid)
+        message = uuid
+    elif config.ec2_bucket:
         written = write_to_s3(fileobj, uuid)
         message = uuid
+    else:
+        written = write_to_san(fileobj, uuid)
+        message = os.path.join(config.san_path, uuid)
 
     if not written:
         return (False, '')

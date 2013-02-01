@@ -255,8 +255,26 @@ class Retracer:
         except NotFoundException:
             pass
 
+    def write_swift_bucket_to_disk(self, msg):
+        import swiftclient
+        opts = {'tenant_name': configuration.os_tenant_name,
+                'region_name': configuration.os_region_name}
+        conn = swiftclient.client.Connection(configuration.os_auth_url,
+                                             configuration.os_username,
+                                             configuration.os_password,
+                                             os_options=opts,
+                                             auth_version='2.0')
+        fp = tempfile.mkstemp()
+        bucket = configuration.swift_bucket
+        with open(fp[1], 'wb') as fp:
+            for chunk in conn.get_object(bucket, msg, resp_chunk_size=65536):
+                fp.write(chunk)
+            path = fp.name
+        conn.delete_object(bucket, msg)
+        return path
+
     def write_s3_bucket_to_disk(self, msg):
-        from boto.s3.connection import S3Connection, OrdinaryCallingFormat
+        from boto.s3.connection import S3Connection
         from boto.exception import S3ResponseError
 
         conn = S3Connection(aws_access_key_id=configuration.aws_access_key,
@@ -282,7 +300,14 @@ class Retracer:
         log('Processing %s' % msg.body)
         if not msg.body.startswith('/'):
             oops_id = msg.body
-            path = self.write_s3_bucket_to_disk(msg)
+            if configuration.swift_bucket:
+                path = self.write_swift_bucket_to_disk(msg)
+            elif configuration.ec2_bucket:
+                path = self.write_s3_bucket_to_disk(msg)
+            else:
+                # Bail out.
+                log('Neither swift_bucket or ec2_bucket set.')
+                sys.exit(1)
         else:
             path = msg.body
             oops_id = msg.body.rsplit('/', 1)[1]
