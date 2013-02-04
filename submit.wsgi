@@ -115,9 +115,9 @@ def wsgi_handler(environ, start_response):
     package = data.get('Package', '')
     src_package = data.get('SourcePackage', '')
     problem_type = data.get('ProblemType', '')
-    foreign = False
+    third_party = False
     if '[origin:' in package:
-        foreign = True
+        third_party = True
     package, version = utils.split_package_and_version(package)
     src_package, src_version = utils.split_package_and_version(src_package)
     fields = utils.get_fields_for_bucket_counters(problem_type, release, package, version)
@@ -127,7 +127,7 @@ def wsgi_handler(environ, start_response):
 
     if 'DuplicateSignature' in data:
         utils.bucket(oops_config, oops_id, data['DuplicateSignature'].encode('UTF-8'), data)
-        if not foreign and problem_type == 'Crash':
+        if not third_party and problem_type == 'Crash':
             update_release_pkg_counter(release, src_package, day_key)
         return ok_response(start_response)
     elif 'InterpreterPath' in data and not 'StacktraceAddressSignature' in data:
@@ -143,7 +143,7 @@ def wsgi_handler(environ, start_response):
         crash_signature = report.crash_signature()
         if crash_signature:
             utils.bucket(oops_config, oops_id, crash_signature, data)
-            if not foreign and problem_type == 'Crash':
+            if not third_party and problem_type == 'Crash':
                 update_release_pkg_counter(release, src_package, day_key)
             return ok_response(start_response)
         else:
@@ -192,7 +192,7 @@ def wsgi_handler(environ, start_response):
             output = '%s CORE' % oops_id
 
         awaiting_retrace_fam.insert(addr_sig, {oops_id : ''})
-    if not foreign and problem_type == 'Crash':
+    if not third_party and problem_type == 'Crash':
         update_release_pkg_counter(release, src_package, day_key)
     return ok_response(start_response, output)
 
