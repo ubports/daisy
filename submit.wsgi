@@ -80,10 +80,10 @@ def wsgi_handler(environ, start_response):
     if not environ.has_key(content_type) or environ[content_type] != ostream:
         return bad_request_response(start_response, 'Incorrect Content-Type.')
 
-    user_token = None
+    system_token = None
     # / + 128 character system UUID
     if len(environ['PATH_INFO']) == 129:
-        user_token = environ['PATH_INFO'][1:]
+        system_token = environ['PATH_INFO'][1:]
 
     oops_id = str(uuid.uuid1())
     try:
@@ -121,9 +121,9 @@ def wsgi_handler(environ, start_response):
     package, version = utils.split_package_and_version(package)
     src_package, src_version = utils.split_package_and_version(src_package)
     fields = utils.get_fields_for_bucket_counters(problem_type, release, package, version)
-    if user_token:
-        data['SystemIdentifier'] = user_token
-    oopses.insert_dict(oops_config, oops_id, data, user_token, fields)
+    if system_token:
+        data['SystemIdentifier'] = system_token
+    oopses.insert_dict(oops_config, oops_id, data, system_token, fields)
 
     if 'DuplicateSignature' in data:
         utils.bucket(oops_config, oops_id, data['DuplicateSignature'].encode('UTF-8'), data)
