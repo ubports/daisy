@@ -267,10 +267,11 @@ class Retracer:
         fp = tempfile.mkstemp()
         bucket = configuration.swift_bucket
         with open(fp[1], 'wb') as fp:
-            for chunk in conn.get_object(bucket, msg, resp_chunk_size=65536):
+            headers, body = conn.get_object(bucket, msg.body, resp_chunk_size=65536)
+            for chunk in body:
                 fp.write(chunk)
             path = fp.name
-        conn.delete_object(bucket, msg)
+        conn.delete_object(bucket, msg.body)
         return path
 
     def write_s3_bucket_to_disk(self, msg):
