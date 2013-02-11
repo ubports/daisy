@@ -1,8 +1,7 @@
 #!/usr/bin/python
 import pycassa
 from pycassa.cassandra.ttypes import NotFoundException
-# how to get this on the daisy server
-import launchpad
+from .. import launchpad
 
 configuration = None
 try:
@@ -26,6 +25,7 @@ def import_user_binary_packages(user):
 
 if __name__ == '__main__':
     teams = ['ubuntu-x-swat', 'desktop-packages', 'ubuntu-server',
-        'foundations-bugs']
+        'foundations-bugs', 'dx-packages', 'edubuntu-bugs', 'kubuntu-bugs',
+        'lubuntu-packaging', 'xubuntu-bugs', 'ubuntu-security']
     for team in teams:
         import_user_binary_packages(team)
