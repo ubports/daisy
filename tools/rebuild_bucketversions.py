@@ -18,13 +18,13 @@ if not configuration:
 creds = {'username': configuration.cassandra_username,
          'password': configuration.cassandra_password}
 pool = pycassa.ConnectionPool(configuration.cassandra_keyspace,
-                              configuration.cassandra_hosts, timeout=600,
-                              max_retries=100, credentials=creds)
+                              configuration.cassandra_hosts, timeout=60,
+                              max_retries=100, credentials=creds, pool_size=5)
 
 oops_cf = pycassa.ColumnFamily(pool, 'OOPS')
-oops_cf = pycassa.ColumnFamily(pool, 'OOPS')
 indexes_fam = pycassa.ColumnFamily(pool, 'Indexes')
-#bucketversion_cf = pycassa.ColumnFamily(pool, 'BucketVersion')
+awaiting_retrace_cf = pycassa.ColumnFamily(pool, 'AwaitingRetrace')
+#bucketversion_cf = pycassa.ColumnFamily(pool, 'BucketVersion', retry_counter_mutations=True)
 
 no_sas = 0
 no_signature = 0
@@ -41,6 +41,11 @@ no_release = 0
 retracing = 0
 not_retracing = 0
 
+awaiting_retrace = 0
+not_awaiting_retrace = 0
+
+no_python_signature = 0
+
 wait_amount = 300000000 # 5 minutes
 wait = wait_amount
 
@@ -55,9 +60,15 @@ def print_totals(force=False):
     global wait
     global retracing
     global not_retracing
+    global awaiting_retrace
+    global not_awaiting_retrace
+    global no_python_signature
 
     if force or (pycassa.columnfamily.gm_timestamp() - start > wait):
         wait += wait_amount
+        t = float(binary + python + dups + no_sas + no_signature)
+        r = (t / (pycassa.columnfamily.gm_timestamp() - start) * 1000000 * 60)
+        print 'Processed:', t, '(%d/min)' % r
         print 'binary:', binary
         print 'python:', python
         print 'dups:', dups
@@ -67,6 +78,9 @@ def print_totals(force=False):
         print 'no_release:', no_release
         print 'retracing:', retracing
         print 'not_retracing:', not_retracing
+        print 'awaiting_retrace:', awaiting_retrace
+        print 'not_awaiting_retrace:', not_awaiting_retrace
+        print 'no_python_signature:', no_python_signature
         print
 
 def update_bucketversions(bucketid, oops):
@@ -93,23 +107,43 @@ def update_bucketversions(bucketid, oops):
 
     # bucketversion_cf.add(bucketid, (package, release))
 
-for key, o in oops_cf.get_range(include_timestamp=True):
-    report = apport.Report()
+# We don't need Stacktrace or ThreadStacktrace or any of that because we get
+# the crash signature from *just* the SAS for binary crashes.
+columns = ['ExecutablePath', 'Traceback', 'ProblemType', 'DuplicateSignature',
+           'StacktraceAddressSignature', 'DistroRelease', 'Package',
+           'InterpreterPath']
+kwargs = {
+    'include_timestamp': True,
+    #'buffer_size': (1024*4),
+    #'columns': columns,
+}
+for key, o in oops_cf.get_range(**kwargs):
     if 'DuplicateSignature' in o:
         ds = o['DuplicateSignature'][0].encode('utf-8')
         update_bucketversions(ds, o)
         dups += 1
         continue
-    elif 'InterpreterPath' in o and not 'StacktraceAddressSignature' in o:
-        for key in o:
-            report[key.encode('utf-8')] = o[key][0].encode('utf-8')
+    elif 'InterpreterPath' in o and 'StacktraceAddressSignature' not in o:
+        report = apport.Report()
+        for k in o:
+            report[k.encode('utf-8')] = o[k][0].encode('utf-8')
         crash_signature = report.crash_signature()
+        if not crash_signature:
+            if 'Stacktrace' not in o:
+                print 'COULD NOT GENERATE PYTHON SIGNATURE', key
+                no_python_signature += 1
+                continue
         update_bucketversions(crash_signature, o)
         python += 1
         continue
     addr_sig = o.get('StacktraceAddressSignature', None)
     if addr_sig:
         addr_sig = addr_sig[0]
+        if not addr_sig:
+            # TODO BUT WHY IS THIS HAPPENING?
+            print 'EMPTY SAS', key
+            no_sas += 1
+            continue
     else:
         no_sas += 1
         continue
@@ -117,8 +151,7 @@ for key, o in oops_cf.get_range(include_timestamp=True):
     crash_sig = None
     try:
         s = 'crash_signature_for_stacktrace_address_signature'
-        crash_sig = indexes_fam.get(s, [addr_sig])
-        crash_sig = crash_sig[addr_sig]
+        crash_sig = indexes_fam.get(s, columns=[addr_sig])[addr_sig]
     except NotFoundException:
         no_signature += 1
         try:
@@ -126,6 +159,13 @@ for key, o in oops_cf.get_range(include_timestamp=True):
             retracing += 1
         except NotFoundException:
             not_retracing += 1
+            try:
+                awaiting_retrace_cf.get(addr_sig, [key])
+                awaiting_retrace += 1
+            except NotFoundException:
+                if 'Stacktrace' not in o:
+                    print 'NOT AWAITING RETRACE', key
+                not_awaiting_retrace += 1
         continue
     if crash_sig:
         update_bucketversions(crash_sig, o)
