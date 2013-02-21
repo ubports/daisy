@@ -111,11 +111,13 @@ def update_bucketversions(bucketid, oops):
 # the crash signature from *just* the SAS for binary crashes.
 columns = ['ExecutablePath', 'Traceback', 'ProblemType', 'DuplicateSignature',
            'StacktraceAddressSignature', 'DistroRelease', 'Package',
-           'InterpreterPath']
+           'InterpreterPath', 'OopsText']
+columns.sort()
+
 kwargs = {
     'include_timestamp': True,
-    #'buffer_size': (1024*4),
-    #'columns': columns,
+    'buffer_size': (1024*4),
+    'columns': columns,
 }
 for key, o in oops_cf.get_range(**kwargs):
     if 'DuplicateSignature' in o:
