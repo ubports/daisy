@@ -32,7 +32,7 @@ try:
 except ImportError:
     pass
 if not configuration:
-    import configuration
+    from daisy import configuration
 import os
 import metrics
 

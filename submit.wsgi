@@ -30,10 +30,10 @@ try:
 except ImportError:
     pass
 if not configuration:
-    import configuration
+    from daisy import configuration
 import apport
-import utils
-import metrics
+from daisy import utils
+from daisy import metrics
 import time
 
 os.environ['OOPS_KEYSPACE'] = configuration.cassandra_keyspace
