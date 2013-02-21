@@ -1,7 +1,7 @@
 #!/usr/bin/python
 import pycassa
 from pycassa.cassandra.ttypes import NotFoundException
-from .. import launchpad
+from daisy import launchpad
 
 configuration = None
 try:
