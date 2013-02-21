@@ -234,7 +234,9 @@ def is_source_package(package_name):
         return False
 
 
-def get_binaries_in_source_package(package_name, dev_series):
+def get_binaries_in_source_package(package_name, release=None):
+    if not release:
+        dev_series = get_devel_series_codename()
     package_name = urllib.quote_plus(package_name)
     ma_url = _launchpad_base + '/ubuntu/' + dev_series + '/main_archive'
     ma = json_request(ma_url)['self_link']
