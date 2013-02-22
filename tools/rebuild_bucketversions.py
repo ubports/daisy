@@ -19,7 +19,7 @@ creds = {'username': configuration.cassandra_username,
          'password': configuration.cassandra_password}
 pool = pycassa.ConnectionPool(configuration.cassandra_keyspace,
                               configuration.cassandra_hosts, timeout=60,
-                              max_retries=100, credentials=creds, pool_size=5)
+                              max_retries=100, credentials=creds)
 
 oops_cf = pycassa.ColumnFamily(pool, 'OOPS')
 indexes_fam = pycassa.ColumnFamily(pool, 'Indexes')
@@ -46,7 +46,9 @@ not_awaiting_retrace = 0
 
 no_python_signature = 0
 
-wait_amount = 300000000 # 5 minutes
+cache_miss = 0
+
+wait_amount = 30000000
 wait = wait_amount
 
 def print_totals(force=False):
@@ -63,6 +65,7 @@ def print_totals(force=False):
     global awaiting_retrace
     global not_awaiting_retrace
     global no_python_signature
+    global cache_miss
 
     if force or (pycassa.columnfamily.gm_timestamp() - start > wait):
         wait += wait_amount
@@ -81,7 +84,9 @@ def print_totals(force=False):
         print 'awaiting_retrace:', awaiting_retrace
         print 'not_awaiting_retrace:', not_awaiting_retrace
         print 'no_python_signature:', no_python_signature
+        print 'cache_miss:', cache_miss
         print
+        sys.stdout.flush()
 
 def update_bucketversions(bucketid, oops):
     global no_package
@@ -116,10 +121,16 @@ columns.sort()
 
 kwargs = {
     'include_timestamp': True,
-    'buffer_size': (1024*4),
+    #'buffer_size': (1024*4),
     'columns': columns,
 }
+
+idx_key = 'crash_signature_for_stacktrace_address_signature' 
+crash_sigs = {k:v for k,v in indexes_fam.xget(idx_key)}
+
+print indexes_fam.xget('crash_signature_for_stacktrace_address_signature').next()
 for key, o in oops_cf.get_range(**kwargs):
+    print_totals()
     if 'DuplicateSignature' in o:
         ds = o['DuplicateSignature'][0].encode('utf-8')
         update_bucketversions(ds, o)
@@ -132,7 +143,7 @@ for key, o in oops_cf.get_range(**kwargs):
         crash_signature = report.crash_signature()
         if not crash_signature:
             if 'Stacktrace' not in o:
-                print 'COULD NOT GENERATE PYTHON SIGNATURE', key
+                #print 'COULD NOT GENERATE PYTHON SIGNATURE', key
                 no_python_signature += 1
                 continue
         update_bucketversions(crash_signature, o)
@@ -152,29 +163,32 @@ for key, o in oops_cf.get_range(**kwargs):
 
     crash_sig = None
     try:
-        s = 'crash_signature_for_stacktrace_address_signature'
-        crash_sig = indexes_fam.get(s, columns=[addr_sig])[addr_sig]
-    except NotFoundException:
-        no_signature += 1
+        crash_sig = crash_sigs[addr_sig.decode('utf-8')]
+    except IndexError:
+        cache_miss += 1
         try:
-            indexes_fam.get('retracing', [addr_sig])
-            retracing += 1
+            s = 'crash_signature_for_stacktrace_address_signature'
+            crash_sig = indexes_fam.get(s, columns=[addr_sig])[addr_sig]
         except NotFoundException:
-            not_retracing += 1
-            try:
-                awaiting_retrace_cf.get(addr_sig, [key])
-                awaiting_retrace += 1
-            except NotFoundException:
-                if 'Stacktrace' not in o:
-                    print 'NOT AWAITING RETRACE', key
-                not_awaiting_retrace += 1
-        continue
+            no_signature += 1
+            continue
+            #try:
+            #    indexes_fam.get('retracing', [addr_sig])
+            #    retracing += 1
+            #except NotFoundException:
+            #    not_retracing += 1
+            #    try:
+            #        awaiting_retrace_cf.get(addr_sig, [key])
+            #        awaiting_retrace += 1
+            #    except NotFoundException:
+            #        if 'Stacktrace' not in o:
+            #            print 'NOT AWAITING RETRACE', key
+            #        not_awaiting_retrace += 1
     if crash_sig:
         update_bucketversions(crash_sig, o)
         binary += 1
     else:
         no_signature += 1
 
-    print_totals()
 
 print_totals(force=True)
