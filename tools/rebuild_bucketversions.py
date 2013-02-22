@@ -122,7 +122,7 @@ kwargs = {
     'columns': columns,
 }
 
-idx_key = 'crash_signature_for_stacktrace_address_signature' 
+idx_key = 'crash_signature_for_stacktrace_address_signature'
 crash_sigs = {k:v for k,v in indexes_fam.xget(idx_key)}
 
 start = pycassa.columnfamily.gm_timestamp()
