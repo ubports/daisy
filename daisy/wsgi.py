@@ -1,8 +1,8 @@
-import submit
-import submit_core
-import utils
+from daisy import submit
+from daisy import submit_core
+from daisy import utils
+from daisy import metrics
 import re
-import metrics
 
 config = None
 try:
