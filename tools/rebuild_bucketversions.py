@@ -34,7 +34,7 @@ dups = 0
 python = 0
 binary = 0
 
-start = pycassa.columnfamily.gm_timestamp()
+start = 0
 
 no_package = 0
 no_release = 0
@@ -124,6 +124,8 @@ kwargs = {
 
 idx_key = 'crash_signature_for_stacktrace_address_signature' 
 crash_sigs = {k:v for k,v in indexes_fam.xget(idx_key)}
+
+start = pycassa.columnfamily.gm_timestamp()
 
 for key, o in oops_cf.get_range(**kwargs):
     print_totals()
