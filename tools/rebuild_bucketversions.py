@@ -17,9 +17,9 @@ if not configuration:
 
 creds = {'username': configuration.cassandra_username,
          'password': configuration.cassandra_password}
-pool = pycassa.ConnectionPool(configuration.cassandra_keyspace, pool_size=15,
+pool = pycassa.ConnectionPool(configuration.cassandra_keyspace,
                               configuration.cassandra_hosts, timeout=60,
-                              max_retries=100, credentials=creds)
+                              pool_size=15, max_retries=100, credentials=creds)
 
 oops_cf = pycassa.ColumnFamily(pool, 'OOPS')
 indexes_fam = pycassa.ColumnFamily(pool, 'Indexes')
