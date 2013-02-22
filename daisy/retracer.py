@@ -32,9 +32,9 @@ from pycassa.types import IntegerType, FloatType, UTF8Type
 import argparse
 import time
 import socket
-import utils
 import re
-import metrics
+from daisy import metrics
+from daisy import utils
 import logging
 
 configuration = None
@@ -43,7 +43,7 @@ try:
 except ImportError:
     pass
 if not configuration:
-    import configuration
+    from daisy import configuration
 
 from oopsrepository import config
 
