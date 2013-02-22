@@ -23,8 +23,9 @@ pool = pycassa.ConnectionPool(configuration.cassandra_keyspace,
 
 oops_cf = pycassa.ColumnFamily(pool, 'OOPS')
 indexes_fam = pycassa.ColumnFamily(pool, 'Indexes')
-awaiting_retrace_cf = pycassa.ColumnFamily(pool, 'AwaitingRetrace')
-#bucketversion_cf = pycassa.ColumnFamily(pool, 'BucketVersion', retry_counter_mutations=True)
+#awaiting_retrace_cf = pycassa.ColumnFamily(pool, 'AwaitingRetrace')
+#bucketversion_cf = pycassa.ColumnFamily(pool, 'BucketVersion',
+#                                        retry_counter_mutations=True)
 
 no_sas = 0
 no_signature = 0
@@ -41,12 +42,10 @@ no_release = 0
 retracing = 0
 not_retracing = 0
 
-awaiting_retrace = 0
-not_awaiting_retrace = 0
+#awaiting_retrace = 0
+#not_awaiting_retrace = 0
 
 no_python_signature = 0
-
-cache_miss = 0
 
 wait_amount = 30000000
 wait = wait_amount
@@ -62,10 +61,9 @@ def print_totals(force=False):
     global wait
     global retracing
     global not_retracing
-    global awaiting_retrace
-    global not_awaiting_retrace
+    #global awaiting_retrace
+    #global not_awaiting_retrace
     global no_python_signature
-    global cache_miss
 
     if force or (pycassa.columnfamily.gm_timestamp() - start > wait):
         wait += wait_amount
@@ -81,10 +79,9 @@ def print_totals(force=False):
         print 'no_release:', no_release
         print 'retracing:', retracing
         print 'not_retracing:', not_retracing
-        print 'awaiting_retrace:', awaiting_retrace
-        print 'not_awaiting_retrace:', not_awaiting_retrace
+        #print 'awaiting_retrace:', awaiting_retrace
+        #print 'not_awaiting_retrace:', not_awaiting_retrace
         print 'no_python_signature:', no_python_signature
-        print 'cache_miss:', cache_miss
         print
         sys.stdout.flush()
 
@@ -121,14 +118,13 @@ columns.sort()
 
 kwargs = {
     'include_timestamp': True,
-    #'buffer_size': (1024*4),
+    'buffer_size': (1024*4),
     'columns': columns,
 }
 
 idx_key = 'crash_signature_for_stacktrace_address_signature' 
 crash_sigs = {k:v for k,v in indexes_fam.xget(idx_key)}
 
-print indexes_fam.xget('crash_signature_for_stacktrace_address_signature').next()
 for key, o in oops_cf.get_range(**kwargs):
     print_totals()
     if 'DuplicateSignature' in o:
@@ -161,34 +157,29 @@ for key, o in oops_cf.get_range(**kwargs):
         no_sas += 1
         continue
 
-    crash_sig = None
-    try:
-        crash_sig = crash_sigs[addr_sig.decode('utf-8')]
-    except IndexError:
-        cache_miss += 1
-        try:
-            s = 'crash_signature_for_stacktrace_address_signature'
-            crash_sig = indexes_fam.get(s, columns=[addr_sig])[addr_sig]
-        except NotFoundException:
-            no_signature += 1
-            continue
-            #try:
-            #    indexes_fam.get('retracing', [addr_sig])
-            #    retracing += 1
-            #except NotFoundException:
-            #    not_retracing += 1
-            #    try:
-            #        awaiting_retrace_cf.get(addr_sig, [key])
-            #        awaiting_retrace += 1
-            #    except NotFoundException:
-            #        if 'Stacktrace' not in o:
-            #            print 'NOT AWAITING RETRACE', key
-            #        not_awaiting_retrace += 1
+    crash_sig = crash_sigs.get(addr_sig, None)
+    # If we cannot find the address signature, it may have been bucketed while
+    # this program was running. We do not need to look up the address signature
+    # in the actual indexes CF though, as the new daisy code would have already
+    # written this to bucketversions.
+
     if crash_sig:
         update_bucketversions(crash_sig, o)
         binary += 1
     else:
         no_signature += 1
+        #try:
+        #    indexes_fam.get('retracing', [addr_sig])
+        #    retracing += 1
+        #except NotFoundException:
+        #    not_retracing += 1
+        #    try:
+        #        awaiting_retrace_cf.get(addr_sig, [key])
+        #        awaiting_retrace += 1
+        #    except NotFoundException:
+        #        if 'Stacktrace' not in o:
+        #            print 'NOT AWAITING RETRACE', key
+        #        not_awaiting_retrace += 1
 
 
 print_totals(force=True)
