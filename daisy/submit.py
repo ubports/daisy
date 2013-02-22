@@ -30,7 +30,7 @@ try:
 except ImportError:
     pass
 if not config:
-    from daisy import configuration
+    from daisy import configuration as config
 import apport
 from daisy import utils
 import time
