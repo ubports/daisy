@@ -29,7 +29,7 @@ try:
 except ImportError:
     pass
 if not config:
-    import configuration as config
+    from daisy import configuration as config
 
 
 def write_to_swift(fileobj, oops_id):
