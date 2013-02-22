@@ -12,7 +12,7 @@ try:
 except ImportError:
     pass
 if not configuration:
-    import configuration
+    from daisy import configuration
 
 if len(sys.argv) < 2:
     print >>sys.stderr, 'usage: %s <uuid>'

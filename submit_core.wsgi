@@ -22,7 +22,7 @@ import pycassa
 from pycassa.cassandra.ttypes import NotFoundException
 import shutil
 import atexit
-import utils
+from daisy import utils
 import re
 import tempfile
 
@@ -32,9 +32,9 @@ try:
 except ImportError:
     pass
 if not configuration:
-    import configuration
+    from daisy import configuration
 import os
-import metrics
+from daisy import metrics
 
 ostream = 'application/octet-stream'
 if configuration.amqp_username and configuration.amqp_password:

@@ -63,6 +63,11 @@ def create():
         if 'BadRequest' not in cfs:
             workaround_1779(mgr.create_column_family, keyspace, 'BadRequest',
                 default_validation_class=CounterColumnType())
+        if 'UserBinaryPackages' not in cfs:
+            workaround_1779(mgr.create_column_family, keyspace, 'UserBinaryPackages',
+                key_validation_class=UTF8_TYPE,
+                comparator_type=UTF8_TYPE,
+                default_validation_class=UTF8_TYPE)
     finally:
         mgr.close()
 
