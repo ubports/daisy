@@ -34,15 +34,15 @@ def handle_core_dump(_pool, fileobj, components, content_type):
         # not actually do anything with it.
         uuid, operation, arch = components[1:4]
     else:
-        return False
+        return (False, 'Invalid parameters')
 
     if not operation or operation != 'submit-core':
         # Unknown operation.
-        return False
+        return (False, 'Unknown operation')
     if content_type != 'application/octet-stream':
         # No data POSTed.
         # 'Incorrect Content-Type.'
-        return False
+        return (False, 'Incorrect Content-Type')
 
     uuid = path_filter.sub('', uuid)
     arch = path_filter.sub('', arch)
