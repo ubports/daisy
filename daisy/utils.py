@@ -1,7 +1,3 @@
-from oops import Config
-from oops_wsgi import install_hooks, make_app
-from oops_datedir_repo import DateDirRepo, serializer_rfc822
-
 from oopsrepository import oopses
 import apt
 import os
@@ -76,6 +72,10 @@ def attach_error_report(report, context):
             report['req_vars']['wsgi.input.decoded'] = data
 
 def wrap_in_oops_wsgi(wsgi_handler, path, hostname):
+    from oops import Config
+    from oops_wsgi import install_hooks, make_app
+    from oops_datedir_repo import DateDirRepo, serializer_rfc822
+
     config = Config()
     if not os.path.exists(path):
         os.mkdir(path)

@@ -7,15 +7,19 @@ import apport
 from cStringIO import StringIO
 from testtools import TestCase
 from oopsrepository.testing.cassandra import TemporaryOOPSDB
-import imp
 import pycassa
-import configuration
-import schema
 import tempfile
 import shutil
 import os
 import time
-import itertools
+
+from oopsrepository import oopses
+from oopsrepository import schema as oopsschema
+from oopsrepository import config as oopsconfig
+from daisy import configuration
+from daisy import submit
+from daisy import schema
+from daisy import wsgi
 
 # SHA-512 of the system-uuid
 sha512_system_uuid = ('/d78abb0542736865f94704521609c230dac03a2f369d043ac212d6'
@@ -26,28 +30,38 @@ class TestSubmission(TestCase):
     def setUp(self):
         super(TestSubmission, self).setUp()
         self.start_response = mock.Mock()
-        # We need to set the configuration before loading the WSGI application.
+
+        # Set up daisy schema.
         self.keyspace = self.useFixture(TemporaryOOPSDB()).keyspace
         configuration.cassandra_keyspace = self.keyspace
-        configuration.cassandra_host = 'localhost:9160'
+        configuration.cassandra_hosts = ['localhost:9160']
         self.creds = {'username': configuration.cassandra_username,
                       'password': configuration.cassandra_password}
         schema.create()
 
+        # Set up oopsrepository schema.
+        os.environ['OOPS_KEYSPACE'] = self.keyspace
+        oops_config = oopsconfig.get_config()
+        oops_config['host'] = configuration.cassandra_hosts
+        oops_config['username'] = configuration.cassandra_username
+        oops_config['password'] = configuration.cassandra_password
+        oopsschema.create(oops_config)
+
+        # Clear singletons.
+        wsgi._pool = None
+        oopses._connection_pool = None
+        submit.oops_config = oops_config
+
 class TestCrashSubmission(TestSubmission):
-    def setUp(self):
-        super(TestCrashSubmission, self).setUp()
-        self.submit = imp.load_source('submit', 'backend/submit.wsgi')
 
     def test_bogus_submission(self):
-        environ = {}
-        self.submit.application(environ, self.start_response)
+        environ = {'PATH_INFO': '/', 'wsgi.input': StringIO('')}
+        wsgi.app(environ, self.start_response)
         self.assertEqual(self.start_response.call_args[0][0], '400 Bad Request')
 
     def test_python_submission(self):
         '''Ensure that a Python crash is accepted, bucketed, and that the
         retracing ColumnFamilies remain untouched.'''
-        environ = {}
 
         report = apport.Report()
         report['ProblemType'] = 'Crash'
@@ -64,7 +78,7 @@ class TestCrashSubmission(TestSubmission):
                     'PATH_INFO' : sha512_system_uuid,
                     'wsgi.input' : report_io }
 
-        self.submit.application(environ, self.start_response)
+        wsgi.app(environ, self.start_response)
         self.assertEqual(self.start_response.call_args[0][0], '200 OK')
 
         pool = pycassa.ConnectionPool(self.keyspace, ['localhost:9160'],
@@ -82,18 +96,16 @@ class TestCrashSubmission(TestSubmission):
             self.assertEqual([x for x in cf.get_range()], [])
         cf = pycassa.ColumnFamily(pool, 'DayBucketsCount')
         counts = [x for x in cf.get_range()]
-        for count in counts:
-            print count
         day_key = time.strftime('%Y%m%d', time.gmtime())
         resolutions = (day_key, day_key[:4], day_key[:6])
         release = report['DistroRelease']
         keys = []
         for resolution in resolutions:
-            keys.append('Ubuntu 12.04:%s' % resolution)
+            keys.append('%s:%s' % (release, resolution))
         for resolution in resolutions:
-            keys.append('Ubuntu 12.04:ubiquity:%s' % resolution)
+            keys.append('%s:ubiquity:%s' % (release, resolution))
         for resolution in resolutions:
-            keys.append('Ubuntu 12.04:ubiquity:2.34:%s' % resolution)
+            keys.append('%s:ubiquity:2.34:%s' % (release, resolution))
         for resolution in resolutions:
             keys.append('ubiquity:2.34:%s' % resolution)
         'ubiquity:2.34'
@@ -129,7 +141,7 @@ class TestBinarySubmission(TestCrashSubmission):
         '''If a binary crash has been submitted that we do not have a core file
         for, either already retraced or awaiting to be retraced.'''
 
-        resp = self.submit.application(self.environ, self.start_response)[0]
+        resp = wsgi.app(self.environ, self.start_response)[0]
         self.assertEqual(self.start_response.call_args[0][0], '200 OK')
         # We should get back a request for the core file:
         self.assertTrue(resp.endswith(' CORE'))
@@ -155,7 +167,7 @@ class TestBinarySubmission(TestCrashSubmission):
         indexes_cf = pycassa.ColumnFamily(pool, 'Indexes')
         indexes_cf.insert('retracing', {self.stack_addr_sig : ''})
 
-        resp = self.submit.application(self.environ, self.start_response)[0]
+        resp = wsgi.app(self.environ, self.start_response)[0]
         self.assertEqual(self.start_response.call_args[0][0], '200 OK')
         # We should not get back a request for the core file:
         self.assertEqual(resp, '')
@@ -177,7 +189,7 @@ class TestBinarySubmission(TestCrashSubmission):
         indexes_cf.insert('crash_signature_for_stacktrace_address_signature',
                           {self.stack_addr_sig : 'fake-crash-signature'})
 
-        resp = self.submit.application(self.environ, self.start_response)[0]
+        resp = wsgi.app(self.environ, self.start_response)[0]
         self.assertEqual(self.start_response.call_args[0][0], '200 OK')
         # We should not get back a request for the core file:
         self.assertEqual(resp, '')
@@ -201,16 +213,14 @@ class TestCoreSubmission(TestSubmission):
         self.addCleanup(amqp_msg.stop)
         self.addCleanup(amqp_connection.stop)
 
-        self.submit_core = imp.load_source('submit_core',
-                                           'backend/submit_core.wsgi')
-
     def test_core_submission(self):
         data = 'I am an ELF binary. No, really.'
         core_io = StringIO(data)
         uuid = '12345678-1234-5678-1234-567812345678'
         environ = {'QUERY_STRING' : 'uuid=%s&arch=amd64' % uuid,
                    'CONTENT_TYPE' : 'application/octet-stream',
-                   'wsgi.input' : core_io}
+                   'wsgi.input' : core_io,
+                   'PATH_INFO': '/%s/submit-core/amd64' % uuid}
         stack_addr_sig = (
             '/usr/bin/foo:11:x86_64/lib/x86_64-linux-gnu/libc-2.15.so+e4d93:'
             '/usr/bin/foo+1e071')
@@ -222,7 +232,7 @@ class TestCoreSubmission(TestSubmission):
         oops_cf = pycassa.ColumnFamily(pool, 'OOPS')
         oops_cf.insert(uuid, {'StacktraceAddressSignature' : stack_addr_sig})
 
-        self.submit_core.application(environ, self.start_response)
+        wsgi.app(environ, self.start_response)
         self.assertEqual(self.start_response.call_args[0][0], '200 OK')
 
         # Did we actually write the core file to disk?

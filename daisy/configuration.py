@@ -72,10 +72,22 @@ django_databases = {
         }
 }
 
-# EC2/OpenStack configuration.
+# S3 configuration. Only set these if you're using S3 for storing the core
+# files.
 aws_access_key = ''
 aws_secret_key = ''
 ec2_host = ''
 
-# The bucket to place core files in.
+# The bucket to place core files in when using S3.
 ec2_bucket = ''
+
+# Swift configuration. Only set these if you're using Swift for storing the
+# core files.
+os_auth_url = ''
+os_username = ''
+os_password = ''
+os_tenant_name = ''
+os_region_name = ''
+
+# The bucket to place core files in when using Swift.
+swift_bucket = ''

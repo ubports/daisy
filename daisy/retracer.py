@@ -32,9 +32,9 @@ from pycassa.types import IntegerType, FloatType, UTF8Type
 import argparse
 import time
 import socket
-import utils
 import re
-import metrics
+from daisy import metrics
+from daisy import utils
 import logging
 
 configuration = None
@@ -43,7 +43,7 @@ try:
 except ImportError:
     pass
 if not configuration:
-    import configuration
+    from daisy import configuration
 
 from oopsrepository import config
 
@@ -255,16 +255,32 @@ class Retracer:
         except NotFoundException:
             pass
 
+    def write_swift_bucket_to_disk(self, msg):
+        import swiftclient
+        opts = {'tenant_name': configuration.os_tenant_name,
+                'region_name': configuration.os_region_name}
+        conn = swiftclient.client.Connection(configuration.os_auth_url,
+                                             configuration.os_username,
+                                             configuration.os_password,
+                                             os_options=opts,
+                                             auth_version='2.0')
+        fp = tempfile.mkstemp()
+        bucket = configuration.swift_bucket
+        with open(fp[1], 'wb') as fp:
+            headers, body = conn.get_object(bucket, msg.body, resp_chunk_size=65536)
+            for chunk in body:
+                fp.write(chunk)
+            path = fp.name
+        conn.delete_object(bucket, msg.body)
+        return path
+
     def write_s3_bucket_to_disk(self, msg):
-        from boto.s3.connection import S3Connection, OrdinaryCallingFormat
+        from boto.s3.connection import S3Connection
         from boto.exception import S3ResponseError
 
         conn = S3Connection(aws_access_key_id=configuration.aws_access_key,
                             aws_secret_access_key=configuration.aws_secret_key,
-                            port=3333,
-                            host=configuration.ec2_host,
-                            is_secure=False,
-                            calling_format=OrdinaryCallingFormat())
+                            host=configuration.ec2_host)
         try:
             bucket = conn.get_bucket(configuration.ec2_bucket)
             key = bucket.get_key(msg.body)
@@ -278,13 +294,21 @@ class Retracer:
                 # 8K at a time.
                 fp.write(data)
             path = fp.name
+        key.delete()
         return path
 
     def callback(self, msg):
         log('Processing %s' % msg.body)
         if not msg.body.startswith('/'):
             oops_id = msg.body
-            path = self.write_s3_bucket_to_disk(msg)
+            if configuration.swift_bucket:
+                path = self.write_swift_bucket_to_disk(msg)
+            elif configuration.ec2_bucket:
+                path = self.write_s3_bucket_to_disk(msg)
+            else:
+                # Bail out.
+                log('Neither swift_bucket or ec2_bucket set.')
+                sys.exit(1)
         else:
             path = msg.body
             oops_id = msg.body.rsplit('/', 1)[1]

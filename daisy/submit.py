@@ -19,93 +19,61 @@
 import uuid
 import bson
 
-import os
-from oopsrepository import config, oopses
+from oopsrepository import config as oopsconfig
+from oopsrepository import oopses
 import pycassa
 from pycassa.cassandra.ttypes import NotFoundException
 
-configuration = None
+config = None
 try:
-    import local_config as configuration
+    import local_config as config
 except ImportError:
     pass
-if not configuration:
-    from daisy import configuration
+if not config:
+    from daisy import configuration as config
 import apport
 from daisy import utils
-from daisy import metrics
 import time
+import os
 
-os.environ['OOPS_KEYSPACE'] = configuration.cassandra_keyspace
-oops_config = config.get_config()
-oops_config['host'] = configuration.cassandra_hosts
-oops_config['username'] = configuration.cassandra_username
-oops_config['password'] = configuration.cassandra_password
+os.environ['OOPS_KEYSPACE'] = config.cassandra_keyspace
+oops_config = oopsconfig.get_config()
+oops_config['host'] = config.cassandra_hosts
+oops_config['username'] = config.cassandra_username
+oops_config['password'] = config.cassandra_password
 
-# Cassandra connections. These may move into oopsrepository in the future.
-pool = metrics.failure_wrapped_connection_pool()
-indexes_fam = pycassa.ColumnFamily(pool, 'Indexes')
-awaiting_retrace_fam = pycassa.ColumnFamily(pool, 'AwaitingRetrace')
-counters_fam = pycassa.ColumnFamily(pool, 'Counters')
-bad_request_fam = pycassa.ColumnFamily(pool, 'BadRequest')
 
-content_type = 'CONTENT_TYPE'
-ostream = 'application/octet-stream'
-
-def update_release_pkg_counter(release, src_package, date):
+def update_release_pkg_counter(counters_fam, release, src_package, date):
     # only store four weeks worth of data
     time_to_live = 60*60*24*28
     counters_fam.insert('%s:%s' % (release, src_package), {date: 1},
         ttl=time_to_live)
 
-def ok_response(start_response, data=''):
-    if data:
-        start_response('200 OK', [('Content-type', 'text/plain')])
-    else:
-        start_response('200 OK', [])
-    return [data]
-
-def bad_request_response(start_response, text=''):
-    if text:
-        day_key = time.strftime('%Y%m%d', time.gmtime())
-        bad_request_fam.add(text, day_key)
-    start_response('400 Bad Request', [])
-    return [text]
-
-# TODO refactor into a class
-def wsgi_handler(environ, start_response):
-    global oops_config
-    global pool, indexes_fam, awaiting_retrace_fam
-
-    if not environ.has_key(content_type) or environ[content_type] != ostream:
-        return bad_request_response(start_response, 'Incorrect Content-Type.')
-
-    system_token = None
-    # / + 128 character system UUID
-    if len(environ['PATH_INFO']) == 129:
-        system_token = environ['PATH_INFO'][1:]
+def submit(_pool, environ, system_token):
+    indexes_fam = pycassa.ColumnFamily(_pool, 'Indexes')
+    awaiting_retrace_fam = pycassa.ColumnFamily(_pool, 'AwaitingRetrace')
+    counters_fam = pycassa.ColumnFamily(_pool, 'Counters')
 
     oops_id = str(uuid.uuid1())
     try:
         data = environ['wsgi.input'].read()
-    except IOError, e:
+    except IOError as e:
         if e.message == 'request data read error':
             # The client disconnected while sending the report.
-            return bad_request_response(start_response, 'Connection dropped.')
+            return (False, 'Connection dropped.')
         else:
             raise
     try:
         data = bson.BSON(data).decode()
     except bson.errors.InvalidBSON:
-        return bad_request_response(start_response, 'Invalid BSON.')
+        return (False, 'Invalid BSON.')
 
     day_key = time.strftime('%Y%m%d', time.gmtime())
     if 'KernelCrash' in data or 'VmCore' in data:
         # We do not process these yet, but we keep track of how many reports
         # we're receiving to determine when it's worth solving.
         counters_fam.add('KernelCrash', day_key)
-        return bad_request_response(start_response,
-                                    'Kernel crashes are not handled yet.')
+        return (False, 'Kernel crashes are not handled yet.')
 
     # Keep a reference to the decoded report data. If we crash, we'll
     # potentially attach it to the OOPS report.
@@ -128,8 +96,8 @@ def wsgi_handler(environ, start_response):
     if 'DuplicateSignature' in data:
         utils.bucket(oops_config, oops_id, data['DuplicateSignature'].encode('UTF-8'), data)
         if not third_party and problem_type == 'Crash':
-            update_release_pkg_counter(release, src_package, day_key)
-        return ok_response(start_response)
+            update_release_pkg_counter(counters_fam, release, src_package, day_key)
+        return (True, '')
     elif 'InterpreterPath' in data and not 'StacktraceAddressSignature' in data:
         # Python crashes can be immediately bucketed.
         report = apport.Report()
@@ -138,24 +106,21 @@ def wsgi_handler(environ, start_response):
             try:
                 report[key.encode('UTF-8')] = data[key].encode('UTF-8')
             except KeyError:
-                return bad_request_response(start_response,
-                    'Missing keys in interpreted report.')
+                return (False, 'Missing keys in interpreted report.')
         crash_signature = report.crash_signature()
         if crash_signature:
             utils.bucket(oops_config, oops_id, crash_signature, data)
             if not third_party and problem_type == 'Crash':
-                update_release_pkg_counter(release, src_package, day_key)
-            return ok_response(start_response)
+                update_release_pkg_counter(counters_fam, release, src_package, day_key)
+            return (True, '')
         else:
-            return bad_request_response(start_response,
-                'Could not generate crash signature for interpreted report.')
+            return (False, 'Could not generate crash signature for interpreted report.')
 
     addr_sig = data.get('StacktraceAddressSignature', None)
     if not addr_sig:
         counters_fam.add('MissingSAS', day_key)
         # We received BSON data with unexpected keys.
-        return bad_request_response(start_response,
-            'No StacktraceAddressSignature found in report.')
+        return (False, 'No StacktraceAddressSignature found in report.')
 
     # Binary
     output = ''
@@ -193,9 +158,5 @@ def wsgi_handler(environ, start_response):
 
         awaiting_retrace_fam.insert(addr_sig, {oops_id : ''})
     if not third_party and problem_type == 'Crash':
-        update_release_pkg_counter(release, src_package, day_key)
-    return ok_response(start_response, output)
-
-application = utils.wrap_in_oops_wsgi(wsgi_handler,
-                                      configuration.oops_repository,
-                                      'daisy.ubuntu.com')
+        update_release_pkg_counter(counters_fam, release, src_package, day_key)
+    return (True, output)
