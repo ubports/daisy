@@ -1,5 +1,5 @@
 #!/bin/sh
 
-for path in test/*.py; do
+for path in test/test_*.py; do
     PYTHONPATH=. python $path
 done

@@ -1,9 +1,9 @@
 import unittest
 from testtools import TestCase
 from oopsrepository.testing.cassandra import TemporaryOOPSDB
-import schema
-import process_core
-import configuration
+from daisy import schema
+from daisy import retracer
+from daisy import configuration
 import tempfile
 import os
 import shutil
@@ -28,7 +28,9 @@ class TestSubmission(TestCase):
         sandbox_dir = os.path.join(self.temp, 'sandbox')
         os.makedirs(config_dir)
         os.makedirs(sandbox_dir)
-        self.retracer = process_core.Retracer(config_dir, sandbox_dir)
+        self.architecture = 'amd64'
+        self.retracer = retracer.Retracer(config_dir, sandbox_dir,
+                                          self.architecture, False, False)
 
     def tearDown(self):
         super(TestSubmission, self).tearDown()
@@ -43,7 +45,7 @@ class TestSubmission(TestCase):
         self.retracer.update_retrace_stats(release, day_key, 30.5, True)
         result = retrace_stats_fam.get(day_key)
         self.assertEqual(result['Ubuntu 12.04:success'], 1)
-        mean_key = '%s:Ubuntu 12.04' % day_key
+        mean_key = '%s:%s:%s' % (day_key, release, self.architecture)
         counter_key = '%s:count' % mean_key
         indexes_fam.column_validators = {mean_key : FloatType(),
                                          counter_key : IntegerType()}
