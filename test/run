@@ -1,5 +1,10 @@
 #!/bin/sh
 
+if pgrep -f jumbee.canonical.com >/dev/null; then
+    echo "Whoa there. You have a tunnel to the production database open."
+    echo "Please terminate this and set up a tunnel to a cloud instance."
+    exit 1
+fi
 if ! ( netstat -an | grep -qs ':9160' ); then
     echo "You need to create an SSH tunnel to Cassandra to run these tests."
     echo "Example: juju ssh e-t-cassandra/0 -N -L -9160:external.ip.addr:9160"
