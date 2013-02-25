@@ -20,6 +20,7 @@ from pycassa.system_manager import (
     SystemManager,
     UTF8_TYPE,
     LONG_TYPE,
+    ASCII_TYPE,
     )
 
 configuration = None
@@ -65,9 +66,13 @@ def create():
                 default_validation_class=CounterColumnType())
         if 'UserBinaryPackages' not in cfs:
             workaround_1779(mgr.create_column_family, keyspace, 'UserBinaryPackages',
-                key_validation_class=UTF8_TYPE,
-                comparator_type=UTF8_TYPE,
-                default_validation_class=UTF8_TYPE)
+                # The key_validation_class is a launchpad team ID, which is
+                # always ascii.
+                # The comparator is a binary package name, which is always
+                # ascii according to Debian policy.
+                # default_validation_class is bytes as it's always NULL.
+                key_validation_class=ASCII_TYPE,
+                comparator_type=ASCII_TYPE)
     finally:
         mgr.close()
 
