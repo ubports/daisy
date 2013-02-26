@@ -83,6 +83,7 @@ def write_to_san(fileobj, oops_id):
     '''Write the core file to SAN/NFS.'''
 
     path = os.path.join(config.san_path, oops_id)
+    copied = False
     with open(path, 'w') as fp:
         try:
             shutil.copyfileobj(fileobj, fp, 512)
