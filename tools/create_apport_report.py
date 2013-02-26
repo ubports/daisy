@@ -2,7 +2,6 @@
 
 import sys
 import pycassa
-from pycassa.cassandra.ttypes import NotFoundException, InvalidRequestException
 from apport import report
 
 

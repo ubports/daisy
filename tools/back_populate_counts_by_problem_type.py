@@ -1,11 +1,8 @@
 #!/usr/bin/python
 
 import sys
-import time
 import pycassa
-from pycassa.cassandra.ttypes import NotFoundException, InvalidRequestException
-import datetime
-import itertools
+from pycassa.cassandra.ttypes import NotFoundException
 from collections import defaultdict
 
 configuration = None

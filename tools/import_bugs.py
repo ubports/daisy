@@ -1,6 +1,5 @@
 #!/usr/bin/python
 import pycassa
-from pycassa.cassandra.ttypes import NotFoundException, InvalidRequestException
 import sqlite3
 import sys
 

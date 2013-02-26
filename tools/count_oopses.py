@@ -1,7 +1,6 @@
 #!/usr/bin/python
 import datetime
 import pycassa
-from pycassa.cassandra.ttypes import NotFoundException
 configuration = None
 try:
     import local_config as configuration

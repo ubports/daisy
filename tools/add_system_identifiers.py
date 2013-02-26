@@ -1,8 +1,6 @@
 #!/usr/bin/python
 
 import pycassa
-from pycassa.cassandra.ttypes import NotFoundException, InvalidRequestException
-import datetime
 
 configuration = None
 try:

@@ -6,7 +6,6 @@ import datetime
 import random
 
 import pycassa
-from pycassa.cassandra.ttypes import NotFoundException, InvalidRequestException
 
 configuration = None
 try:
