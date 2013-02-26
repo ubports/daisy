@@ -14,7 +14,7 @@ try:
 except ImportError:
     pass
 if not configuration:
-    import configuration
+    from daisy import configuration
 
 
 if (not hasattr(configuration, 'lp_oauth_token') or

@@ -29,7 +29,7 @@ try:
 except ImportError:
     pass
 if not configuration:
-    import configuration
+    from daisy import configuration
 from oopsrepository.cassandra import workaround_1779
 from pycassa.types import CounterColumnType
 

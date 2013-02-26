@@ -10,7 +10,7 @@ try:
 except ImportError:
     pass
 if not config:
-    import configuration as config
+    from daisy import configuration as config
 
 _pool = None
 path_filter = re.compile('[^a-zA-Z0-9-_]')

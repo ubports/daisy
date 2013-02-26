@@ -10,7 +10,7 @@ try:
 except ImportError:
         pass
 if not configuration:
-    import configuration
+    from daisy import configuration
 
 METRICS = None
 def get_metrics():
