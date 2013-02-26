@@ -3,7 +3,13 @@ from testtools import TestCase
 from oopsrepository.testing.cassandra import TemporaryOOPSDB
 from daisy import schema
 from daisy import retracer
-from daisy import configuration
+configuration = None
+try:
+    import local_config as configuration
+except ImportError:
+    pass
+if not configuration:
+    from daisy import configuration
 import tempfile
 import os
 import shutil

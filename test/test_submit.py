@@ -16,7 +16,15 @@ import time
 from oopsrepository import oopses
 from oopsrepository import schema as oopsschema
 from oopsrepository import config as oopsconfig
-from daisy import configuration
+# Attempting to import local_config is necessary as the modules under test may
+# import it and we need to monkeypatch the configuration module in use.
+configuration = None
+try:
+    import local_config as configuration
+except ImportError:
+    pass
+if not configuration:
+    from daisy import configuration
 from daisy import submit
 from daisy import schema
 from daisy import wsgi
