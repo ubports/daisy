@@ -295,8 +295,6 @@ def get_subscribed_packages(user):
 
 
 def _generate_operation(title, description, target=_ubuntu_target):
-    _ubuntu_target = 'https://api.qastaging.launchpad.net/devel/ubuntu'
-
     operation = { 'ws.op' : 'createBug',
                   'description' : description,
                   'target' : target,
@@ -368,7 +366,7 @@ def subscribe_user(bug, user):
     url = '%s/%s' % (_create_bug_url, bug)
     request = urllib2.Request(url, operation, headers)
     try:
-        response = urllib2.urlopen(request)
+        urllib2.urlopen(request)
     except urllib2.HTTPError as e:
         msg = 'Could not subscribe %s to bug %s:' % (user, bug)
         print >>sys.stderr, msg, str(e), e.read()
