@@ -12,6 +12,7 @@ import tempfile
 import shutil
 import os
 import time
+import uuid
 
 from oopsrepository import oopses
 from oopsrepository import schema as oopsschema
@@ -95,7 +96,7 @@ class TestCrashSubmission(TestSubmission):
         # Ensure the crash was bucketed:
         oops_id = oops_cf.get_range().next()[0]
         crash_signature = '/usr/bin/foo:    sys.exit(1):/usr/bin/foo@1'
-        self.assertEqual(oops_id, bucket_cf.get(crash_signature).keys()[0])
+        self.assertEqual(uuid.uuid1(oops_id), bucket_cf.get(crash_signature).keys()[0])
 
         # A Python crash shouldn't touch the retracing CFs:
         for fam in ('AwaitingRetrace', 'Stacktrace', 'Indexes'):
@@ -204,7 +205,7 @@ class TestBinarySubmission(TestCrashSubmission):
         # Make sure 'foo' ends up in the bucket.
         oops_id = oops_cf.get_range().next()[0]
         bucket_contents = bucket_cf.get('fake-crash-signature').keys()
-        self.assertEqual(bucket_contents, [oops_id])
+        self.assertEqual(bucket_contents, [uuid.uuid1(oops_id)])
 
 class TestCoreSubmission(TestSubmission):
     def setUp(self):
