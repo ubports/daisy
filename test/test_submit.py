@@ -91,7 +91,7 @@ class TestCrashSubmission(TestSubmission):
         pool = pycassa.ConnectionPool(self.keyspace, configuration.cassandra_hosts,
                                       credentials=self.creds)
         oops_cf = pycassa.ColumnFamily(pool, 'OOPS')
-        bucket_cf = pycassa.ColumnFamily(pool, 'Buckets')
+        bucket_cf = pycassa.ColumnFamily(pool, 'Bucket')
         # Ensure the crash was bucketed:
         oops_id = oops_cf.get_range().next()[0]
         crash_signature = '/usr/bin/foo:    sys.exit(1):/usr/bin/foo@1'
@@ -190,7 +190,7 @@ class TestBinarySubmission(TestCrashSubmission):
         pool = pycassa.ConnectionPool(self.keyspace, configuration.cassandra_hosts,
                                       credentials=self.creds)
         indexes_cf = pycassa.ColumnFamily(pool, 'Indexes')
-        bucket_cf = pycassa.ColumnFamily(pool, 'Buckets')
+        bucket_cf = pycassa.ColumnFamily(pool, 'Bucket')
         oops_cf = pycassa.ColumnFamily(pool, 'OOPS')
 
         indexes_cf.insert('crash_signature_for_stacktrace_address_signature',
