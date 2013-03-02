@@ -24,10 +24,10 @@ class TestSubmission(TestCase):
         self.keyspace = self.useFixture(TemporaryOOPSDB()).keyspace
         creds = {'username': configuration.cassandra_username,
                  'password': configuration.cassandra_password}
-        self.pool = pycassa.ConnectionPool(self.keyspace, ['localhost:9160'],
+        self.pool = pycassa.ConnectionPool(self.keyspace,
+                                           configuration.cassandra_hosts,
                                            credentials=creds)
         configuration.cassandra_keyspace = self.keyspace
-        configuration.cassandra_host = 'localhost:9160'
         schema.create()
         self.temp = tempfile.mkdtemp()
         config_dir = os.path.join(self.temp, 'config')
