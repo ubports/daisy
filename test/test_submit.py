@@ -40,16 +40,16 @@ class TestSubmission(TestCase):
         self.start_response = mock.Mock()
 
         # Set up daisy schema.
+        os.environ['OOPS_HOST'] = configuration.cassandra_hosts[0]
         self.keyspace = self.useFixture(TemporaryOOPSDB()).keyspace
+        os.environ['OOPS_KEYSPACE'] = self.keyspace
         configuration.cassandra_keyspace = self.keyspace
         self.creds = {'username': configuration.cassandra_username,
                       'password': configuration.cassandra_password}
         schema.create()
 
         # Set up oopsrepository schema.
-        os.environ['OOPS_KEYSPACE'] = self.keyspace
         oops_config = oopsconfig.get_config()
-        oops_config['host'] = configuration.cassandra_hosts
         oops_config['username'] = configuration.cassandra_username
         oops_config['password'] = configuration.cassandra_password
         oopsschema.create(oops_config)

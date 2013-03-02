@@ -1,6 +1,8 @@
 import unittest
 from testtools import TestCase
 from oopsrepository.testing.cassandra import TemporaryOOPSDB
+from oopsrepository import schema as oopsschema
+from oopsrepository import config as oopsconfig
 from daisy import schema
 from daisy import retracer
 configuration = None
@@ -21,7 +23,9 @@ class TestSubmission(TestCase):
     def setUp(self):
         super(TestSubmission, self).setUp()
         # We need to set the configuration before importing.
+        os.environ['OOPS_HOST'] = configuration.cassandra_hosts[0]
         self.keyspace = self.useFixture(TemporaryOOPSDB()).keyspace
+        os.environ['OOPS_KEYSPACE'] = self.keyspace
         creds = {'username': configuration.cassandra_username,
                  'password': configuration.cassandra_password}
         self.pool = pycassa.ConnectionPool(self.keyspace,
@@ -29,6 +33,10 @@ class TestSubmission(TestCase):
                                            credentials=creds)
         configuration.cassandra_keyspace = self.keyspace
         schema.create()
+        oops_config = oopsconfig.get_config()
+        oops_config['username'] = configuration.cassandra_username
+        oops_config['password'] = configuration.cassandra_password
+        oopsschema.create(oops_config)
         self.temp = tempfile.mkdtemp()
         config_dir = os.path.join(self.temp, 'config')
         sandbox_dir = os.path.join(self.temp, 'sandbox')
