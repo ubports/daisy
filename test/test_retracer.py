@@ -1,4 +1,5 @@
 import unittest
+import mock
 from testtools import TestCase
 from oopsrepository.testing.cassandra import TemporaryOOPSDB
 from oopsrepository import schema as oopsschema
@@ -43,8 +44,12 @@ class TestSubmission(TestCase):
         os.makedirs(config_dir)
         os.makedirs(sandbox_dir)
         self.architecture = 'amd64'
-        self.retracer = retracer.Retracer(config_dir, sandbox_dir,
-                                          self.architecture, False, False)
+        # Don't depend on apport-retrace being installed.
+        with mock.patch('daisy.retracer.Popen') as popen:
+            popen.return_value.returncode = 0
+            popen.return_value.communicate.return_value = ['/bin/false']
+            self.retracer = retracer.Retracer(config_dir, sandbox_dir,
+                                              self.architecture, False, False)
 
     def tearDown(self):
         super(TestSubmission, self).tearDown()
