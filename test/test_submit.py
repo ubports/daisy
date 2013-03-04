@@ -233,13 +233,18 @@ class TestCoreSubmission(TestSubmission):
             '/usr/bin/foo+1e071')
         path = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, path)
-        configuration.san_path = path
         pool = pycassa.ConnectionPool(self.keyspace, configuration.cassandra_hosts,
                                       credentials=self.creds)
         oops_cf = pycassa.ColumnFamily(pool, 'OOPS')
         oops_cf.insert(uuid, {'StacktraceAddressSignature' : stack_addr_sig})
 
-        wsgi.app(environ, self.start_response)
+        with mock.patch('daisy.submit_core.config', autospec=True) as cfg:
+            from daisy import submit_core
+            cfg.core_storage = {}
+            cfg.storage_write_weights = {}
+            cfg.san_path = path
+            submit_core.validate_configuration()
+            wsgi.app(environ, self.start_response)
         self.assertEqual(self.start_response.call_args[0][0], '200 OK')
 
         # Did we actually write the core file to disk?
@@ -253,8 +258,8 @@ class TestCoreSubmission(TestSubmission):
         kwargs = basic_publish_call[1]
         self.assertEqual(kwargs['routing_key'], 'retrace_amd64')
         self.assertEqual(kwargs['exchange'], '')
-        self.assertEqual(self.msg_mock.call_args[0][0],
-                         os.path.join(path, uuid))
+        msg = '%s:nfs' % os.path.join(path, uuid)
+        self.assertEqual(self.msg_mock.call_args[0][0], msg)
 
         # did we mark this as retracing in Cassandra?
         indexes_cf = pycassa.ColumnFamily(pool, 'Indexes')
