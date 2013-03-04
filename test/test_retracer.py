@@ -1,6 +1,9 @@
 import unittest
+import mock
 from testtools import TestCase
 from oopsrepository.testing.cassandra import TemporaryOOPSDB
+from oopsrepository import schema as oopsschema
+from oopsrepository import config as oopsconfig
 from daisy import schema
 from daisy import retracer
 configuration = None
@@ -21,22 +24,32 @@ class TestSubmission(TestCase):
     def setUp(self):
         super(TestSubmission, self).setUp()
         # We need to set the configuration before importing.
+        os.environ['OOPS_HOST'] = configuration.cassandra_hosts[0]
         self.keyspace = self.useFixture(TemporaryOOPSDB()).keyspace
+        os.environ['OOPS_KEYSPACE'] = self.keyspace
         creds = {'username': configuration.cassandra_username,
                  'password': configuration.cassandra_password}
-        self.pool = pycassa.ConnectionPool(self.keyspace, ['localhost:9160'],
+        self.pool = pycassa.ConnectionPool(self.keyspace,
+                                           configuration.cassandra_hosts,
                                            credentials=creds)
         configuration.cassandra_keyspace = self.keyspace
-        configuration.cassandra_host = 'localhost:9160'
         schema.create()
+        oops_config = oopsconfig.get_config()
+        oops_config['username'] = configuration.cassandra_username
+        oops_config['password'] = configuration.cassandra_password
+        oopsschema.create(oops_config)
         self.temp = tempfile.mkdtemp()
         config_dir = os.path.join(self.temp, 'config')
         sandbox_dir = os.path.join(self.temp, 'sandbox')
         os.makedirs(config_dir)
         os.makedirs(sandbox_dir)
         self.architecture = 'amd64'
-        self.retracer = retracer.Retracer(config_dir, sandbox_dir,
-                                          self.architecture, False, False)
+        # Don't depend on apport-retrace being installed.
+        with mock.patch('daisy.retracer.Popen') as popen:
+            popen.return_value.returncode = 0
+            popen.return_value.communicate.return_value = ['/bin/false']
+            self.retracer = retracer.Retracer(config_dir, sandbox_dir,
+                                              self.architecture, False, False)
 
     def tearDown(self):
         super(TestSubmission, self).tearDown()

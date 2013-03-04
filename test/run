@@ -5,12 +5,6 @@ if pgrep -f jumbee.canonical.com >/dev/null; then
     echo "Please terminate this and set up a tunnel to a cloud instance."
     exit 1
 fi
-if ! ( netstat -an | grep -v CLOSE | grep -qs ':9160' ); then
-    echo "You need to create an SSH tunnel to Cassandra to run these tests."
-    echo "Example: juju ssh e-t-cassandra/0 -N -L -9160:external.ip.addr:9160"
-    exit 1
-fi
-
 for path in test/test_*.py; do
-    PYTHONPATH=. python $path
+    PYTHONPATH=$PYTHONPATH:. python $path
 done
