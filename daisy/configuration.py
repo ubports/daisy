@@ -37,7 +37,7 @@ amqp_username = ''
 # The AMQP username.
 amqp_password = ''
 
-# The path to the SAN for storing core dumps.
+# The path to the SAN for storing core dumps (deprecated).
 san_path = '/srv/cores'
 
 # The path to store OOPS reports in for http://errors.ubuntu.com.
@@ -72,22 +72,61 @@ django_databases = {
         }
 }
 
-# S3 configuration. Only set these if you're using S3 for storing the core
-# files.
+# S3 configuration (deprecated). Only set these if you're using S3 for storing
+# the core files.
 aws_access_key = ''
 aws_secret_key = ''
 ec2_host = ''
 
-# The bucket to place core files in when using S3.
+# The bucket to place core files in when using S3 (deprecated).
 ec2_bucket = ''
 
-# Swift configuration. Only set these if you're using Swift for storing the
-# core files.
+# Swift configuration (deprecated). Only set these if you're using Swift for
+# storing the core files.
 os_auth_url = ''
 os_username = ''
 os_password = ''
 os_tenant_name = ''
 os_region_name = ''
 
-# The bucket to place core files in when using Swift.
+# The bucket to place core files in when using Swift (deprecated).
 swift_bucket = ''
+
+# The core_storage parameter lists the available providers for saving the
+# uploaded core files until they're retraced.
+# 
+# If no storage_write_weights are provided below, it is assumed that the
+# 'default' member should receive all the core files. It is an error to not
+# provide a default or storage_write_weights, but you can omit a default if
+# storage_write_weights is set.
+# 
+# Example:
+# core_storage = {
+#     'default': 'swift-storage',
+#     'nfs-s1': {'type': 'nfs',
+#                'path': '/srv/cores'}
+#     'swift-storage': {'type': 'swift',
+#                       'bucket': 'cores',
+#                       'os_auth_url': 'http://keystone.example.com/',
+#                       'os_username': 'ostack',
+#                       'os_password': 'secret',
+#                       'os_tenant_name': 'ostack_project',
+#                       'os_region_name': 'region01'}
+#     's3-east-1': {'type': 's3',
+#                   'bucket': 'cores',
+#                   'host': 's3.amazonaws.com',
+#                   'aws_secret_key': 'secret',
+#                   'aws_access_key': 'access-key'}
+# }
+
+core_storage = {}
+
+# The storage_write_weights parameter specifies the rough percentage of
+# incoming reports that should go to each provider (0.0, 1.0]. You do not have
+# to specify percentages for all providers. Any provider without a percentage
+# will not be used. All the percentages must total up to 1.0.
+# 
+# Example:
+# storage_write_weights = {'nfs-s1': 0.25, 'swift-storage': 0.75}
+
+storage_write_weights = {}

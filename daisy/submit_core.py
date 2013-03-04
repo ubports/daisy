@@ -22,6 +22,7 @@ from pycassa.cassandra.ttypes import NotFoundException
 import shutil
 import tempfile
 import os
+import random
 
 config = None
 try:
@@ -32,32 +33,136 @@ if not config:
     from daisy import configuration as config
 
 
-def write_to_swift(fileobj, oops_id):
+# TODO move these into a config.py module that imports * from configuration or
+# local_config into its namespace and then does checking. The other benefit of
+# that is not having to do the try except ImportError block everywhere.
+def validate_configuration():
+    write_weights = getattr(config, 'storage_write_weights', '') 
+    core_storage = getattr(config, 'core_storage', '')
+    if core_storage and not write_weights:
+        msg = 'storage_write_weights must be set alongside core_storge.'
+        raise ImportError(msg)
+    if not core_storage:
+        swift = getattr(config, 'swift_bucket', '')
+        ec2 = getattr(config, 'ec2_bucket', '')
+        nfs = getattr(config, 'san_path', '')
+        if ec2 and swift:
+            raise ImportError('ec2_bucket and swift_bucket cannot both be set.')
+
+        # Match the old behaviour. Put everything on swift, if available.
+        # Failing that, fall back to EC2, then NFS.
+        if swift:
+            os_auth_url = getattr(config, 'os_auth_url', '')
+            os_username = getattr(config, 'os_username', '')
+            os_password = getattr(config, 'os_password', '')
+            os_tenant_name = getattr(config, 'os_tenant_name', '')
+            os_region_name = getattr(config, 'os_region_name', '')
+            config.storage_write_weights = { 'swift' : 1.0 }
+            config.core_storage = {
+                'default' : 'swift',
+                  'swift' : {'type': 'swift',
+                             'bucket': swift,
+                             'os_auth_url': os_auth_url,
+                             'os_username': os_username,
+                             'os_password': os_password,
+                             'os_tenant_name': os_tenant_name,
+                             'os_region_name': os_region_name}, }
+        elif ec2:
+            host = getattr(config, 'ec2_host', '')
+            aws_access_key = getattr(config, 'aws_access_key', '')
+            aws_secret_key = getattr(config, 'aws_secret_key', '')
+            if not (host and aws_access_key and aws_secret_key):
+                msg = ('EC2 provider set but host, bucket, aws_access_key, or'
+                       ' aws_secret_key not set.')
+                raise ImportError(msg)
+            config.storage_write_weights = { 's3' : 1.0 }
+            config.core_storage = {
+                'default' : 's3',
+                    's3' : {'type': 's3', 'host': host, 'bucket': ec2,
+                             'aws_access_key': aws_access_key,
+                             'aws_secret_key': aws_secret_key}, }
+        elif nfs:
+            config.storage_write_weights = { 'nfs' : 1.0 }
+            config.core_storage = {
+                'default' : 'nfs',
+                    'nfs' : {'type': 'nfs', 'path': nfs}, }
+        else:
+            raise ImportError('no core storage provider is set.')
+
+
+    if not getattr(config, 'storage_write_weights', ''):
+        d = config.core_storage.get('default', '')
+        if not d:
+            msg = ('No storage_write_weights set, but no default set in core'
+                   ' storage')
+            raise ImportError(msg)
+        config.storage_write_weights = { d : 1.0 }
+
+    for k, v in config.core_storage.iteritems():
+        if k == 'default':
+            continue
+        t = v.get('type', '')
+        if not t:
+            raise ImportError('You must set a type for %s.' % k)
+        if t == 'swift':
+            keys = ['bucket', 'os_auth_url', 'os_username', 'os_password',
+                    'os_tenant_name', 'os_region_name']
+        elif t == 's3':
+            keys = ['host', 'bucket', 'aws_access_key', 'aws_secret_key']
+        elif t == 'nfs':
+            keys = ['path']
+        missing = set(keys) - set(v.keys())
+        if missing:
+            missing = ', '.join(missing)
+            raise ImportError('Missing keys for %s: %s.' % (k, missing))
+
+    if reduce(lambda x,y: x+y, config.storage_write_weights.values()) != 1.0:
+        msg = 'storage_write_weights values do not add up to 1.0.'
+        raise ImportError(msg)
+
+validate_configuration()
+
+def gen_write_weight_ranges(d):
+    total = 0
+    r = {}
+    for key, val in d.iteritems():
+        r[key] = (total, total + val)
+        total += val
+    return r
+
+write_weight_ranges = None
+if getattr(config, 'storage_write_weights', ''):
+    write_weight_ranges = gen_write_weight_ranges(config.storage_write_weights)
+
+def write_to_swift(fileobj, oops_id, provider_data):
+    '''Write the core file to OpenStack Swift.'''
     import swiftclient
-    opts = {'tenant_name': config.os_tenant_name, 
-            'region_name': config.os_region_name}
-    conn = swiftclient.client.Connection(config.os_auth_url,
-                                         config.os_username,
-                                         config.os_password,
+    opts = {'tenant_name': provider_data['os_tenant_name'],
+            'region_name': provider_data['os_region_name']}
+    conn = swiftclient.client.Connection(provider_data['os_auth_url'],
+                                         provider_data['os_username'],
+                                         provider_data['os_password'],
                                          os_options=opts,
                                          auth_version='2.0')
-    conn.put_container(config.swift_bucket)
+    bucket = provider_data['bucket']
+    conn.put_container(bucket)
     # Don't set a content_length (that we don't have) to force a chunked
     # transfer.
-    conn.put_object(config.swift_bucket, oops_id, fileobj)
+    conn.put_object(bucket, oops_id, fileobj)
     return True
 
-def write_to_s3(fileobj, oops_id):
+def write_to_s3(fileobj, oops_id, provider_data):
+    '''Write the core file to Amazon S3.'''
     from boto.s3.connection import S3Connection
     from boto.exception import S3ResponseError
 
-    conn = S3Connection(aws_access_key_id=config.aws_access_key,
-                        aws_secret_access_key=config.aws_secret_key,
-                        host=config.ec2_host)
+    conn = S3Connection(aws_access_key_id=provider_data['aws_access_key'],
+                        aws_secret_access_key=provider_data['aws_secret_key'],
+                        host=provider_data['host'])
     try:
-        bucket = conn.get_bucket(config.ec2_bucket)
+        bucket = conn.get_bucket(provider_data['bucket'])
     except S3ResponseError as e:
-        bucket = conn.create_bucket(config.ec2_bucket)
+        bucket = conn.create_bucket(provider_data['bucket'])
 
     with tempfile.NamedTemporaryFile(mode='w+b') as fp:
         try:
@@ -79,10 +184,10 @@ def write_to_s3(fileobj, oops_id):
 
     return True
 
-def write_to_san(fileobj, oops_id):
-    '''Write the core file to SAN/NFS.'''
+def write_to_san(fileobj, oops_id, provider_data):
+    '''Write the core file to NFS.'''
 
-    path = os.path.join(config.san_path, oops_id)
+    path = os.path.join(provider_data['path'], oops_id)
     copied = False
     with open(path, 'w') as fp:
         try:
@@ -102,6 +207,37 @@ def write_to_san(fileobj, oops_id):
             pass
         return False
 
+def write_to_storage_provider(fileobj, uuid):
+    # We trade deteriminism for forgetfulness and make up for it by passing the
+    # decision along with the UUID as part of the queue message.
+    r = random.randint(1, 100)
+    provider = None
+    for key, ranges in write_weight_ranges.iteritems():
+        # TODO fix overlap by fixing function above to generate (0, 0.24),
+        # (0.25, 0.50), (0.51, 1.0)
+        if r >= (ranges[0]*100) and r <= (ranges[1]*100):
+            provider = key
+            provider_data = config.core_storage[key]
+            break
+
+    written = False
+    message = uuid
+    t = provider_data['type']
+    if t == 'swift':
+        written = write_to_swift(fileobj, uuid, provider_data)
+    elif t == 's3':
+        written = write_to_s3(fileobj, uuid, provider_data)
+    elif t == 'nfs':
+        written = write_to_san(fileobj, uuid, provider_data)
+        message = os.path.join(provider_data['path'], uuid)
+
+    message = '%s:%s' % (message, provider)
+
+    if written:
+        return message
+    else:
+        return None
+
 def submit(_pool, fileobj, uuid, arch):
     indexes_fam = pycassa.ColumnFamily(_pool, 'Indexes')
     oops_fam = pycassa.ColumnFamily(_pool, 'OOPS')
@@ -118,18 +254,8 @@ def submit(_pool, fileobj, uuid, arch):
         return (False, msg)
 
 
-    written = False
-    if config.swift_bucket:
-        written = write_to_swift(fileobj, uuid)
-        message = uuid
-    elif config.ec2_bucket:
-        written = write_to_s3(fileobj, uuid)
-        message = uuid
-    else:
-        written = write_to_san(fileobj, uuid)
-        message = os.path.join(config.san_path, uuid)
-
-    if not written:
+    message = write_to_storage_provider(fileobj, uuid)
+    if not message:
         return (False, '')
 
     if config.amqp_username and config.amqp_password:
