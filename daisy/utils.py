@@ -39,6 +39,7 @@ def bucket(oops_config, oops_id, crash_signature, report_dict):
     package = report_dict.get('Package', '')
     problem_type = report_dict.get('ProblemType', '')
     dependencies = report_dict.get('Dependencies', '')
+    system_uuid = report_dict.get('SystemIdentifier', '')
     if '[origin:' in package or '[origin:' in dependencies:
         # This package came from a third-party source. We do not want to show
         # its version as the Last Seen field on the most common problems table,
@@ -52,6 +53,16 @@ def bucket(oops_config, oops_id, crash_signature, report_dict):
         package, version = split_package_and_version(package)
 
     fields = get_fields_for_bucket_counters(problem_type, release, package, version)
+    bucket_versions = oopses.query_bucket_versions(oops_config,
+                                                   crash_signature)
+    if bucket_versions:
+        first_version, version_count = sorted(bucket_versions,
+            cmp=apt.apt_pkg.version_compare, key=lambda t: t[0])[0]
+    else:
+        # it doesn't exist in bucketversions so we want to create it
+        first_version = version
+    if version == first_version:
+        oopses.update_bucket_systems(oops_config, crash_signature, system_uuid)
     oopses.bucket(oops_config, oops_id, crash_signature, fields)
     if (package and version) and not third_party:
         oopses.update_bucket_metadata(oops_config, crash_signature, package,
