@@ -164,23 +164,14 @@ def write_to_s3(fileobj, oops_id, provider_data):
     except S3ResponseError as e:
         bucket = conn.create_bucket(provider_data['bucket'])
 
-    with tempfile.NamedTemporaryFile(mode='w+b') as fp:
-        try:
-            shutil.copyfileobj(fileobj, fp, 512)
-        except IOError as e:
-            if e.message != 'request data read error':
-                raise
+    key = bucket.new_key(oops_id)
+    try:
+        key.set_contents_from_stream(fileobj)
+    except IOError, e:
+        if e.message == 'request data read error':
             return False
-
-        fp.seek(0)
-        key = bucket.new_key(oops_id)
-        try:
-            key.set_contents_from_file(fp)
-        except IOError, e:
-            if e.message == 'request data read error':
-                return False
-            else:
-                raise
+        else:
+            raise
 
     return True
 
