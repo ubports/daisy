@@ -1,7 +1,6 @@
 from testtools import TestCase
 import unittest
 from daisy import submit_core
-#from daisy import retracer
 import mock
 import uuid
 
