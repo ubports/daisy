@@ -20,7 +20,6 @@ import amqplib.client_0_8 as amqp
 import pycassa
 from pycassa.cassandra.ttypes import NotFoundException
 import shutil
-import tempfile
 import os
 import random
 
@@ -220,7 +219,6 @@ def write_to_storage_provider(fileobj, uuid):
         written = write_to_s3(fileobj, uuid, provider_data)
     elif t == 'nfs':
         written = write_to_san(fileobj, uuid, provider_data)
-        message = os.path.join(provider_data['path'], uuid)
 
     message = '%s:%s' % (message, provider)
 

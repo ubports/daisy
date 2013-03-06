@@ -258,8 +258,9 @@ class TestCoreSubmission(TestSubmission):
         kwargs = basic_publish_call[1]
         self.assertEqual(kwargs['routing_key'], 'retrace_amd64')
         self.assertEqual(kwargs['exchange'], '')
-        msg = '%s:nfs' % os.path.join(path, uuid)
+        msg = '%s:nfs' % uuid
         self.assertEqual(self.msg_mock.call_args[0][0], msg)
+        self.assertTrue(os.path.exists(os.path.join(path, uuid)))
 
         # did we mark this as retracing in Cassandra?
         indexes_cf = pycassa.ColumnFamily(pool, 'Indexes')
@@ -290,7 +291,6 @@ class TestCoreSubmission(TestSubmission):
                     from boto.exception import S3ResponseError
                     get_bucket.side_effect = S3ResponseError('400', 'No reason')
                     submit_core.write_to_s3(f, 'oops-id', provider_data)
-                    print s3con.call_args
                     get_bucket.assert_called_with('core_files')
                     # Did we create the non-existent bucket?
                     create_bucket.assert_called_with('core_files')

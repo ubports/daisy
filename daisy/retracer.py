@@ -348,8 +348,7 @@ class Retracer:
         elif t == 's3':
             path = self.write_s3_bucket_to_disk(oops_id, provider_data)
         elif t == 'nfs':
-            path = oops_id
-            oops_id = oops_id.rsplit('/', 1)[1]
+            path = os.path.join(provider_data['path'], oops_id)
 
         return path, oops_id
 
