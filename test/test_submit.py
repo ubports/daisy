@@ -40,17 +40,16 @@ class TestSubmission(TestCase):
         self.start_response = mock.Mock()
 
         # Set up daisy schema.
+        os.environ['OOPS_HOST'] = configuration.cassandra_hosts[0]
         self.keyspace = self.useFixture(TemporaryOOPSDB()).keyspace
+        os.environ['OOPS_KEYSPACE'] = self.keyspace
         configuration.cassandra_keyspace = self.keyspace
-        configuration.cassandra_hosts = ['localhost:9160']
         self.creds = {'username': configuration.cassandra_username,
                       'password': configuration.cassandra_password}
         schema.create()
 
         # Set up oopsrepository schema.
-        os.environ['OOPS_KEYSPACE'] = self.keyspace
         oops_config = oopsconfig.get_config()
-        oops_config['host'] = configuration.cassandra_hosts
         oops_config['username'] = configuration.cassandra_username
         oops_config['password'] = configuration.cassandra_password
         oopsschema.create(oops_config)
@@ -89,14 +88,14 @@ class TestCrashSubmission(TestSubmission):
         wsgi.app(environ, self.start_response)
         self.assertEqual(self.start_response.call_args[0][0], '200 OK')
 
-        pool = pycassa.ConnectionPool(self.keyspace, ['localhost:9160'],
+        pool = pycassa.ConnectionPool(self.keyspace, configuration.cassandra_hosts,
                                       credentials=self.creds)
         oops_cf = pycassa.ColumnFamily(pool, 'OOPS')
-        bucket_cf = pycassa.ColumnFamily(pool, 'Buckets')
+        bucket_cf = pycassa.ColumnFamily(pool, 'Bucket')
         # Ensure the crash was bucketed:
         oops_id = oops_cf.get_range().next()[0]
         crash_signature = '/usr/bin/foo:    sys.exit(1):/usr/bin/foo@1'
-        self.assertEqual(oops_id, bucket_cf.get(crash_signature).keys()[0])
+        self.assertEqual(pycassa.util.uuid.UUID(oops_id), bucket_cf.get(crash_signature).keys()[0])
 
         # A Python crash shouldn't touch the retracing CFs:
         for fam in ('AwaitingRetrace', 'Stacktrace', 'Indexes'):
@@ -155,7 +154,7 @@ class TestBinarySubmission(TestCrashSubmission):
         self.assertTrue(resp.endswith(' CORE'))
 
         # It should end up in the AwaitingRetrace CF queue.
-        pool = pycassa.ConnectionPool(self.keyspace, ['localhost:9160'],
+        pool = pycassa.ConnectionPool(self.keyspace, configuration.cassandra_hosts,
                                       credentials=self.creds)
         awaiting_retrace_cf = pycassa.ColumnFamily(pool, 'AwaitingRetrace')
         oops_cf = pycassa.ColumnFamily(pool, 'OOPS')
@@ -168,7 +167,7 @@ class TestBinarySubmission(TestCrashSubmission):
         for, but it has not been retraced yet.'''
         # Lets pretend we've seen the stacktrace address signature before, and
         # have received a core file for it, but have not finished retracing it:
-        pool = pycassa.ConnectionPool(self.keyspace, ['localhost:9160'],
+        pool = pycassa.ConnectionPool(self.keyspace, configuration.cassandra_hosts,
                                       credentials=self.creds)
         awaiting_retrace_cf = pycassa.ColumnFamily(pool, 'AwaitingRetrace')
         oops_cf = pycassa.ColumnFamily(pool, 'OOPS')
@@ -188,10 +187,10 @@ class TestBinarySubmission(TestCrashSubmission):
     def test_binary_submission_already_retraced(self):
         '''If a binary crash has been submitted that we have a fully-retraced
         core file for.'''
-        pool = pycassa.ConnectionPool(self.keyspace, ['localhost:9160'],
+        pool = pycassa.ConnectionPool(self.keyspace, configuration.cassandra_hosts,
                                       credentials=self.creds)
         indexes_cf = pycassa.ColumnFamily(pool, 'Indexes')
-        bucket_cf = pycassa.ColumnFamily(pool, 'Buckets')
+        bucket_cf = pycassa.ColumnFamily(pool, 'Bucket')
         oops_cf = pycassa.ColumnFamily(pool, 'OOPS')
 
         indexes_cf.insert('crash_signature_for_stacktrace_address_signature',
@@ -205,7 +204,7 @@ class TestBinarySubmission(TestCrashSubmission):
         # Make sure 'foo' ends up in the bucket.
         oops_id = oops_cf.get_range().next()[0]
         bucket_contents = bucket_cf.get('fake-crash-signature').keys()
-        self.assertEqual(bucket_contents, [oops_id])
+        self.assertEqual(bucket_contents, [pycassa.util.uuid.UUID(oops_id)])
 
 class TestCoreSubmission(TestSubmission):
     def setUp(self):
@@ -235,7 +234,7 @@ class TestCoreSubmission(TestSubmission):
         path = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, path)
         configuration.san_path = path
-        pool = pycassa.ConnectionPool(self.keyspace, ['localhost:9160'],
+        pool = pycassa.ConnectionPool(self.keyspace, configuration.cassandra_hosts,
                                       credentials=self.creds)
         oops_cf = pycassa.ColumnFamily(pool, 'OOPS')
         oops_cf.insert(uuid, {'StacktraceAddressSignature' : stack_addr_sig})
