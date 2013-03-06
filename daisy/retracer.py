@@ -255,38 +255,41 @@ class Retracer:
         except NotFoundException:
             pass
 
-    def write_swift_bucket_to_disk(self, msg):
+    def write_swift_bucket_to_disk(self, key, provider_data):
         import swiftclient
-        opts = {'tenant_name': configuration.os_tenant_name,
-                'region_name': configuration.os_region_name}
-        conn = swiftclient.client.Connection(configuration.os_auth_url,
-                                             configuration.os_username,
-                                             configuration.os_password,
+        opts = {'tenant_name': provider_data['os_tenant_name'],
+                'region_name': provider_data['os_region_name']}
+        conn = swiftclient.client.Connection(provider_data['os_auth_url'],
+                                             provider_data['os_username'],
+                                             provider_data['os_password'],
                                              os_options=opts,
                                              auth_version='2.0')
         fp = tempfile.mkstemp()
-        bucket = configuration.swift_bucket
-        with open(fp[1], 'wb') as fp:
-            headers, body = conn.get_object(bucket, msg.body, resp_chunk_size=65536)
-            for chunk in body:
-                fp.write(chunk)
-            path = fp.name
-        conn.delete_object(bucket, msg.body)
-        return path
+        bucket = provider_data['bucket']
+        try:
+            with open(fp[1], 'wb') as fp:
+                headers, body = conn.get_object(bucket, key, resp_chunk_size=65536)
+                for chunk in body:
+                    fp.write(chunk)
+                path = fp.name
+            conn.delete_object(bucket, key)
+            return path
+        except swiftclient.client.ClientException as e:
+            log('Could not retrieve %s:\n%s' % (key, str(e)))
+            return None
 
-    def write_s3_bucket_to_disk(self, msg):
+    def write_s3_bucket_to_disk(self, key, provider_data):
         from boto.s3.connection import S3Connection
         from boto.exception import S3ResponseError
 
-        conn = S3Connection(aws_access_key_id=configuration.aws_access_key,
-                            aws_secret_access_key=configuration.aws_secret_key,
-                            host=configuration.ec2_host)
+        conn = S3Connection(aws_access_key_id=provider_data['aws_access_key'],
+                            aws_secret_access_key=provider_data['aws_secret_key'],
+                            host=provider_data['host'])
         try:
-            bucket = conn.get_bucket(configuration.ec2_bucket)
-            key = bucket.get_key(msg.body)
+            bucket = conn.get_bucket(provider_data['bucket'])
+            key = bucket.get_key(key)
         except S3ResponseError as e:
-            log('Could not retrieve %s:\n%s' % (msg.body, str(e)))
-            self.failed_to_process(msg, msg.body)
+            log('Could not retrieve %s:\n%s' % (key, str(e)))
             return None
         fp = tempfile.mkstemp()
         with open(fp[1], 'wb') as fp:
@@ -297,23 +300,68 @@ class Retracer:
         key.delete()
         return path
 
-    def callback(self, msg):
-        log('Processing %s' % msg.body)
+    def legacy_write_bucket_to_disk(self, msg):
+        path = ''
+        oops_id = ''
+
         if not msg.body.startswith('/'):
             oops_id = msg.body
-            if configuration.swift_bucket:
-                path = self.write_swift_bucket_to_disk(msg)
-            elif configuration.ec2_bucket:
-                path = self.write_s3_bucket_to_disk(msg)
+            if getattr(configuration, 'swift_bucket', ''):
+                provider_data = {
+                    'bucket': configuration.swift_bucket,
+                    'os_auth_url': configuration.os_auth_url,
+                    'os_username': configuration.os_username,
+                    'os_tenant_name': configuration.os_tenant_name,
+                    'os_region_name': configuration.os_region_name}
+                path = self.write_swift_bucket_to_disk(msg, provider_data)
+            elif getattr(configuration, 'ec2_bucket', ''):
+                provider_data = {
+                    'host': configuration.ec2_host,
+                    'bucket': configuration.ec2_bucket,
+                    'aws_access_key': configuration.aws_access_key,
+                    'aws_secret_key': configuration.aws_secret_key}
+                path = self.write_s3_bucket_to_disk(oops_id, provider_data)
             else:
                 # Bail out.
+                # TODO move verify_configuration into a new module, then call
+                # it from the import of this module, like submit_core.
                 log('Neither swift_bucket or ec2_bucket set.')
                 sys.exit(1)
         else:
             path = msg.body
             oops_id = msg.body.rsplit('/', 1)[1]
 
-        if not os.path.exists(path):
+        return path, oops_id
+
+    def write_bucket_to_disk(self, oops_id, provider):
+        path = ''
+        oops_id = ''
+
+        cs = getattr(configuration, 'core_storage', '')
+        if not cs:
+            log('core_storage not set.')
+            sys.exit(1)
+        provider_data = cs[provider]
+        t = provider_data['type']
+        if t == 'swift':
+            path = self.write_swift_bucket_to_disk(oops_id, provider_data)
+        elif t == 's3':
+            path = self.write_s3_bucket_to_disk(oops_id, provider_data)
+        elif t == 'local':
+            path = os.path.join(provider_data['path'], oops_id)
+
+        return path, oops_id
+
+    def callback(self, msg):
+        log('Processing %s' % msg.body)
+        parts = msg.body.split(':', 1)
+        if len(parts) > 1:
+            path, oops_id = self.write_bucket_to_disk(*parts)
+        else:
+            # Compatibility with the existing items on the queue.
+            path, oops_id = self.legacy_write_bucket_to_disk(msg)
+
+        if not path or not os.path.exists(path):
             log('Could not find %s' % path)
             self.failed_to_process(msg, oops_id)
             return

@@ -233,13 +233,18 @@ class TestCoreSubmission(TestSubmission):
             '/usr/bin/foo+1e071')
         path = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, path)
-        configuration.san_path = path
         pool = pycassa.ConnectionPool(self.keyspace, configuration.cassandra_hosts,
                                       credentials=self.creds)
         oops_cf = pycassa.ColumnFamily(pool, 'OOPS')
         oops_cf.insert(uuid, {'StacktraceAddressSignature' : stack_addr_sig})
 
-        wsgi.app(environ, self.start_response)
+        with mock.patch('daisy.submit_core.config', autospec=True) as cfg:
+            from daisy import submit_core
+            cfg.core_storage = {}
+            cfg.storage_write_weights = {}
+            cfg.san_path = path
+            submit_core.validate_configuration()
+            wsgi.app(environ, self.start_response)
         self.assertEqual(self.start_response.call_args[0][0], '200 OK')
 
         # Did we actually write the core file to disk?
@@ -253,12 +258,42 @@ class TestCoreSubmission(TestSubmission):
         kwargs = basic_publish_call[1]
         self.assertEqual(kwargs['routing_key'], 'retrace_amd64')
         self.assertEqual(kwargs['exchange'], '')
-        self.assertEqual(self.msg_mock.call_args[0][0],
-                         os.path.join(path, uuid))
+        msg = '%s:local' % uuid
+        self.assertEqual(self.msg_mock.call_args[0][0], msg)
+        self.assertTrue(os.path.exists(os.path.join(path, uuid)))
 
         # did we mark this as retracing in Cassandra?
         indexes_cf = pycassa.ColumnFamily(pool, 'Indexes')
         indexes_cf.get('retracing', [stack_addr_sig])
+    def test_core_submission_s3(self):
+        from daisy import submit_core
+        provider_data = {
+            'aws_access_key': 'access',
+            'aws_secret_key': 'secret',
+            'host': 'does-not-exist.ubuntu.com',
+            'bucket': 'core_files',
+        }
+        with tempfile.NamedTemporaryFile(mode='w') as fp:
+            fp.write('Core file contents.')
+            fp.flush()
+            with open(fp.name, 'r') as f:
+                with mock.patch('boto.s3.connection.S3Connection') as s3con:
+                    get_bucket = s3con.return_value.get_bucket
+                    create_bucket = s3con.return_value.create_bucket
+                    submit_core.write_to_s3(f, 'oops-id', provider_data)
+                    # Did we grab from the correct bucket?
+                    get_bucket.assert_called_with('core_files')
+                    new_key = get_bucket.return_value.new_key
+                    # Did we create a new key in the bucket for the OOPS ID?
+                    new_key.assert_called_with('oops-id')
+
+                    # Bucket does not exist.
+                    from boto.exception import S3ResponseError
+                    get_bucket.side_effect = S3ResponseError('400', 'No reason')
+                    submit_core.write_to_s3(f, 'oops-id', provider_data)
+                    get_bucket.assert_called_with('core_files')
+                    # Did we create the non-existent bucket?
+                    create_bucket.assert_called_with('core_files')
 
 if __name__ == '__main__':
     unittest.main()
