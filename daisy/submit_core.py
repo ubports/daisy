@@ -44,12 +44,12 @@ def validate_configuration():
     if not core_storage:
         swift = getattr(config, 'swift_bucket', '')
         ec2 = getattr(config, 'ec2_bucket', '')
-        nfs = getattr(config, 'san_path', '')
+        local = getattr(config, 'san_path', '')
         if ec2 and swift:
             raise ImportError('ec2_bucket and swift_bucket cannot both be set.')
 
         # Match the old behaviour. Put everything on swift, if available.
-        # Failing that, fall back to EC2, then NFS.
+        # Failing that, fall back to EC2, then local.
         if swift:
             os_auth_url = getattr(config, 'os_auth_url', '')
             os_username = getattr(config, 'os_username', '')
@@ -80,11 +80,11 @@ def validate_configuration():
                     's3' : {'type': 's3', 'host': host, 'bucket': ec2,
                              'aws_access_key': aws_access_key,
                              'aws_secret_key': aws_secret_key}, }
-        elif nfs:
-            config.storage_write_weights = { 'nfs' : 1.0 }
+        elif local:
+            config.storage_write_weights = { 'local' : 1.0 }
             config.core_storage = {
-                'default' : 'nfs',
-                    'nfs' : {'type': 'nfs', 'path': nfs}, }
+                'default' : 'local',
+                    'local' : {'type': 'local', 'path': local}, }
         else:
             raise ImportError('no core storage provider is set.')
 
@@ -108,7 +108,7 @@ def validate_configuration():
                     'os_tenant_name', 'os_region_name']
         elif t == 's3':
             keys = ['host', 'bucket', 'aws_access_key', 'aws_secret_key']
-        elif t == 'nfs':
+        elif t == 'local':
             keys = ['path']
         missing = set(keys) - set(v.keys())
         if missing:
@@ -175,7 +175,7 @@ def write_to_s3(fileobj, oops_id, provider_data):
     return True
 
 def write_to_san(fileobj, oops_id, provider_data):
-    '''Write the core file to NFS.'''
+    '''Write the core file to local.'''
 
     path = os.path.join(provider_data['path'], oops_id)
     copied = False
@@ -217,7 +217,7 @@ def write_to_storage_provider(fileobj, uuid):
         written = write_to_swift(fileobj, uuid, provider_data)
     elif t == 's3':
         written = write_to_s3(fileobj, uuid, provider_data)
-    elif t == 'nfs':
+    elif t == 'local':
         written = write_to_san(fileobj, uuid, provider_data)
 
     message = '%s:%s' % (message, provider)

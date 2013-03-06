@@ -14,15 +14,15 @@ class TestSubmitCore(TestCase):
         self.assertEqual(result['s1'][1] - result['s1'][0], 0.25)
         self.assertEqual(result['s2'][1] - result['s2'][0], 0.5)
     def test_verify_configuration(self):
-        # Existing NFS configuration gets mapped to a sole storage_provider.
+        # Existing local configuration gets mapped to a sole storage_provider.
         with mock.patch('daisy.submit_core.config', autospec=True) as config:
             config.san_path = '/foo'
             config.swift_bucket = ''
             config.ec2_bucket = ''
             submit_core.validate_configuration()
-            self.assertEqual(config.storage_write_weights['nfs'], 1.0)
-            self.assertEqual(config.core_storage['default'], 'nfs')
-            self.assertEqual(config.core_storage['nfs']['type'], 'nfs')
+            self.assertEqual(config.storage_write_weights['local'], 1.0)
+            self.assertEqual(config.core_storage['default'], 'local')
+            self.assertEqual(config.core_storage['local']['type'], 'local')
 
         # Existing Swift configuration gets mapped to a sole storage_provider.
         with mock.patch('daisy.submit_core.config', autospec=True) as config:

@@ -258,7 +258,7 @@ class TestCoreSubmission(TestSubmission):
         kwargs = basic_publish_call[1]
         self.assertEqual(kwargs['routing_key'], 'retrace_amd64')
         self.assertEqual(kwargs['exchange'], '')
-        msg = '%s:nfs' % uuid
+        msg = '%s:local' % uuid
         self.assertEqual(self.msg_mock.call_args[0][0], msg)
         self.assertTrue(os.path.exists(os.path.join(path, uuid)))
 

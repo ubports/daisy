@@ -347,7 +347,7 @@ class Retracer:
             path = self.write_swift_bucket_to_disk(oops_id, provider_data)
         elif t == 's3':
             path = self.write_s3_bucket_to_disk(oops_id, provider_data)
-        elif t == 'nfs':
+        elif t == 'local':
             path = os.path.join(provider_data['path'], oops_id)
 
         return path, oops_id
