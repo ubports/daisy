@@ -174,7 +174,7 @@ def write_to_s3(fileobj, oops_id, provider_data):
 
     return True
 
-def write_to_san(fileobj, oops_id, provider_data):
+def write_to_local(fileobj, oops_id, provider_data):
     '''Write the core file to local.'''
 
     path = os.path.join(provider_data['path'], oops_id)
@@ -218,7 +218,7 @@ def write_to_storage_provider(fileobj, uuid):
     elif t == 's3':
         written = write_to_s3(fileobj, uuid, provider_data)
     elif t == 'local':
-        written = write_to_san(fileobj, uuid, provider_data)
+        written = write_to_local(fileobj, uuid, provider_data)
 
     message = '%s:%s' % (message, provider)
 
