@@ -34,7 +34,7 @@ new_count = 0
 for k,v in buckets_cf.get_range():
     row_count += 1
     try:
-        bucket_cf.get(k)
+        bucket_cf.get(k, column_count=1)
     except NotFoundException:
         new_count += 1
     for group in grouper(v, 100):
