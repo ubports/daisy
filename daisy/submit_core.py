@@ -33,6 +33,12 @@ if not config:
 
 
 def validate_and_set_configuration():
+    '''Validate the set configuration at module import time, to prevent
+    exceptions at random points during the lifetime of the application.
+
+    This will modify the in-memory configuration data if deprecated parameters
+    are used, to structure them in the non-deprecated format.'''
+
     write_weights = getattr(config, 'storage_write_weights', '') 
     core_storage = getattr(config, 'core_storage', '')
     if core_storage and not write_weights:
