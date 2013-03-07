@@ -52,7 +52,8 @@ def update_release_pkg_counter(counters_fam, release, src_package, date):
 def submit(_pool, environ, system_token):
     indexes_fam = pycassa.ColumnFamily(_pool, 'Indexes')
     awaiting_retrace_fam = pycassa.ColumnFamily(_pool, 'AwaitingRetrace')
-    counters_fam = pycassa.ColumnFamily(_pool, 'Counters')
+    counters_fam = pycassa.ColumnFamily(_pool, 'Counters',
+                                        retry_counter_mutations=True)
 
     oops_id = str(uuid.uuid1())
     try:
