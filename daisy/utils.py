@@ -40,6 +40,12 @@ def bucket(oops_config, oops_id, crash_signature, report_dict):
     problem_type = report_dict.get('ProblemType', '')
     dependencies = report_dict.get('Dependencies', '')
     system_uuid = report_dict.get('SystemIdentifier', '')
+
+    # https://errors.ubuntu.com/oops-local/2013-03-07/50428.daisy.ubuntu.com3
+    # Exception-Value: InvalidRequestException(why='Key length of 127727 is
+    # longer than maximum of 65535')
+    crash_signature = crash_signature[:65535]
+
     if '[origin:' in package or '[origin:' in dependencies:
         # This package came from a third-party source. We do not want to show
         # its version as the Last Seen field on the most common problems table,
