@@ -243,7 +243,7 @@ class TestCoreSubmission(TestSubmission):
             cfg.core_storage = {}
             cfg.storage_write_weights = {}
             cfg.san_path = path
-            submit_core.validate_configuration()
+            submit_core.validate_and_set_configuration()
             wsgi.app(environ, self.start_response)
         self.assertEqual(self.start_response.call_args[0][0], '200 OK')
 

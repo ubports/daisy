@@ -32,10 +32,7 @@ if not config:
     from daisy import configuration as config
 
 
-# TODO move these into a config.py module that imports * from configuration or
-# local_config into its namespace and then does checking. The other benefit of
-# that is not having to do the try except ImportError block everywhere.
-def validate_configuration():
+def validate_and_set_configuration():
     write_weights = getattr(config, 'storage_write_weights', '') 
     core_storage = getattr(config, 'core_storage', '')
     if core_storage and not write_weights:
@@ -119,7 +116,7 @@ def validate_configuration():
         msg = 'storage_write_weights values do not add up to 1.0.'
         raise ImportError(msg)
 
-validate_configuration()
+validate_and_set_configuration()
 
 def gen_write_weight_ranges(d):
     total = 0

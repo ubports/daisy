@@ -18,7 +18,7 @@ class TestSubmitCore(TestCase):
             config.san_path = '/foo'
             config.swift_bucket = ''
             config.ec2_bucket = ''
-            submit_core.validate_configuration()
+            submit_core.validate_and_set_configuration()
             self.assertEqual(config.storage_write_weights['local'], 1.0)
             self.assertEqual(config.core_storage['default'], 'local')
             self.assertEqual(config.core_storage['local']['type'], 'local')
@@ -28,7 +28,7 @@ class TestSubmitCore(TestCase):
             config.san_path = '/foo'
             config.swift_bucket = 'cores'
             config.ec2_bucket = ''
-            submit_core.validate_configuration()
+            submit_core.validate_and_set_configuration()
             self.assertEqual(config.storage_write_weights['swift'], 1.0)
             self.assertEqual(config.core_storage['default'], 'swift')
             self.assertEqual(config.core_storage['swift']['type'], 'swift')
@@ -37,7 +37,7 @@ class TestSubmitCore(TestCase):
         with mock.patch('daisy.submit_core.config', autospec=True) as config:
             submit_core.config.swift_bucket = 'cores'
             submit_core.config.ec2_bucket = 'cores'
-            self.assertRaises(ImportError, submit_core.validate_configuration)
+            self.assertRaises(ImportError, submit_core.validate_and_set_configuration)
 
     @mock.patch('daisy.submit_core.write_to_swift')
     @mock.patch('daisy.submit_core.write_to_s3')
