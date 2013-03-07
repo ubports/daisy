@@ -12,8 +12,8 @@ if not configuration:
 
 creds = {'username': configuration.cassandra_username,
          'password': configuration.cassandra_password}
-pool = pycassa.ConnectionPool('crashdb', ['localhost'], timeout=10,
-                              credentials=creds)
+pool = pycassa.ConnectionPool('crashdb', configuration.cassandra_hosts,
+                              timeout=10, credentials=creds)
 bucket = pycassa.ColumnFamily(pool, 'Bucket')
 buckets = pycassa.ColumnFamily(pool, 'Buckets')
 
