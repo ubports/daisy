@@ -33,3 +33,7 @@ for key, pairs in buckets.get_range(column_count=1):
         elapsed = time.time() - start
         print 'at %d/s' % int(count / elapsed)
 print count
+
+# Thursday, March 7th 2013 16:00 UTC
+# 1340000 processed, 50505 not found (3.77%) at 269/s
+# 1340460
