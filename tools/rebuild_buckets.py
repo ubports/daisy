@@ -2,6 +2,7 @@
 
 import sys
 import pycassa
+from pycassa.cassandra.ttypes import NotFoundException
 
 configuration = None
 try:
@@ -29,8 +30,13 @@ def grouper(iterable, n):
 row_count = 0
 dry_run = '--dry-run' in sys.argv
 
+new_count = 0
 for k,v in buckets_cf.get_range():
     row_count += 1
+    try:
+        bucket_cf.get(k)
+    except NotFoundException:
+        new_count += 1
     for group in grouper(v, 100):
         # If the list isn't evenly divisible, we'll end up with a final
         # chunk with None values on the end.
@@ -39,4 +45,4 @@ for k,v in buckets_cf.get_range():
         if not dry_run:
             bucket_cf.insert(k, o)
     if row_count % 100000 == 0:
-        print 'Copied', row_count, 'rows.'
+        print 'Copied', row_count, 'rows', '(%d new).' % new_count
