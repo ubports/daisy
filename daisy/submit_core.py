@@ -206,8 +206,6 @@ def write_to_storage_provider(fileobj, uuid):
     r = random.randint(1, 100)
     provider = None
     for key, ranges in write_weight_ranges.iteritems():
-        # TODO fix overlap by fixing function above to generate (0, 0.24),
-        # (0.25, 0.50), (0.51, 1.0)
         if r >= (ranges[0]*100) and r <= (ranges[1]*100):
             provider = key
             provider_data = config.core_storage[key]
