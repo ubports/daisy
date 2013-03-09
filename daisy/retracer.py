@@ -404,7 +404,7 @@ class Retracer:
         with open(report_path, 'wb') as fp:
             report.write(fp)
 
-        log('Retracing')
+        log('Retracing {}'.format(msg.body))
         sandbox, cache = self.setup_cache(self.sandbox_dir, release)
         day_key = time.strftime('%Y%m%d', time.gmtime())
 
