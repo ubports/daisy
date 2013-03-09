@@ -103,7 +103,7 @@ swift_bucket = ''
 # Example:
 # core_storage = {
 #     'default': 'swift-storage',
-#     'nfs-s1': {'type': 'nfs',
+#     'local-s1': {'type': 'local',
 #                'path': '/srv/cores'}
 #     'swift-storage': {'type': 'swift',
 #                       'bucket': 'cores',
@@ -127,6 +127,6 @@ core_storage = {}
 # will not be used. All the percentages must total up to 1.0.
 # 
 # Example:
-# storage_write_weights = {'nfs-s1': 0.25, 'swift-storage': 0.75}
+# storage_write_weights = {'local-s1': 0.25, 'swift-storage': 0.75}
 
 storage_write_weights = {}
