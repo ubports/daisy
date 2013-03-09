@@ -4,20 +4,12 @@ import sys
 import pycassa
 from pycassa.cassandra.ttypes import NotFoundException
 import datetime
+from daisy import config
 
-configuration = None
-try:
-    import local_config as configuration
-except ImportError:
-    pass
-
-if not configuration:
-    from daisy import configuration
-
-creds = {'username': configuration.cassandra_username,
-         'password': configuration.cassandra_password}
-pool = pycassa.ConnectionPool(configuration.cassandra_keyspace,
-                              configuration.cassandra_hosts, timeout=600,
+creds = {'username': config.cassandra_username,
+         'password': config.cassandra_password}
+pool = pycassa.ConnectionPool(config.cassandra_keyspace,
+                              config.cassandra_hosts, timeout=600,
                               credentials=creds)
 
 dayusers_cf = pycassa.ColumnFamily(pool, 'DayUsers')

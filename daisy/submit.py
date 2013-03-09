@@ -24,13 +24,7 @@ from oopsrepository import oopses
 import pycassa
 from pycassa.cassandra.ttypes import NotFoundException
 
-config = None
-try:
-    import local_config as config
-except ImportError:
-    pass
-if not config:
-    from daisy import configuration as config
+from daisy import config
 import apport
 from daisy import utils
 import time

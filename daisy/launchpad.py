@@ -7,24 +7,17 @@ import urllib2
 
 from lazr.restfulclient._browser import AtomicFileCache
 from oauth import oauth
-
-configuration = None
-try:
-    import local_config as configuration
-except ImportError:
-    pass
-if not configuration:
-    from daisy import configuration
+from daisy import config
 
 
-if (not hasattr(configuration, 'lp_oauth_token') or
-    not hasattr(configuration, 'lp_oauth_secret') or
-    configuration.lp_oauth_token is None or
-    configuration.lp_oauth_secret is None):
+if (not hasattr(config, 'lp_oauth_token') or
+    not hasattr(config, 'lp_oauth_secret') or
+    config.lp_oauth_token is None or
+    config.lp_oauth_secret is None):
     raise ImportError('You must set lp_oauth_token and '
                       'lp_oauth_secret in local_config')
 
-if configuration.lp_use_staging:
+if config.lp_use_staging:
     _create_bug_url = 'https://api.qastaging.launchpad.net/devel/bugs'
     _ubuntu_target = 'https://api.qastaging.launchpad.net/devel/ubuntu'
     _oauth_realm = 'https://api.qastaging.launchpad.net'
@@ -33,7 +26,7 @@ else:
     _ubuntu_target = 'https://api.launchpad.net/devel/ubuntu'
     _oauth_realm = 'https://api.launchpad.net'
 
-if configuration.lp_use_staging:
+if config.lp_use_staging:
     _launchpad_base = 'https://api.qastaging.launchpad.net/devel'
 else:
     _launchpad_base = 'https://api.launchpad.net/devel'
@@ -56,7 +49,7 @@ _distro_arch_series = _launchpad_base + '/ubuntu/%s/i386'
 
 # Bug and package lookup.
 
-_file_cache = AtomicFileCache(configuration.http_cache_dir)
+_file_cache = AtomicFileCache(config.http_cache_dir)
 _http = httplib2.Http(_file_cache)
 
 
@@ -267,12 +260,12 @@ def get_subscribed_packages(user):
     bin_pkgs = []
     dev_series = get_devel_series_codename()
     url = _person_url + user + '?ws.op=getBugSubscriberPackages'
-    json_data = urllib2_request_json(url, configuration.lp_oauth_token,
-        configuration.lp_oauth_secret)
+    json_data = urllib2_request_json(url, config.lp_oauth_token,
+        config.lp_oauth_secret)
     try:
         tsl = json.loads(json_data)['total_size_link']
-        total_size = int(urllib2_request_json(tsl, configuration.lp_oauth_token,
-            configuration.lp_oauth_secret))
+        total_size = int(urllib2_request_json(tsl, config.lp_oauth_token,
+            config.lp_oauth_secret))
         while len(src_pkgs) < total_size:
             entries = json.loads(json_data)['entries']
             for entry in entries:
@@ -281,8 +274,8 @@ def get_subscribed_packages(user):
                 ncl = json.loads(json_data)['next_collection_link']
             except KeyError:
                 break
-            json_data = urllib2_request_json(ncl, configuration.lp_oauth_token,
-                configuration.lp_oauth_secret)
+            json_data = urllib2_request_json(ncl, config.lp_oauth_token,
+                config.lp_oauth_secret)
     except KeyError:
         entries = json.loads(json_data)['entries']
         for entry in entries:
@@ -331,8 +324,8 @@ def create_bug(signature, source=''):
         operation = _generate_operation(title, description, target)
     else:
         operation = _generate_operation(title, description)
-    headers = _generate_headers(configuration.lp_oauth_token,
-                                configuration.lp_oauth_secret)
+    headers = _generate_headers(config.lp_oauth_token,
+                                config.lp_oauth_secret)
 
     # TODO Record the source packages and Ubuntu releases this crash has been
     # seen in, so we can add tasks for each relevant release.
@@ -346,7 +339,7 @@ def create_bug(signature, source=''):
     response.read()
     try:
         number = response.headers['Location'].rsplit('/', 1)[1]
-        if configuration.lp_use_staging:
+        if config.lp_use_staging:
             return (number, 'https://qastaging.launchpad.net/bugs/' + number)
         else:
             return (number, 'https://bugs.launchpad.net/bugs/' + number)
@@ -363,8 +356,8 @@ def _generate_subscription(user):
 
 def subscribe_user(bug, user):
     operation = _generate_subscription(user)
-    headers = _generate_headers(configuration.lp_oauth_token,
-                                configuration.lp_oauth_secret)
+    headers = _generate_headers(config.lp_oauth_token,
+                                config.lp_oauth_secret)
     url = '%s/%s' % (_create_bug_url, bug)
     request = urllib2.Request(url, operation, headers)
     try:

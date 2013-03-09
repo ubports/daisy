@@ -5,14 +5,7 @@ import pycassa
 from pycassa.cassandra.ttypes import NotFoundException
 import amqplib.client_0_8 as amqp
 import atexit
-
-configuration = None
-try:
-    import local_config as configuration
-except ImportError:
-    pass
-if not configuration:
-    from daisy import configuration
+from daisy import config
 
 if len(sys.argv) < 2:
     print >>sys.stderr, 'usage: %s <uuid>'
@@ -20,10 +13,10 @@ if len(sys.argv) < 2:
 
 path = sys.argv[1]
 uuid = os.path.basename(path)
-creds = {'username': configuration.cassandra_username,
-         'password': configuration.cassandra_password}
-pool = pycassa.ConnectionPool(configuration.cassandra_keyspace,
-                              configuration.cassandra_hosts, credentials=creds)
+creds = {'username': config.cassandra_username,
+         'password': config.cassandra_password}
+pool = pycassa.ConnectionPool(config.cassandra_keyspace,
+                              config.cassandra_hosts, credentials=creds)
 oops_fam = pycassa.ColumnFamily(pool, 'OOPS')
 arch = ''
 try:
@@ -33,7 +26,7 @@ except NotFoundException:
     sys.exit(1)
 queue = 'retrace_%s' % arch
 
-connection = amqp.Connection(host=configuration.amqp_host)
+connection = amqp.Connection(host=config.amqp_host)
 channel = connection.channel()
 atexit.register(connection.close)
 atexit.register(channel.close)

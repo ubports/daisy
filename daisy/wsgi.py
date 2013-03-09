@@ -2,15 +2,8 @@ from daisy import submit
 from daisy import submit_core
 from daisy import utils
 from daisy import metrics
+from daisy import config
 import re
-
-config = None
-try:
-    import local_config as config
-except ImportError:
-    pass
-if not config:
-    from daisy import configuration as config
 
 _pool = None
 path_filter = re.compile('[^a-zA-Z0-9-_]')

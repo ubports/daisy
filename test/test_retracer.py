@@ -6,13 +6,7 @@ from oopsrepository import schema as oopsschema
 from oopsrepository import config as oopsconfig
 from daisy import schema
 from daisy import retracer
-configuration = None
-try:
-    import local_config as configuration
-except ImportError:
-    pass
-if not configuration:
-    from daisy import configuration
+from daisy import config
 import tempfile
 import os
 import shutil
@@ -23,20 +17,20 @@ from pycassa.types import IntegerType, FloatType
 class TestSubmission(TestCase):
     def setUp(self):
         super(TestSubmission, self).setUp()
-        # We need to set the configuration before importing.
-        os.environ['OOPS_HOST'] = configuration.cassandra_hosts[0]
+        # We need to set the config before importing.
+        os.environ['OOPS_HOST'] = config.cassandra_hosts[0]
         self.keyspace = self.useFixture(TemporaryOOPSDB()).keyspace
         os.environ['OOPS_KEYSPACE'] = self.keyspace
-        creds = {'username': configuration.cassandra_username,
-                 'password': configuration.cassandra_password}
+        creds = {'username': config.cassandra_username,
+                 'password': config.cassandra_password}
         self.pool = pycassa.ConnectionPool(self.keyspace,
-                                           configuration.cassandra_hosts,
+                                           config.cassandra_hosts,
                                            credentials=creds)
-        configuration.cassandra_keyspace = self.keyspace
+        config.cassandra_keyspace = self.keyspace
         schema.create()
         oops_config = oopsconfig.get_config()
-        oops_config['username'] = configuration.cassandra_username
-        oops_config['password'] = configuration.cassandra_password
+        oops_config['username'] = config.cassandra_username
+        oops_config['password'] = config.cassandra_password
         oopsschema.create(oops_config)
         self.temp = tempfile.mkdtemp()
         config_dir = os.path.join(self.temp, 'config')

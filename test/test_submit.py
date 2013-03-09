@@ -16,15 +16,7 @@ import time
 from oopsrepository import oopses
 from oopsrepository import schema as oopsschema
 from oopsrepository import config as oopsconfig
-# Attempting to import local_config is necessary as the modules under test may
-# import it and we need to monkeypatch the configuration module in use.
-configuration = None
-try:
-    import local_config as configuration
-except ImportError:
-    pass
-if not configuration:
-    from daisy import configuration
+from daisy import config
 from daisy import submit
 from daisy import schema
 from daisy import wsgi
@@ -40,18 +32,18 @@ class TestSubmission(TestCase):
         self.start_response = mock.Mock()
 
         # Set up daisy schema.
-        os.environ['OOPS_HOST'] = configuration.cassandra_hosts[0]
+        os.environ['OOPS_HOST'] = config.cassandra_hosts[0]
         self.keyspace = self.useFixture(TemporaryOOPSDB()).keyspace
         os.environ['OOPS_KEYSPACE'] = self.keyspace
-        configuration.cassandra_keyspace = self.keyspace
-        self.creds = {'username': configuration.cassandra_username,
-                      'password': configuration.cassandra_password}
+        config.cassandra_keyspace = self.keyspace
+        self.creds = {'username': config.cassandra_username,
+                      'password': config.cassandra_password}
         schema.create()
 
         # Set up oopsrepository schema.
         oops_config = oopsconfig.get_config()
-        oops_config['username'] = configuration.cassandra_username
-        oops_config['password'] = configuration.cassandra_password
+        oops_config['username'] = config.cassandra_username
+        oops_config['password'] = config.cassandra_password
         oopsschema.create(oops_config)
 
         # Clear singletons.
@@ -88,7 +80,7 @@ class TestCrashSubmission(TestSubmission):
         wsgi.app(environ, self.start_response)
         self.assertEqual(self.start_response.call_args[0][0], '200 OK')
 
-        pool = pycassa.ConnectionPool(self.keyspace, configuration.cassandra_hosts,
+        pool = pycassa.ConnectionPool(self.keyspace, config.cassandra_hosts,
                                       credentials=self.creds)
         oops_cf = pycassa.ColumnFamily(pool, 'OOPS')
         bucket_cf = pycassa.ColumnFamily(pool, 'Bucket')
@@ -154,7 +146,7 @@ class TestBinarySubmission(TestCrashSubmission):
         self.assertTrue(resp.endswith(' CORE'))
 
         # It should end up in the AwaitingRetrace CF queue.
-        pool = pycassa.ConnectionPool(self.keyspace, configuration.cassandra_hosts,
+        pool = pycassa.ConnectionPool(self.keyspace, config.cassandra_hosts,
                                       credentials=self.creds)
         awaiting_retrace_cf = pycassa.ColumnFamily(pool, 'AwaitingRetrace')
         oops_cf = pycassa.ColumnFamily(pool, 'OOPS')
@@ -167,7 +159,7 @@ class TestBinarySubmission(TestCrashSubmission):
         for, but it has not been retraced yet.'''
         # Lets pretend we've seen the stacktrace address signature before, and
         # have received a core file for it, but have not finished retracing it:
-        pool = pycassa.ConnectionPool(self.keyspace, configuration.cassandra_hosts,
+        pool = pycassa.ConnectionPool(self.keyspace, config.cassandra_hosts,
                                       credentials=self.creds)
         awaiting_retrace_cf = pycassa.ColumnFamily(pool, 'AwaitingRetrace')
         oops_cf = pycassa.ColumnFamily(pool, 'OOPS')
@@ -187,7 +179,7 @@ class TestBinarySubmission(TestCrashSubmission):
     def test_binary_submission_already_retraced(self):
         '''If a binary crash has been submitted that we have a fully-retraced
         core file for.'''
-        pool = pycassa.ConnectionPool(self.keyspace, configuration.cassandra_hosts,
+        pool = pycassa.ConnectionPool(self.keyspace, config.cassandra_hosts,
                                       credentials=self.creds)
         indexes_cf = pycassa.ColumnFamily(pool, 'Indexes')
         bucket_cf = pycassa.ColumnFamily(pool, 'Bucket')
@@ -233,17 +225,15 @@ class TestCoreSubmission(TestSubmission):
             '/usr/bin/foo+1e071')
         path = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, path)
-        pool = pycassa.ConnectionPool(self.keyspace, configuration.cassandra_hosts,
+        pool = pycassa.ConnectionPool(self.keyspace, config.cassandra_hosts,
                                       credentials=self.creds)
         oops_cf = pycassa.ColumnFamily(pool, 'OOPS')
         oops_cf.insert(uuid, {'StacktraceAddressSignature' : stack_addr_sig})
 
         with mock.patch('daisy.submit_core.config', autospec=True) as cfg:
-            from daisy import submit_core
-            cfg.core_storage = {}
-            cfg.storage_write_weights = {}
-            cfg.san_path = path
-            submit_core.validate_and_set_configuration()
+            cfg.core_storage = {'local': {'type':'local', 'path':path}}
+            cfg.storage_write_weights = {'local': 1.0}
+            cfg.write_weight_ranges = {'local': (0.0, 1.0)}
             wsgi.app(environ, self.start_response)
         self.assertEqual(self.start_response.call_args[0][0], '200 OK')
 

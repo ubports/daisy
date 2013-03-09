@@ -61,6 +61,7 @@ def bucket(oops_config, oops_id, crash_signature, report_dict):
     fields = get_fields_for_bucket_counters(problem_type, release, package, version)
     bucket_versions = oopses.query_bucket_versions(oops_config,
                                                    crash_signature)
+    bucket_versions = list(bucket_versions)
     if bucket_versions:
         first_version, version_count = sorted(bucket_versions,
             cmp=apt.apt_pkg.version_compare, key=lambda t: t[0])[0]

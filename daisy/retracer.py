@@ -36,16 +36,8 @@ import re
 from daisy import metrics
 from daisy import utils
 import logging
-
-configuration = None
-try:
-    import local_config as configuration
-except ImportError:
-    pass
-if not configuration:
-    from daisy import configuration
-
-from oopsrepository import config
+from daisy import config
+from oopsrepository import config as oopsconfig
 
 def log(message, level=logging.INFO):
     logging.log(level, message)
@@ -99,11 +91,11 @@ class Retracer:
         assert which.returncode == 0, 'Cannot find apport-retrace in $PATH (%s)' % os.environ.get('PATH')
 
     def setup_cassandra(self):
-        os.environ['OOPS_KEYSPACE'] = configuration.cassandra_keyspace
-        self.oops_config = config.get_config()
-        self.oops_config['host'] = configuration.cassandra_hosts
-        self.oops_config['username'] = configuration.cassandra_username
-        self.oops_config['password'] = configuration.cassandra_password
+        os.environ['OOPS_KEYSPACE'] = config.cassandra_keyspace
+        self.oops_config = oopsconfig.get_config()
+        self.oops_config['host'] = config.cassandra_hosts
+        self.oops_config['username'] = config.cassandra_username
+        self.oops_config['password'] = config.cassandra_password
 
         pool = metrics.failure_wrapped_connection_pool()
         self.oops_fam = ColumnFamily(pool, 'OOPS')
@@ -132,12 +124,12 @@ class Retracer:
         connection = None
         channel = None
         try:
-            if configuration.amqp_username and configuration.amqp_password:
-                connection = amqp.Connection(host=configuration.amqp_host,
-                                        userid=configuration.amqp_username,
-                                        password=configuration.amqp_password)
+            if config.amqp_username and config.amqp_password:
+                connection = amqp.Connection(host=config.amqp_host,
+                                        userid=config.amqp_username,
+                                        password=config.amqp_password)
             else:
-                connection = amqp.Connection(host=configuration.amqp_host)
+                connection = amqp.Connection(host=config.amqp_host)
             channel = connection.channel()
             channel.queue_declare(queue=retrace, durable=True,
                                   auto_delete=False)
@@ -306,24 +298,24 @@ class Retracer:
 
         if not msg.body.startswith('/'):
             oops_id = msg.body
-            if getattr(configuration, 'swift_bucket', ''):
+            if getattr(config, 'swift_bucket', ''):
                 provider_data = {
-                    'bucket': configuration.swift_bucket,
-                    'os_auth_url': configuration.os_auth_url,
-                    'os_username': configuration.os_username,
-                    'os_tenant_name': configuration.os_tenant_name,
-                    'os_region_name': configuration.os_region_name}
+                    'bucket': config.swift_bucket,
+                    'os_auth_url': config.os_auth_url,
+                    'os_username': config.os_username,
+                    'os_tenant_name': config.os_tenant_name,
+                    'os_region_name': config.os_region_name}
                 path = self.write_swift_bucket_to_disk(msg, provider_data)
-            elif getattr(configuration, 'ec2_bucket', ''):
+            elif getattr(config, 'ec2_bucket', ''):
                 provider_data = {
-                    'host': configuration.ec2_host,
-                    'bucket': configuration.ec2_bucket,
-                    'aws_access_key': configuration.aws_access_key,
-                    'aws_secret_key': configuration.aws_secret_key}
+                    'host': config.ec2_host,
+                    'bucket': config.ec2_bucket,
+                    'aws_access_key': config.aws_access_key,
+                    'aws_secret_key': config.aws_secret_key}
                 path = self.write_s3_bucket_to_disk(oops_id, provider_data)
             else:
                 # Bail out.
-                # TODO move verify_configuration into a new module, then call
+                # TODO move verify_config into a new module, then call
                 # it from the import of this module, like submit_core.
                 log('Neither swift_bucket or ec2_bucket set.')
                 sys.exit(1)
@@ -335,9 +327,8 @@ class Retracer:
 
     def write_bucket_to_disk(self, oops_id, provider):
         path = ''
-        oops_id = ''
 
-        cs = getattr(configuration, 'core_storage', '')
+        cs = getattr(config, 'core_storage', '')
         if not cs:
             log('core_storage not set.')
             sys.exit(1)
@@ -578,7 +569,7 @@ class Retracer:
 def parse_options():
     parser = argparse.ArgumentParser(description='Process core dumps.')
     parser.add_argument('--config-dir',
-                        help='Packaging system configuration base directory.',
+                        help='Packaging system config base directory.',
                         required=True)
     parser.add_argument('-a', '--architecture',
                         help='architecture to process (e. g. i386 or armhf)',

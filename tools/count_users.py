@@ -1,15 +1,9 @@
 #!/usr/bin/python
 import pycassa
-configuration = None
-try:
-    import local_config as configuration
-except ImportError:
-        pass
-if not configuration:
-    from daisy import configuration
+from daisy import config
 
-creds = {'username': configuration.cassandra_username,
-         'password': configuration.cassandra_password}
+creds = {'username': config.cassandra_username,
+         'password': config.cassandra_password}
 pool = pycassa.ConnectionPool('crashdb', ['localhost'], timeout=10,
                               credentials=creds)
 oops = pycassa.ColumnFamily(pool, 'UserOOPS')

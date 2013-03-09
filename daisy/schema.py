@@ -23,21 +23,15 @@ from pycassa.system_manager import (
     ASCII_TYPE,
     )
 
-configuration = None
-try:
-    import local_config as configuration
-except ImportError:
-    pass
-if not configuration:
-    from daisy import configuration
+from daisy import config
 from oopsrepository.cassandra import workaround_1779
 from pycassa.types import CounterColumnType
 
 def create():
-    keyspace = configuration.cassandra_keyspace
-    creds = {'username': configuration.cassandra_username,
-             'password': configuration.cassandra_password}
-    mgr = SystemManager(configuration.cassandra_hosts[0], credentials=creds)
+    keyspace = config.cassandra_keyspace
+    creds = {'username': config.cassandra_username,
+             'password': config.cassandra_password}
+    mgr = SystemManager(config.cassandra_hosts[0], credentials=creds)
     cfs = mgr.get_keyspace_column_families(keyspace).keys()
     try:
         if 'Indexes' not in cfs:
