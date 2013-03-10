@@ -592,7 +592,8 @@ def parse_options():
                         help='Do not cache downloaded debs.')
     parser.add_argument('-o', '--output', help='Log messages to a file.')
     parser.add_argument('--one-off',
-                        help='Debug processing a single uuid:provider_id')
+                        help=('Debug processing a single uuid:provider_id.'
+                              'This does not touch Cassandra or the queue.'))
     return parser.parse_args()
 
 def main():
