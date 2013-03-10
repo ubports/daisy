@@ -422,6 +422,9 @@ class Retracer:
         # use our own crashdb config with all supported architectures
         env = os.environ.copy()
         env['APPORT_CRASHDB_CONF'] = os.path.join(self.config_dir, 'crashdb.conf')
+        http_proxy = env.get('retracer_http_proxy')
+        if http_proxy:
+            env.update({'http_proxy': http_proxy})
         proc = Popen(cmd, env=env, stderr=PIPE, universal_newlines=True)
         err = proc.communicate()[1]
         if proc.returncode != 0:
