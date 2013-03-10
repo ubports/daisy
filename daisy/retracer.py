@@ -266,8 +266,10 @@ class Retracer:
                 path = fp.name
             conn.delete_object(bucket, key)
             return path
-        except swiftclient.client.ClientException as e:
-            log('Could not retrieve %s:\n%s' % (key, str(e)))
+        except swiftclient.client.ClientException:
+            import traceback
+            log('Could not retrieve %s:' % key)
+            log(traceback.format_exc())
             return None
 
     def write_s3_bucket_to_disk(self, key, provider_data):
