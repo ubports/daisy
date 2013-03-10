@@ -363,7 +363,7 @@ class Retracer:
     @attach_to_pool_name
     def callback(self, msg):
         log_extra = {'amqp_msg': msg.body}
-        local_log = lambda m: log(m, log_extra)
+        local_log = lambda m: log(m, extra=log_extra)
 
         local_log('Processing.')
         parts = msg.body.split(':', 1)
