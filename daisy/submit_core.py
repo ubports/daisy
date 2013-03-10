@@ -24,6 +24,13 @@ import os
 import random
 from daisy import config
 
+def swift_delete_ignoring_error(conn, bucket, oops_id):
+    import swiftclient
+    try:
+        conn.delete_object(bucket, oops_id)
+    except swiftclient.ClientException:
+        pass
+
 def write_to_swift(fileobj, oops_id, provider_data):
     '''Write the core file to OpenStack Swift.'''
     import swiftclient
@@ -36,10 +43,27 @@ def write_to_swift(fileobj, oops_id, provider_data):
                                          auth_version='2.0')
     bucket = provider_data['bucket']
     conn.put_container(bucket)
-    # Don't set a content_length (that we don't have) to force a chunked
-    # transfer.
-    conn.put_object(bucket, oops_id, fileobj)
+    try:
+        # Don't set a content_length (that we don't have) to force a chunked
+        # transfer.
+        conn.put_object(bucket, oops_id, fileobj)
+    except IOError, e:
+        swift_delete_ignoring_error(conn, bucket, oops_id)
+        if e.message == 'request data read error':
+            return False
+        else:
+            raise
+    except swiftclient.ClientException:
+        swift_delete_ignoring_error(conn, bucket, oops_id)
+        return False
     return True
+
+def s3_delete_ignoring_error(bucket, oops_id):
+    from boto.exception import S3ResponseError
+    try:
+        bucket.delete_key(oops_id)
+    except S3ResponseError:
+        pass
 
 def write_to_s3(fileobj, oops_id, provider_data):
     '''Write the core file to Amazon S3.'''
@@ -51,17 +75,21 @@ def write_to_s3(fileobj, oops_id, provider_data):
                         host=provider_data['host'])
     try:
         bucket = conn.get_bucket(provider_data['bucket'])
-    except S3ResponseError as e:
+    except S3ResponseError:
         bucket = conn.create_bucket(provider_data['bucket'])
 
     key = bucket.new_key(oops_id)
     try:
         key.set_contents_from_stream(fileobj)
     except IOError, e:
+        s3_delete_ignoring_error(bucket, oops_id)
         if e.message == 'request data read error':
             return False
         else:
             raise
+    except S3ResponseError:
+        s3_delete_ignoring_error(bucket, oops_id)
+        return False
 
     return True
 
