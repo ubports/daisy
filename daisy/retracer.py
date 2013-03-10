@@ -613,7 +613,7 @@ def main():
                         not options.nocache_debs, failed=options.failed)
     if options.one_off:
         parts = options.one_off.split(':', 1)
-        path, oops_id = self.write_bucket_to_disk(parts[0], parts[1])
+        path, oops_id = retracer.write_bucket_to_disk(parts[0], parts[1])
         print 'Wrote %s to %s. Exiting.' % (path, oops_id)
     else:
         retracer.listen()
