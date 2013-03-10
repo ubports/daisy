@@ -305,6 +305,7 @@ class Retracer:
                     'bucket': config.swift_bucket,
                     'os_auth_url': config.os_auth_url,
                     'os_username': config.os_username,
+                    'os_password': config.os_password,
                     'os_tenant_name': config.os_tenant_name,
                     'os_region_name': config.os_region_name}
                 path = self.write_swift_bucket_to_disk(msg, provider_data)
