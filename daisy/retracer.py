@@ -47,10 +47,10 @@ def chunked_insert(cf, row_key, data):
     # there seems to be some additional overhead between 64 and 128 bytes.
     # max_size = (1024 * 1024 * 15 - 128)
     # Production doesn't seem to like 15 MB, so lets play it conservatively.
-    max_size = (1024 * 1024 * 8)
+    max_size = (1024 * 1024 * 4)
 
     for key in data:
-        val = data[key].encode('utf-8')
+        val = data[key]
         if len(val) > max_size:
             riter = reversed(range(0, len(val), max_size))
             res = [val[i:i+max_size] for i in riter]

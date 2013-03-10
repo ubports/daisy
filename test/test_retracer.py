@@ -1,3 +1,4 @@
+# -*- coding: utf8 -*-
 import unittest
 import mock
 from testtools import TestCase
@@ -70,6 +71,37 @@ class TestSubmission(TestCase):
         result = indexes_fam.get('mean_retracing_time')
         self.assertEqual(result[mean_key], 30.5)
         self.assertEqual(result[counter_key], 2)
+
+    def test_chunked_insert(self):
+        # UnicodeEncodeError: 'ascii' codec can't encode character u'\xe9' in
+        # position 487: ordinal not in range(128)
+        stack_fam = pycassa.ColumnFamily(self.pool, 'Stacktrace')
+        stack_fam.default_validation_class = pycassa.types.UTF8Type()
+
+        # Non-chunked version.
+        data = {'Package': 'apport', 'ProblemType': 'Crash'}
+        retracer.chunked_insert(stack_fam, 'foo', data) 
+        results = stack_fam.get_range().next()
+        self.assertEqual(results[0], 'foo')
+        self.assertEqual(results[1]['Package'], 'apport')
+        self.assertEqual(results[1]['ProblemType'], 'Crash')
+
+        # Chunked.
+        stack_fam.truncate()
+        data['Big'] = 'a' * (1024 * 1024 * 4 + 1)
+        retracer.chunked_insert(stack_fam, 'foo', data)
+        results = stack_fam.get_range().next()
+        self.assertEqual(results[0], 'foo')
+        self.assertEqual(results[1]['Package'], 'apport')
+        self.assertEqual(results[1]['ProblemType'], 'Crash')
+        self.assertEqual(results[1]['Big'], 'a' * 1024 * 1024 * 4)
+        self.assertEqual(results[1]['Big-1'], 'a')
+
+        # Unicode. As generated in callback(), oops_fam.get()
+        stack_fam.truncate()
+        data = {u'☃'.encode('utf8'): u'☕'.encode('utf8')}
+        retracer.chunked_insert(stack_fam, 'foo', data)
+        results = stack_fam.get_range().next()
 
 if __name__ == '__main__':
     unittest.main()
