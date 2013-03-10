@@ -591,7 +591,7 @@ def parse_options():
     parser.add_argument('--nocache-debs', action='store_true',
                         help='Do not cache downloaded debs.')
     parser.add_argument('-o', '--output', help='Log messages to a file.')
-    parser.add_argument('--one-off',
+    parser.add_argument('--retrieve-core',
                         help=('Debug processing a single uuid:provider_id.'
                               'This does not touch Cassandra or the queue.'))
     return parser.parse_args()
@@ -611,7 +611,7 @@ def main():
     retracer = Retracer(options.config_dir, options.sandbox_dir,
                         options.architecture, options.verbose,
                         not options.nocache_debs, failed=options.failed)
-    if options.one_off:
+    if options.retrieve_core:
         parts = options.one_off.split(':', 1)
         path, oops_id = retracer.write_bucket_to_disk(parts[0], parts[1])
         print 'Wrote %s to %s. Exiting.' % (path, oops_id)
