@@ -39,8 +39,24 @@ import logging
 from daisy import config
 from oopsrepository import config as oopsconfig
 
-def log(message, level=logging.INFO):
-    logging.log(level, message)
+LOGGING_FORMAT = '%(asctime)-15s:%(amqp_msg)s:%(message)s'
+logging.basicConfig(format=LOGGING_FORMAT)
+
+def log(message, level=logging.INFO, extra={}):
+    logging.log(level, message, extra=extra)
+
+@atexit.register
+def shutdown():
+    log('Shutting down.')
+
+def attach_to_pool_name(func):
+    def wrapped(obj, msg):
+        try:
+            obj.pool.logging_name = '%s:%s' % (msg, id(obj.pool))
+            func(obj, msg)
+        finally:
+            obj.pool.logging_name = id(obj.pool)
+    return wrapped
 
 def chunked_insert(cf, row_key, data):
     # The thrift_framed_transport_size_in_mb limit is 15 MB by default, but
@@ -88,7 +104,9 @@ class Retracer:
         which = Popen(['which', 'apport-retrace'], stdout=PIPE,
                       universal_newlines=True)
         self.apport_retrace_path = which.communicate()[0].strip()
-        assert which.returncode == 0, 'Cannot find apport-retrace in $PATH (%s)' % os.environ.get('PATH')
+
+        m = 'Cannot find apport-retrace in $PATH (%s)' % os.environ.get('PATH')
+        assert which.returncode == 0, m
 
     def setup_cassandra(self):
         os.environ['OOPS_KEYSPACE'] = config.cassandra_keyspace
@@ -97,16 +115,17 @@ class Retracer:
         self.oops_config['username'] = config.cassandra_username
         self.oops_config['password'] = config.cassandra_password
 
-        pool = metrics.failure_wrapped_connection_pool()
-        self.oops_fam = ColumnFamily(pool, 'OOPS')
-        self.indexes_fam = ColumnFamily(pool, 'Indexes')
-        self.stack_fam = ColumnFamily(pool, 'Stacktrace')
-        self.awaiting_retrace_fam = ColumnFamily(pool, 'AwaitingRetrace')
+        self.pool = metrics.failure_wrapped_connection_pool()
+        self.oops_fam = ColumnFamily(self.pool, 'OOPS')
+        self.indexes_fam = ColumnFamily(self.pool, 'Indexes')
+        self.stack_fam = ColumnFamily(self.pool, 'Stacktrace')
+        self.awaiting_retrace_fam = ColumnFamily(self.pool, 'AwaitingRetrace')
         # Retry counter increments. This may result in double counting, but
         # we'd end up risking that anyway if failing with a timeout exception
         # and then re-rerunning the retrace later.
-        self.retrace_stats_fam = ColumnFamily(pool, 'RetraceStats', retry_counter_mutations=True)
-        self.bucket_fam = ColumnFamily(pool, 'Bucket')
+        self.retrace_stats_fam = ColumnFamily(self.pool, 'RetraceStats',
+                                              retry_counter_mutations=True)
+        self.bucket_fam = ColumnFamily(self.pool, 'Bucket')
 
         # We didn't set a default_validation_class for these in the schema.
         # Whoops.
@@ -268,7 +287,7 @@ class Retracer:
             return path
         except swiftclient.client.ClientException:
             import traceback
-            log('Could not retrieve %s:' % key)
+            log('Could not retrieve %s (swift):' % key)
             log(traceback.format_exc())
             return None
 
@@ -282,8 +301,10 @@ class Retracer:
         try:
             bucket = conn.get_bucket(provider_data['bucket'])
             key = bucket.get_key(key)
-        except S3ResponseError as e:
-            log('Could not retrieve %s:\n%s' % (key, str(e)))
+        except S3ResponseError:
+            import traceback
+            log('Could not retrieve %s (s3):' % key)
+            log(traceback.format_exc())
             return None
         fp = tempfile.mkstemp('-{}.{}.oopsid'.format(provider_data['type'], key))
         with open(fp[1], 'wb') as fp:
@@ -296,8 +317,6 @@ class Retracer:
 
     def legacy_write_bucket_to_disk(self, msg):
         path = ''
-        oops_id = ''
-
         if not msg.body.startswith('/'):
             oops_id = msg.body
             if getattr(config, 'swift_bucket', ''):
@@ -318,19 +337,15 @@ class Retracer:
                 path = self.write_s3_bucket_to_disk(oops_id, provider_data)
             else:
                 # Bail out.
-                # TODO move verify_config into a new module, then call
-                # it from the import of this module, like submit_core.
-                log('Neither swift_bucket or ec2_bucket set.')
+                log_extra = {'amqp_msg': msg.body}
+                log('Neither swift_bucket or ec2_bucket set.', extra=log_extra)
                 sys.exit(1)
         else:
             path = msg.body
-            oops_id = msg.body.rsplit('/', 1)[1]
-
-        return path, oops_id
+        return path
 
     def write_bucket_to_disk(self, oops_id, provider):
         path = ''
-
         cs = getattr(config, 'core_storage', '')
         if not cs:
             log('core_storage not set.')
@@ -343,31 +358,38 @@ class Retracer:
             path = self.write_s3_bucket_to_disk(oops_id, provider_data)
         elif t == 'local':
             path = os.path.join(provider_data['path'], oops_id)
+        return path
 
-        return path, oops_id
-
+    @attach_to_pool_name
     def callback(self, msg):
-        log('Processing %s' % msg.body)
+        log_extra = {'amqp_msg': msg.body}
+        local_log = lambda m: log(m, log_extra)
+
+        local_log('Processing.')
         parts = msg.body.split(':', 1)
         if len(parts) > 1:
-            path, oops_id = self.write_bucket_to_disk(*parts)
+            oops_id, provider = parts
+            path = self.write_bucket_to_disk(*parts)
         else:
             # Compatibility with the existing items on the queue.
-            path, oops_id = self.legacy_write_bucket_to_disk(msg)
+            oops_id = msg.body.rsplit('/', 1)[1]
+            path = self.legacy_write_bucket_to_disk(msg)
 
         if not path or not os.path.exists(path):
-            log('Could not find %s' % path)
+            local_log('Could not find %s' % path)
             self.failed_to_process(msg, oops_id)
             return
 
         new_path = '%s.core' % path
         with open(new_path, 'wb') as fp:
-            log('Decompressing to %s' % new_path)
+            local_log('Decompressing to %s' % new_path)
             p1 = Popen(['base64', '-d', path], stdout=PIPE)
             p2 = Popen(['zcat'], stdin=p1.stdout, stdout=fp)
             ret = p2.communicate()
         if p2.returncode != 0:
-            log('Error processing %s:\n%s' % (path, ret[1]))
+            local_log('Error processing %s:' % path)
+            for line in ret[1].splitlines():
+                local_log(line)
             # We've processed this. Delete it off the MQ.
             msg.channel.basic_ack(msg.delivery_tag)
             try:
@@ -383,8 +405,8 @@ class Retracer:
             return
 
         report = apport.Report()
-        # TODO use oops-repository instead
-        col = self.oops_fam.get(oops_id, read_consistency_level=ConsistencyLevel.QUORUM)
+        col = self.oops_fam.get(oops_id,
+                                read_consistency_level=ConsistencyLevel.QUORUM)
         for k in col:
             report[k.encode('UTF-8')] = col[k].encode('UTF-8')
         
@@ -407,7 +429,7 @@ class Retracer:
         with open(report_path, 'wb') as fp:
             report.write(fp)
 
-        log('Retracing {}'.format(msg.body))
+        local_log('Retracing {}'.format(msg.body))
         sandbox, cache = self.setup_cache(self.sandbox_dir, release)
         day_key = time.strftime('%Y%m%d', time.gmtime())
 
@@ -437,7 +459,10 @@ class Retracer:
             # python-apt bailed out on invalid sources.list files. Fail hard so
             # we do not incorrectly write a lot of retraces to the database as
             # failures.
-            log('Retrace failed (%i), moving to failed queue:\n%s' % (proc.returncode, err))
+            m = 'Retrace failed (%i), moving to failed queue:'
+            local_log(m % proc.returncode)
+            for line in err.splitlines():
+                local_log(line)
             self.move_to_failed_queue(msg)
             retracing_time = time.time() - retracing_start_time
             self.update_retrace_stats(release, day_key, retracing_time,
@@ -448,7 +473,7 @@ class Retracer:
 
         has_signature = False
         if os.path.exists('%s.new' % report_path):
-            log('Writing back to Cassandra')
+            local_log('Writing back to Cassandra')
             report = apport.Report()
             with open('%s.new' % report_path, 'rb') as fp:
                 report.load(fp)
@@ -464,7 +489,8 @@ class Retracer:
                 self.stack_fam.insert(stacktrace_addr_sig, report)
             except MaximumRetryException:
                 total = sum(len(x) for x in report.values())
-                log('Could not fit data in a single insert (%s, %d):' % (path, total))
+                m = 'Could not fit data in a single insert (%s, %d):'
+                local_log(m % (path, total))
                 chunked_insert(self.stack_fam, stacktrace_addr_sig, report)
             self.update_retrace_stats(release, day_key, retracing_time, True)
         else:
@@ -477,17 +503,11 @@ class Retracer:
             stacktrace_addr_sig = report['StacktraceAddressSignature']
             crash_signature = 'failed:%s' % stacktrace_addr_sig
             crash_signature = crash_signature.encode('utf-8')
-            log('Could not retrace.')
-            # FIXME UnicodeDecodeError: 'ascii' codec can't decode byte 0xe2 in
-            # position 66: ordinal not in range(128)
-            #if 'Stacktrace' in report:
-            #    log('Stacktrace:')
-            #    log(report['Stacktrace'])
-            #else:
-            #    log('No stacktrace.')
+            local_log('Could not retrace.')
             if 'RetraceOutdatedPackages' in report:
-                log('RetraceOutdatedPackages:')
-                log(report['RetraceOutdatedPackages'])
+                local_log('RetraceOutdatedPackages:')
+                for line in report['RetraceOutdatedPackages'].splitlines():
+                    local_log(line)
             self.update_retrace_stats(release, day_key, retracing_time, False)
 
         # We want really quick lookups of whether we have a stacktrace for this
@@ -530,7 +550,7 @@ class Retracer:
             except OSError, e:
                 if e.errno != 2:
                     raise
-        log('Done processing %s' % path)
+        local_log('Done processing %s' % path)
         # We've processed this. Delete it off the MQ.
         msg.channel.basic_ack(msg.delivery_tag)
 
@@ -617,7 +637,7 @@ def main():
     if options.retrieve_core:
         parts = options.one_off.split(':', 1)
         path, oops_id = retracer.write_bucket_to_disk(parts[0], parts[1])
-        print 'Wrote %s to %s. Exiting.' % (path, oops_id)
+        log('Wrote %s to %s. Exiting.' % (path, oops_id))
     else:
         retracer.listen()
 
