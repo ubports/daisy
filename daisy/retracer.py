@@ -388,12 +388,14 @@ class Retracer:
         with open(new_path, 'wb') as fp:
             log('Decompressing to %s' % new_path)
             p1 = Popen(['base64', '-d', path], stdout=PIPE)
-            p2 = Popen(['zcat'], stdin=p1.stdout, stdout=fp)
+            # Set stderr to PIPE so we get output in the result tuple.
+            p2 = Popen(['zcat'], stdin=p1.stdout, stdout=fp, stderr=PIPE)
             ret = p2.communicate()
         if p2.returncode != 0:
             log('Error processing %s:' % path)
-            for line in ret[1].splitlines():
-                log(line)
+            if ret[1]:
+                for line in ret[1].splitlines():
+                    log(line)
             # We've processed this. Delete it off the MQ.
             msg.channel.basic_ack(msg.delivery_tag)
             try:
