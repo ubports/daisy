@@ -55,8 +55,8 @@ def prefix_log_with_amqp_message(func):
             # This is a terrible hack to include the UUID for the core file and
             # OOPS report as well as the storage provider name with the log
             # message.
-            format_string = ('%(asctime)s:%(levelname)s:%(name)s:' + msg.body +
-                             ':%(message)s')
+            format_string = ('%(asctime)s:%(process)d:%(thread)d:%(levelname)s'
+                             ':%(name)s:' + msg.body + ':%(message)s')
             formatter = logging.Formatter(format_string)
             logging.getLogger().handlers[0].setFormatter(formatter)
             func(obj, msg)
