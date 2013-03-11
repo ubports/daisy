@@ -39,23 +39,30 @@ import logging
 from daisy import config
 from oopsrepository import config as oopsconfig
 
-LOGGING_FORMAT = '%(asctime)-15s:%(amqp_msg)s:%(message)s'
-logging.basicConfig(format=LOGGING_FORMAT)
+LOGGING_FORMAT = ('%(asctime)s:%(process)d:%(thread)d'
+                  ':%(levelname)s:%(name)s:%(message)s')
 
-def log(message, level=logging.INFO, extra={}):
-    logging.log(level, message, extra=extra)
+def log(message, level=logging.INFO):
+    logging.log(level, message)
 
 @atexit.register
 def shutdown():
     log('Shutting down.')
 
-def attach_to_pool_name(func):
+def prefix_log_with_amqp_message(func):
     def wrapped(obj, msg):
         try:
-            obj.pool.logging_name = '%s:%s' % (msg, id(obj.pool))
+            # This is a terrible hack to include the UUID for the core file and
+            # OOPS report as well as the storage provider name with the log
+            # message.
+            format_string = ('%(asctime)s:%(levelname)s:%(name)s:' + msg.body +
+                             ':%(message)s')
+            formatter = logging.Formatter(format_string)
+            logging.getLogger().handlers[0].setFormatter(formatter)
             func(obj, msg)
         finally:
-            obj.pool.logging_name = id(obj.pool)
+            formatter = logging.Formatter(LOGGING_FORMAT)
+            logging.getLogger().handlers[0].setFormatter(formatter)
     return wrapped
 
 def chunked_insert(cf, row_key, data):
@@ -360,12 +367,9 @@ class Retracer:
             path = os.path.join(provider_data['path'], oops_id)
         return path
 
-    @attach_to_pool_name
+    @prefix_log_with_amqp_message
     def callback(self, msg):
-        log_extra = {'amqp_msg': msg.body}
-        local_log = lambda m: log(m, extra=log_extra)
-
-        local_log('Processing.')
+        log('Processing.')
         parts = msg.body.split(':', 1)
         if len(parts) > 1:
             oops_id, provider = parts
@@ -376,20 +380,20 @@ class Retracer:
             path = self.legacy_write_bucket_to_disk(msg)
 
         if not path or not os.path.exists(path):
-            local_log('Could not find %s' % path)
+            log('Could not find %s' % path)
             self.failed_to_process(msg, oops_id)
             return
 
         new_path = '%s.core' % path
         with open(new_path, 'wb') as fp:
-            local_log('Decompressing to %s' % new_path)
+            log('Decompressing to %s' % new_path)
             p1 = Popen(['base64', '-d', path], stdout=PIPE)
             p2 = Popen(['zcat'], stdin=p1.stdout, stdout=fp)
             ret = p2.communicate()
         if p2.returncode != 0:
-            local_log('Error processing %s:' % path)
+            log('Error processing %s:' % path)
             for line in ret[1].splitlines():
-                local_log(line)
+                log(line)
             # We've processed this. Delete it off the MQ.
             msg.channel.basic_ack(msg.delivery_tag)
             try:
@@ -429,7 +433,7 @@ class Retracer:
         with open(report_path, 'wb') as fp:
             report.write(fp)
 
-        local_log('Retracing {}'.format(msg.body))
+        log('Retracing {}'.format(msg.body))
         sandbox, cache = self.setup_cache(self.sandbox_dir, release)
         day_key = time.strftime('%Y%m%d', time.gmtime())
 
@@ -460,9 +464,9 @@ class Retracer:
             # we do not incorrectly write a lot of retraces to the database as
             # failures.
             m = 'Retrace failed (%i), moving to failed queue:'
-            local_log(m % proc.returncode)
+            log(m % proc.returncode)
             for line in err.splitlines():
-                local_log(line)
+                log(line)
             self.move_to_failed_queue(msg)
             retracing_time = time.time() - retracing_start_time
             self.update_retrace_stats(release, day_key, retracing_time,
@@ -473,7 +477,7 @@ class Retracer:
 
         has_signature = False
         if os.path.exists('%s.new' % report_path):
-            local_log('Writing back to Cassandra')
+            log('Writing back to Cassandra')
             report = apport.Report()
             with open('%s.new' % report_path, 'rb') as fp:
                 report.load(fp)
@@ -490,7 +494,7 @@ class Retracer:
             except MaximumRetryException:
                 total = sum(len(x) for x in report.values())
                 m = 'Could not fit data in a single insert (%s, %d):'
-                local_log(m % (path, total))
+                log(m % (path, total))
                 chunked_insert(self.stack_fam, stacktrace_addr_sig, report)
             self.update_retrace_stats(release, day_key, retracing_time, True)
         else:
@@ -503,11 +507,11 @@ class Retracer:
             stacktrace_addr_sig = report['StacktraceAddressSignature']
             crash_signature = 'failed:%s' % stacktrace_addr_sig
             crash_signature = crash_signature.encode('utf-8')
-            local_log('Could not retrace.')
+            log('Could not retrace.')
             if 'RetraceOutdatedPackages' in report:
-                local_log('RetraceOutdatedPackages:')
+                log('RetraceOutdatedPackages:')
                 for line in report['RetraceOutdatedPackages'].splitlines():
-                    local_log(line)
+                    log(line)
             self.update_retrace_stats(release, day_key, retracing_time, False)
 
         # We want really quick lookups of whether we have a stacktrace for this
@@ -550,7 +554,7 @@ class Retracer:
             except OSError, e:
                 if e.errno != 2:
                     raise
-        local_log('Done processing %s' % path)
+        log('Done processing %s' % path)
         # We've processed this. Delete it off the MQ.
         msg.channel.basic_ack(msg.delivery_tag)
 
@@ -621,15 +625,16 @@ def parse_options():
 
 def main():
     global log_output
+    global root_handler
+
     options = parse_options()
-    fmt = '%(asctime)s:%(levelname)s:%(name)s:%(message)s'
     if options.output:
         sys.stdout.close()
         sys.stdout = open(options.output, 'a')
         sys.stderr.close()
         sys.stderr = sys.stdout
-    fmt = '%(asctime)s:%(levelname)s:%(name)s:%(message)s'
-    logging.basicConfig(format=fmt, level=logging.INFO)
+
+    logging.basicConfig(format=LOGGING_FORMAT, level=logging.INFO)
 
     retracer = Retracer(options.config_dir, options.sandbox_dir,
                         options.architecture, options.verbose,

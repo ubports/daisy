@@ -14,6 +14,7 @@ import shutil
 import time
 import pycassa
 from pycassa.types import IntegerType, FloatType
+import uuid
 
 class TestSubmission(TestCase):
     def setUp(self):
@@ -102,6 +103,34 @@ class TestSubmission(TestCase):
         data = {u'☃'.encode('utf8'): u'☕'.encode('utf8')}
         retracer.chunked_insert(stack_fam, 'foo', data)
         results = stack_fam.get_range().next()
+
+    def test_retracer_logging(self):
+        msg = mock.Mock()
+        u = uuid.uuid1()
+        msg.body = '%s:%s' % (str(u), 'local')
+        from StringIO import StringIO
+        import logging
+        stream = StringIO()
+        handler = logging.StreamHandler(stream)
+        # Actually show the messages (info) with the retracer format.
+        logging.basicConfig(format=retracer.LOGGING_FORMAT, level=logging.INFO)
+        root = logging.getLogger()
+        root.handlers = []
+        try:
+            root.addHandler(handler)
+            with mock.patch.object(retracer, 'config') as cfg:
+                cfg.core_storage = {'local': {'type': 'local', 'path':'/tmp'}}
+                self.retracer.callback(msg)
+
+            # Test that pycassa can still log correctly.
+            self.retracer.pool.listeners[0].logger.info('pycassa-message')
+        finally:
+            # Don't leave logging set up.
+            root.handlers = []
+        stream.seek(0)
+        contents = stream.read()
+        self.assertIn('%s:%s' % (str(u), 'local'), contents)
+        self.assertIn(':pycassa.pool:pycassa-message', contents)
 
 if __name__ == '__main__':
     unittest.main()
