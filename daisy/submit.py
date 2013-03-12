@@ -38,10 +38,8 @@ oops_config['password'] = config.cassandra_password
 
 
 def update_release_pkg_counter(counters_fam, release, src_package, date):
-    # only store four weeks worth of data
-    time_to_live = 60*60*24*28
-    counters_fam.insert('%s:%s' % (release, src_package), {date: 1},
-        ttl=time_to_live)
+    counters_fam.insert('%s:%s' % (release, src_package), {date: 1})
+
 
 def submit(_pool, environ, system_token):
     indexes_fam = pycassa.ColumnFamily(_pool, 'Indexes')
