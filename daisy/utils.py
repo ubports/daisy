@@ -1,6 +1,7 @@
 from oopsrepository import oopses
 import apt
 import os
+import uuid
 
 def get_fields_for_bucket_counters(problem_type, release, package, version):
     fields = []
@@ -77,6 +78,11 @@ def bucket(oops_config, oops_id, crash_signature, report_dict):
                                       release)
     if version:
         oopses.update_bucket_versions(oops_config, crash_signature, version)
+
+    if hasattr(oopses, 'update_errors_by_release'):
+        if (system_uuid and release) and not third_party:
+            oops_uuid = uuid.UUID(oops_id)
+            oopses.update_errors_by_release(oops_uuid, system_uuid, release)
 
 def attach_error_report(report, context):
     # We only attach error report that was submitted by the client if we've hit
