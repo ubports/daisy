@@ -21,7 +21,7 @@ cols = ['SystemIdentifier', 'DistroRelease']
 count = 0
 for key, oops in oops_cf.get_range(columns=cols, include_timestamp=True):
     count += 1
-    if count % 10000 == 0:
+    if count % 100000 == 0:
         print 'processed', count
 
     if Counter(cols) != Counter(oops.keys()):
@@ -50,3 +50,5 @@ for key, oops in oops_cf.get_range(columns=cols, include_timestamp=True):
 
     oops_id = uuid.UUID(key)
     errorsbyrelease.insert((release, occurred), {oops_id: first_error_date})
+
+print 'total processed', count
