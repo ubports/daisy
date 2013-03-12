@@ -72,7 +72,7 @@ def bucket(oops_config, oops_id, crash_signature, report_dict):
     if version == first_version:
         oopses.update_bucket_systems(oops_config, crash_signature, system_uuid)
     oopses.bucket(oops_config, oops_id, crash_signature, fields)
-    if (package and version) and not third_party:
+    if (package and version) and release.startswith('Ubuntu '):
         oopses.update_bucket_metadata(oops_config, crash_signature, package,
                                       version, apt.apt_pkg.version_compare,
                                       release)
