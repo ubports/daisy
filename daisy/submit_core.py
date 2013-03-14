@@ -62,9 +62,7 @@ def write_to_swift(fileobj, oops_id, provider_data):
         headers = conn.head_account()
         bytes_used = int(headers.get('x-account-bytes-used', 0))
         if (not write_policy_allow(oops_id, bytes_used, provider_data)):
-            ## Undecided if this should return True/False - in any case
-            ## client should not see a 500
-            return True
+            return False
 
     conn.put_container(bucket)
     try:
@@ -125,9 +123,7 @@ def write_to_local(fileobj, oops_id, provider_data):
         fs_stats = os.statvfs(provider_data['path'])
         bytes_used = (fs_stats.f_blocks-fs_stats.f_bavail)*fs_stats.f_bsize;
         if (not write_policy_allow(oops_id, bytes_used, provider_data)):
-            ## Undecided if this should return True/False - in any case
-            ## client should not see a 500
-            return True
+            return False
     copied = False
     with open(path, 'w') as fp:
         try:
