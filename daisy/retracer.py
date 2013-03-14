@@ -256,7 +256,7 @@ class Retracer:
                                              provider_data['os_password'],
                                              os_options=opts,
                                              auth_version='2.0')
-        fp = tempfile.mkstemp()
+        fp = tempfile.mkstemp('-{}.{}.oopsid'.format(provider_data['type'], key))
         bucket = provider_data['bucket']
         try:
             with open(fp[1], 'wb') as fp:
@@ -285,7 +285,7 @@ class Retracer:
         except S3ResponseError as e:
             log('Could not retrieve %s:\n%s' % (key, str(e)))
             return None
-        fp = tempfile.mkstemp()
+        fp = tempfile.mkstemp('-{}.{}.oopsid'.format(provider_data['type'], key))
         with open(fp[1], 'wb') as fp:
             for data in key:
                 # 8K at a time.
