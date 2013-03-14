@@ -28,7 +28,9 @@ import sys
 def write_policy_allow(oops_id, bytes_used, provider_data):
     if (provider_data.get('usage_max_mb')):
         usage_max = provider_data['usage_max_mb']*1024*1024
-        if (random.randint(0,99)<(100*bytes_used/usage_max)):
+        # Random Early Drop policy: random drop with p-probality as:
+        # 0 if <50%, then linearly (50%,100%) -> (0,1)
+        if ((50+random.randint(0,49)) < (100*bytes_used/usage_max)):
             print >> sys.stderr, ('Skipping oops_id={oops_id} save to type={st_type}, '
                 'bytes_used={bytes_used}, usage_max={usage_max}'.format(
                   oops_id = oops_id,
