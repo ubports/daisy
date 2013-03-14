@@ -23,6 +23,20 @@ import shutil
 import os
 import random
 from daisy import config
+import sys
+
+def write_policy_allow(oops_id, bytes_used, provider_data):
+    if (provider_data.get('usage_max_mb')):
+        usage_max = provider_data['usage_max_mb']*1024*1024
+        if (random.randint(0,99)<(100*bytes_used/usage_max)):
+            print >> sys.stderr, ('Skipping oops_id={oops_id} save to type={st_type}, '
+                'bytes_used={bytes_used}, usage_max={usage_max}'.format(
+                  oops_id = oops_id,
+                  st_type = provider_data['type'],
+                  bytes_used = bytes_used,
+                  usage_max = usage_max))
+            return False
+    return True
 
 def swift_delete_ignoring_error(conn, bucket, oops_id):
     import swiftclient
@@ -42,6 +56,14 @@ def write_to_swift(fileobj, oops_id, provider_data):
                                          os_options=opts,
                                          auth_version='2.0')
     bucket = provider_data['bucket']
+    if (provider_data.get('usage_max_mb')):
+        headers = conn.head_account()
+        bytes_used = int(headers.get('x-account-bytes-used', 0))
+        if (not write_policy_allow(oops_id, bytes_used, provider_data)):
+            ## Undecided if this should return True/False - in any case
+            ## client should not see a 500
+            return True
+
     conn.put_container(bucket)
     try:
         # Don't set a content_length (that we don't have) to force a chunked
@@ -97,6 +119,13 @@ def write_to_local(fileobj, oops_id, provider_data):
     '''Write the core file to local.'''
 
     path = os.path.join(provider_data['path'], oops_id)
+    if (provider_data.get('usage_max_mb')):
+        fs_stats = os.statvfs(provider_data['path'])
+        bytes_used = (fs_stats.f_blocks-fs_stats.f_bavail)*fs_stats.f_bsize;
+        if (not write_policy_allow(oops_id, bytes_used, provider_data)):
+            ## Undecided if this should return True/False - in any case
+            ## client should not see a 500
+            return True
     copied = False
     with open(path, 'w') as fp:
         try:
