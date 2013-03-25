@@ -45,6 +45,14 @@ LOGGING_FORMAT = ('%(asctime)s:%(process)d:%(thread)d'
 def log(message, level=logging.INFO):
     logging.log(level, message)
 
+def rm_eff(path):
+    '''Remove ignoring -ENOENT.'''
+    try:
+        os.remove(path)
+    except OSError, e:
+        if e.errno != 2:
+            raise
+
 @atexit.register
 def shutdown():
     log('Shutting down.')
@@ -251,7 +259,7 @@ class Retracer:
 
     def move_to_failed_queue(self, msg):
         # Remove it from the retracing queue.
-        msg.channel.basic_ack(msg.delivery_tag)
+        self.processed(msg)
 
         # Add it to the failed to retrace queue.
         queue = 'failed_retrace_%s' % self.architecture
@@ -262,7 +270,7 @@ class Retracer:
         msg.channel.basic_publish(body, exchange='', routing_key=queue)
 
     def failed_to_process(self, msg, oops_id):
-        msg.channel.basic_ack(msg.delivery_tag)
+        self.processed(msg)
         # Also remove it from the retracing index, if we haven't already.
         try:
             addr_sig = self.oops_fam.get(oops_id,
@@ -290,13 +298,29 @@ class Retracer:
                 for chunk in body:
                     fp.write(chunk)
                 path = fp.name
-            conn.delete_object(bucket, key)
             return path
         except swiftclient.client.ClientException:
             import traceback
             log('Could not retrieve %s (swift):' % key)
             log(traceback.format_exc())
             return None
+
+    def remove_from_swift(self, key, provider_data):
+        import swiftclient
+        opts = {'tenant_name': provider_data['os_tenant_name'],
+                'region_name': provider_data['os_region_name']}
+        try:
+            conn = swiftclient.client.Connection(provider_data['os_auth_url'],
+                                                 provider_data['os_username'],
+                                                 provider_data['os_password'],
+                                                 os_options=opts,
+                                                 auth_version='2.0')
+            bucket = provider_data['bucket']
+            conn.delete_object(bucket, key)
+        except swiftclient.client.ClientException:
+            import traceback
+            log('Could not remove %s (swift):' % key)
+            log(traceback.format_exc())
 
     def write_s3_bucket_to_disk(self, key, provider_data):
         from boto.s3.connection import S3Connection
@@ -319,8 +343,24 @@ class Retracer:
                 # 8K at a time.
                 fp.write(data)
             path = fp.name
-        key.delete()
         return path
+
+    def remove_from_s3(self, key, provider_data):
+        from boto.s3.connection import S3Connection
+        from boto.exception import S3ResponseError
+
+        try:
+            conn = S3Connection(
+                    aws_access_key_id=provider_data['aws_access_key'],
+                    aws_secret_access_key=provider_data['aws_secret_key'],
+                    host=provider_data['host'])
+            bucket = conn.get_bucket(provider_data['bucket'])
+            key = bucket.get_key(key)
+            key.delete()
+        except S3ResponseError:
+            import traceback
+            log('Could not remove %s (s3):' % key)
+            log(traceback.format_exc())
 
     def legacy_write_bucket_to_disk(self, msg):
         path = ''
@@ -344,12 +384,21 @@ class Retracer:
                 path = self.write_s3_bucket_to_disk(oops_id, provider_data)
             else:
                 # Bail out.
-                log_extra = {'amqp_msg': msg.body}
-                log('Neither swift_bucket or ec2_bucket set.', extra=log_extra)
+                log('Neither swift_bucket or ec2_bucket set.')
                 sys.exit(1)
         else:
-            path = msg.body
+            path = self.write_local_to_disk(msg.body, provider_data)
         return path
+
+    def write_local_to_disk(self, key, provider_data):
+        path = os.path.join(provider_data['path'], key)
+        new_path = tempfile.mkstemp('-{}.{}.oopsid'.format(provider_data['type'], key))
+        shutil.copyfile(path, new_path)
+        return new_path
+
+    def remove_from_local(self, key, provider_data):
+        path = os.path.join(provider_data['path'], key)
+        rm_eff(path)
 
     def write_bucket_to_disk(self, oops_id, provider):
         path = ''
@@ -364,8 +413,48 @@ class Retracer:
         elif t == 's3':
             path = self.write_s3_bucket_to_disk(oops_id, provider_data)
         elif t == 'local':
-            path = os.path.join(provider_data['path'], oops_id)
+            path = self.write_local_to_disk(oops_id, provider_data)
         return path
+
+    def remove(self, oops_id, provider):
+        cs = getattr(config, 'core_storage', '')
+        if not cs:
+            log('core_storage not set.')
+            sys.exit(1)
+        provider_data = cs[provider]
+        t = provider_data['type']
+        if t == 'swift':
+            self.remove_from_swift(oops_id, provider_data)
+        elif t == 's3':
+            self.remove_from_s3(oops_id, provider_data)
+        elif t == 'local':
+            self.remove_from_local(oops_id, provider_data)
+
+    def legacy_remove(self, msg):
+        if not msg.body.startswith('/'):
+            oops_id = msg.body
+            if getattr(config, 'swift_bucket', ''):
+                provider_data = {
+                    'bucket': config.swift_bucket,
+                    'os_auth_url': config.os_auth_url,
+                    'os_username': config.os_username,
+                    'os_password': config.os_password,
+                    'os_tenant_name': config.os_tenant_name,
+                    'os_region_name': config.os_region_name}
+                self.remove_from_swift(msg, provider_data)
+            elif getattr(config, 'ec2_bucket', ''):
+                provider_data = {
+                    'host': config.ec2_host,
+                    'bucket': config.ec2_bucket,
+                    'aws_access_key': config.aws_access_key,
+                    'aws_secret_key': config.aws_secret_key}
+                self.remove_from_s3(oops_id, provider_data)
+            else:
+                # Bail out.
+                log('Neither swift_bucket or ec2_bucket set.')
+                sys.exit(1)
+        else:
+            rm_eff(msg.body)
 
     @prefix_log_with_amqp_message
     def callback(self, msg):
@@ -384,179 +473,196 @@ class Retracer:
             self.failed_to_process(msg, oops_id)
             return
 
-        new_path = '%s.core' % path
-        with open(new_path, 'wb') as fp:
-            log('Decompressing to %s' % new_path)
+        core_file = '%s.core' % path
+        with open(core_file, 'wb') as fp:
+            log('Decompressing to %s' % core_file)
             p1 = Popen(['base64', '-d', path], stdout=PIPE)
             # Set stderr to PIPE so we get output in the result tuple.
             p2 = Popen(['zcat'], stdin=p1.stdout, stdout=fp, stderr=PIPE)
             ret = p2.communicate()
-        if p2.returncode != 0:
-            log('Error processing %s:' % path)
-            if ret[1]:
-                for line in ret[1].splitlines():
-                    log(line)
-            # We've processed this. Delete it off the MQ.
-            msg.channel.basic_ack(msg.delivery_tag)
-            try:
-                os.remove(path)
-            except OSError, e:
-                if e.errno != 2:
-                    raise
-            try:
-                os.remove(new_path)
-            except OSError, e:
-                if e.errno != 2:
-                    raise
-            return
+        rm_eff(path)
 
-        report = apport.Report()
-        col = self.oops_fam.get(oops_id,
-                                read_consistency_level=ConsistencyLevel.QUORUM)
-        for k in col:
-            report[k.encode('UTF-8')] = col[k].encode('UTF-8')
-        
-        release = report.get('DistroRelease', '')
-        bad = '[^-a-zA-Z0-9_.() ]+'
-        retraceable = utils.retraceable_release(release)
-        invalid = re.search(bad, release) or len(release) > 1024
-        if not release or invalid or not retraceable:
-            msg.channel.basic_ack(msg.delivery_tag)
-            for p in (path, new_path):
-                try:
-                    os.remove(p)
-                except OSError, e:
-                    if e.errno != 2:
-                        raise
-            return
-
-        report['CoreDump'] = (new_path,)
-        report_path = '%s.crash' % path
-        with open(report_path, 'wb') as fp:
-            report.write(fp)
-
-        log('Retracing {}'.format(msg.body))
-        sandbox, cache = self.setup_cache(self.sandbox_dir, release)
-        day_key = time.strftime('%Y%m%d', time.gmtime())
-
-        retracing_start_time = time.time()
-        cmd = ['python3', self.apport_retrace_path, report_path, '-c',
-               '-S', self.config_dir, '--sandbox-dir', sandbox,
-               '-o', '%s.new' % report_path]
-        if cache:
-            cmd.extend(['-C', cache])
-        if self.verbose:
-            cmd.append('-v')
-        # use our own crashdb config with all supported architectures
-        env = os.environ.copy()
-        env['APPORT_CRASHDB_CONF'] = os.path.join(self.config_dir, 'crashdb.conf')
-        http_proxy = env.get('retracer_http_proxy')
-        if http_proxy:
-            env.update({'http_proxy': http_proxy})
-        proc = Popen(cmd, env=env, stderr=PIPE, universal_newlines=True)
-        err = proc.communicate()[1]
-        if proc.returncode != 0:
-            if proc.returncode == 99:
-                # Transient apt error, like "failed to fetch ... size mismatch"
-                # Throw back onto the queue by not ack'ing it.
+        try:
+            if p2.returncode != 0:
+                log('Error processing %s:' % path)
+                if ret[1]:
+                    for line in ret[1].splitlines():
+                        log(line)
+                # We couldn't decompress this, so there's no value in trying again.
+                self.processed(msg)
                 return
-            # apport-retrace will exit 0 even on a failed retrace unless
-            # something has gone wrong at a lower level, as was the case when
-            # python-apt bailed out on invalid sources.list files. Fail hard so
-            # we do not incorrectly write a lot of retraces to the database as
-            # failures.
-            m = 'Retrace failed (%i), moving to failed queue:'
-            log(m % proc.returncode)
-            for line in err.splitlines():
-                log(line)
-            self.move_to_failed_queue(msg)
-            retracing_time = time.time() - retracing_start_time
-            self.update_retrace_stats(release, day_key, retracing_time,
-                                      crashed=True)
-            return
 
-        retracing_time = time.time() - retracing_start_time
-
-        has_signature = False
-        if os.path.exists('%s.new' % report_path):
-            log('Writing back to Cassandra')
             report = apport.Report()
-            with open('%s.new' % report_path, 'rb') as fp:
-                report.load(fp)
-            stacktrace_addr_sig = report['StacktraceAddressSignature']
-
-            crash_signature = report.crash_signature()
-            if crash_signature:
-                has_signature = True
-                crash_signature = crash_signature.encode('utf-8')
-
-        if has_signature:
             try:
-                self.stack_fam.insert(stacktrace_addr_sig, report)
-            except MaximumRetryException:
-                total = sum(len(x) for x in report.values())
-                m = 'Could not fit data in a single insert (%s, %d):'
-                log(m % (path, total))
-                chunked_insert(self.stack_fam, stacktrace_addr_sig, report)
-            self.update_retrace_stats(release, day_key, retracing_time, True)
-        else:
-            # Given that we do not as yet keep debugging symbols around for
-            # every package version ever released, it's worth knowing the
-            # extent of the problem. If we ever decide to keep debugging
-            # symbols for every package version, we can reprocess these with a
-            # map/reduce job.
+                quorum = ConsistencyLevel.QUORUM
+                col = self.oops_fam.get(oops_id, read_consistency_level=quorum)
+            except NotFoundException:
+                # We do not have enough information at this point to be able to
+                # remove this from the retracing row in the Indexes CF. Throw it
+                # back on the queue and hope that eventual consistency works its
+                # magic by then.
+                log('Unable to find in OOPS CF.')
+                return
 
-            stacktrace_addr_sig = report['StacktraceAddressSignature']
-            crash_signature = 'failed:%s' % stacktrace_addr_sig
-            crash_signature = crash_signature.encode('utf-8')
-            log('Could not retrace.')
-            if 'RetraceOutdatedPackages' in report:
-                log('RetraceOutdatedPackages:')
-                for line in report['RetraceOutdatedPackages'].splitlines():
+            for k in col:
+                report[k.encode('UTF-8')] = col[k].encode('UTF-8')
+            
+            release = report.get('DistroRelease', '')
+            bad = '[^-a-zA-Z0-9_.() ]+'
+            retraceable = utils.retraceable_release(release)
+            invalid = re.search(bad, release) or len(release) > 1024
+            if not release or invalid or not retraceable:
+                self.processed(msg)
+                return
+
+            report['CoreDump'] = (core_file,)
+            report_path = '%s.crash' % path
+            with open(report_path, 'wb') as fp:
+                report.write(fp)
+        finally:
+            rm_eff(core_file)
+
+        try:
+            log('Retracing {}'.format(msg.body))
+            sandbox, cache = self.setup_cache(self.sandbox_dir, release)
+            day_key = time.strftime('%Y%m%d', time.gmtime())
+
+            retracing_start_time = time.time()
+            cmd = ['python3', self.apport_retrace_path, report_path, '-c',
+                   '-S', self.config_dir, '--sandbox-dir', sandbox,
+                   '-o', '%s.new' % report_path]
+            if cache:
+                cmd.extend(['-C', cache])
+            if self.verbose:
+                cmd.append('-v')
+            # use our own crashdb config with all supported architectures
+            env = os.environ.copy()
+            env['APPORT_CRASHDB_CONF'] = os.path.join(self.config_dir, 'crashdb.conf')
+            http_proxy = env.get('retracer_http_proxy')
+            if http_proxy:
+                env.update({'http_proxy': http_proxy})
+            proc = Popen(cmd, env=env, stderr=PIPE, universal_newlines=True)
+            err = proc.communicate()[1]
+        except:
+            rm_eff('%s.new' % report_path)
+            raise
+        finally:
+            rm_eff(report_path)
+
+        try:
+            if proc.returncode != 0:
+                if proc.returncode == 99:
+                    # Transient apt error, like "failed to fetch ... size
+                    # mismatch" Throw back onto the queue by not ack'ing it.
+                    log('Transient apport error.')
+                    return
+                # apport-retrace will exit 0 even on a failed retrace unless
+                # something has gone wrong at a lower level, as was the case
+                # when python-apt bailed out on invalid sources.list files.
+                # Fail hard so we do not incorrectly write a lot of retraces to
+                # the database as failures.
+                m = 'Retrace failed (%i), moving to failed queue:'
+                log(m % proc.returncode)
+                for line in err.splitlines():
                     log(line)
-            self.update_retrace_stats(release, day_key, retracing_time, False)
+                self.move_to_failed_queue(msg)
+                retracing_time = time.time() - retracing_start_time
+                self.update_retrace_stats(release, day_key, retracing_time,
+                                          crashed=True)
+                return
 
-        # We want really quick lookups of whether we have a stacktrace for this
-        # signature, so that we can quickly tell the client whether we need a
-        # core dump from it.
-        self.indexes_fam.insert(
-            'crash_signature_for_stacktrace_address_signature',
-            {stacktrace_addr_sig : crash_signature})
+            retracing_time = time.time() - retracing_start_time
 
-        self.indexes_fam.remove('retracing', [stacktrace_addr_sig])
+            has_signature = False
+            if os.path.exists('%s.new' % report_path):
+                log('Writing back to Cassandra')
+                report = apport.Report()
+                with open('%s.new' % report_path, 'rb') as fp:
+                    report.load(fp)
+                stacktrace_addr_sig = report['StacktraceAddressSignature']
 
-        oops_ids = [oops_id]
-        try:
-            # This will contain the OOPS ID we're currently processing as well.
-            ids = self.awaiting_retrace_fam.get(stacktrace_addr_sig)
-            oops_ids += ids.keys()
-        except NotFoundException:
-            # Handle eventual consistency. If the writes to AwaitingRetrace
-            # haven't hit this node yet, that's okay. We'll clean up
-            # unprocessed OOPS IDs from that CF at regular intervals later, so
-            # just process this OOPS ID now.
-            pass
+                crash_signature = report.crash_signature()
+                if crash_signature:
+                    has_signature = True
+                    crash_signature = crash_signature.encode('utf-8')
 
-        self.bucket(oops_ids, crash_signature)
+            if has_signature:
+                try:
+                    self.stack_fam.insert(stacktrace_addr_sig, report)
+                except MaximumRetryException:
+                    total = sum(len(x) for x in report.values())
+                    m = 'Could not fit data in a single insert (%s, %d):'
+                    log(m % (path, total))
+                    chunked_insert(self.stack_fam, stacktrace_addr_sig, report)
+                args = (release, day_key, retracing_time, True)
+                self.update_retrace_stats(*args)
+            else:
+                # Given that we do not as yet keep debugging symbols around for
+                # every package version ever released, it's worth knowing the
+                # extent of the problem. If we ever decide to keep debugging
+                # symbols for every package version, we can reprocess these
+                # with a map/reduce job.
 
-        try:
-            self.awaiting_retrace_fam.remove(stacktrace_addr_sig, oops_ids)
-        except NotFoundException:
-            # I'm not sure why this would happen, but we could safely continue
-            # on were it to.
-            pass
+                stacktrace_addr_sig = report['StacktraceAddressSignature']
+                crash_signature = 'failed:%s' % stacktrace_addr_sig
+                crash_signature = crash_signature.encode('utf-8')
+                log('Could not retrace.')
+                if 'RetraceOutdatedPackages' in report:
+                    log('RetraceOutdatedPackages:')
+                    for line in report['RetraceOutdatedPackages'].splitlines():
+                        log(line)
+                args = (release, day_key, retracing_time, False)
+                self.update_retrace_stats(*args)
 
-        if has_signature:
-            if self.rebucket(crash_signature):
-                self.recount(crash_signature, msg.channel)
+            # We want really quick lookups of whether we have a stacktrace for
+            # this signature, so that we can quickly tell the client whether we
+            # need a core dump from it.
+            self.indexes_fam.insert(
+                'crash_signature_for_stacktrace_address_signature',
+                {stacktrace_addr_sig : crash_signature})
 
-        for p in (path, new_path, report_path, '%s.new' % report_path):
+            self.indexes_fam.remove('retracing', [stacktrace_addr_sig])
+
+            oops_ids = [oops_id]
             try:
-                os.remove(p)
-            except OSError, e:
-                if e.errno != 2:
-                    raise
+                # This will contain the OOPS ID we're currently processing as
+                # well.
+                ids = self.awaiting_retrace_fam.get(stacktrace_addr_sig)
+                oops_ids += ids.keys()
+            except NotFoundException:
+                # Handle eventual consistency. If the writes to AwaitingRetrace
+                # haven't hit this node yet, that's okay. We'll clean up
+                # unprocessed OOPS IDs from that CF at regular intervals later,
+                # so just process this OOPS ID now.
+                pass
+
+            self.bucket(oops_ids, crash_signature)
+
+            try:
+                self.awaiting_retrace_fam.remove(stacktrace_addr_sig, oops_ids)
+            except NotFoundException:
+                # I'm not sure why this would happen, but we could safely
+                # continue on were it to.
+                pass
+
+            if has_signature:
+                if self.rebucket(crash_signature):
+                    self.recount(crash_signature, msg.channel)
+        finally:
+            rm_eff('%s.new' % report_path)
+
         log('Done processing %s' % path)
+        self.processed(msg)
+
+    def processed(self, msg):
+        parts = msg.body.split(':', 1)
+        if len(parts) > 1:
+            oops_id, provider = parts
+            self.remove(*parts)
+        else:
+            # Compatibility with the existing items on the queue.
+            self.legacy_remove(msg)
+
         # We've processed this. Delete it off the MQ.
         msg.channel.basic_ack(msg.delivery_tag)
 
