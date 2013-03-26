@@ -38,6 +38,7 @@ def split_package_and_version(package):
 def bucket(oops_config, oops_id, crash_signature, report_dict):
     release = report_dict.get('DistroRelease', '')
     package = report_dict.get('Package', '')
+    src_package = report_dict.get('SourcePackage', '')
     problem_type = report_dict.get('ProblemType', '')
     dependencies = report_dict.get('Dependencies', '')
     system_uuid = report_dict.get('SystemIdentifier', '')
@@ -78,6 +79,8 @@ def bucket(oops_config, oops_id, crash_signature, report_dict):
         oopses.update_bucket_metadata(oops_config, crash_signature, package,
                                       version, apt.apt_pkg.version_compare,
                                       release)
+        oopses.update_source_version_buckets(oops_config, src_package,
+                                             version, crash_signature)
     if version:
         oopses.update_bucket_versions(oops_config, crash_signature, version)
 
