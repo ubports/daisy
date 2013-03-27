@@ -79,8 +79,9 @@ def bucket(oops_config, oops_id, crash_signature, report_dict):
         oopses.update_bucket_metadata(oops_config, crash_signature, package,
                                       version, apt.apt_pkg.version_compare,
                                       release)
-        oopses.update_source_version_buckets(oops_config, src_package,
-                                             version, crash_signature)
+        if hasattr(oopses, 'update_source_version_buckets'):
+            oopses.update_source_version_buckets(oops_config, src_package,
+                                                 version, crash_signature)
     if version:
         oopses.update_bucket_versions(oops_config, crash_signature, version)
 
