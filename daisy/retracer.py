@@ -392,7 +392,8 @@ class Retracer:
 
     def write_local_to_disk(self, key, provider_data):
         path = os.path.join(provider_data['path'], key)
-        new_path = tempfile.mkstemp('-{}.{}.oopsid'.format(provider_data['type'], key))
+        fmt = '-{}.{}.oopsid'.format(provider_data['type'], key)
+        new_path = tempfile.mkstemp(fmt)[1]
         shutil.copyfile(path, new_path)
         return new_path
 
