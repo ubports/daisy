@@ -290,10 +290,11 @@ class Retracer:
                                              provider_data['os_password'],
                                              os_options=opts,
                                              auth_version='2.0')
-        fp = tempfile.mkstemp('-{}.{}.oopsid'.format(provider_data['type'], key))
+        fmt = '-{}.{}.oopsid'.format(provider_data['type'], key)
+        fp = tempfile.mkstemp(fmt)[1]
         bucket = provider_data['bucket']
         try:
-            with open(fp[1], 'wb') as fp:
+            with open(fp, 'wb') as fp:
                 headers, body = conn.get_object(bucket, key, resp_chunk_size=65536)
                 for chunk in body:
                     fp.write(chunk)
@@ -337,8 +338,9 @@ class Retracer:
             log('Could not retrieve %s (s3):' % key)
             log(traceback.format_exc())
             return None
-        fp = tempfile.mkstemp('-{}.{}.oopsid'.format(provider_data['type'], key))
-        with open(fp[1], 'wb') as fp:
+        fmt = '-{}.{}.oopsid'.format(provider_data['type'], key)
+        fp = tempfile.mkstemp(fmt)[1]
+        with open(fp, 'wb') as fp:
             for data in key:
                 # 8K at a time.
                 fp.write(data)
