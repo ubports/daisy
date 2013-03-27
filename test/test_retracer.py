@@ -16,6 +16,10 @@ import pycassa
 from pycassa.types import IntegerType, FloatType
 import uuid
 
+# Actually show the messages (info) with the retracer format.
+import logging
+logging.basicConfig(format=retracer.LOGGING_FORMAT, level=logging.INFO)
+
 class TestSubmission(TestCase):
     def setUp(self):
         super(TestSubmission, self).setUp()
@@ -109,18 +113,19 @@ class TestSubmission(TestCase):
         u = uuid.uuid1()
         msg.body = '%s:%s' % (str(u), 'local')
         from StringIO import StringIO
-        import logging
         stream = StringIO()
         handler = logging.StreamHandler(stream)
-        # Actually show the messages (info) with the retracer format.
-        logging.basicConfig(format=retracer.LOGGING_FORMAT, level=logging.INFO)
         root = logging.getLogger()
         root.handlers = []
         try:
             root.addHandler(handler)
             with mock.patch.object(retracer, 'config') as cfg:
-                cfg.core_storage = {'local': {'type': 'local', 'path':'/tmp'}}
+                cfg.core_storage = {'local': {'type': 'local', 'path': '/tmp'}}
+                path = os.path.join('/tmp', str(u))
+                with open(path, 'w') as fp:
+                    fp.write('fake core file')
                 self.retracer.callback(msg)
+                self.assertFalse(os.path.exists(path))
 
             # Test that pycassa can still log correctly.
             self.retracer.pool.listeners[0].logger.info('pycassa-message')
