@@ -67,6 +67,10 @@ def create():
                 # default_validation_class is bytes as it's always NULL.
                 key_validation_class=ASCII_TYPE,
                 comparator_type=ASCII_TYPE)
+        if 'BugToCrashSignatures' not in cfs:
+            workaround_1779(mgr.create_column_family, keyspace, 'BugToCrashSignatures',
+                key_validation_class=INTEGER_TYPE,
+                comparator_type=UTF8_TYPE)
     finally:
         mgr.close()
 
