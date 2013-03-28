@@ -21,11 +21,7 @@ for bucket, data in bucketmetadata_cf.get_range(columns=cols):
     count += 1
     if count % 100000 == 0:
         print 'processed', count
-    if Counter(cols) != Counter(data.keys()):
-        continue
-    bug = int(data.get('CreatedBug', ''))
-    if bug == '':
-        continue
+    bug = int(data['CreatedBug'])
     #print('Would insert %s = {%s: ""}' % (bug, bucket))
     bugtocrashsignatures_cf.insert(bug, {bucket: ''})
 
