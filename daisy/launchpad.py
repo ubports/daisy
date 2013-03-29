@@ -198,6 +198,8 @@ def bug_is_fixed(bug, release=None):
             if release and codename and name.lower().endswith(codename_task):
                 if not entry['is_complete']:
                     return False
+                elif entry['is_complete']:
+                    return True
 
         # Lets iterate again and see if we can find the Ubuntu task.
         for entry in entries:
