@@ -8,6 +8,7 @@ from pycassa.cassandra.ttypes import NotFoundException
 from utils import split_package_and_version
 from daisy import config
 from collections import defaultdict
+import argparse
 
 creds = {'username': config.cassandra_username,
          'password': config.cassandra_password}
@@ -18,14 +19,7 @@ pool = pycassa.ConnectionPool(config.cassandra_keyspace,
 oops_cf = pycassa.ColumnFamily(pool, 'OOPS')
 indexes_cf = pycassa.ColumnFamily(pool, 'Indexes')
 awaiting_retrace_cf = pycassa.ColumnFamily(pool, 'AwaitingRetrace')
-
-# TODO make a --write="localhost:9165" option
-pool2 = pycassa.ConnectionPool(config.cassandra_keyspace,
-                               ['localhost:9165'], timeout=60, pool_size=15,
-                               max_retries=100, credentials=creds)
-
-bv_full = pycassa.ColumnFamily(pool2, 'BucketVersionsFull')
-bv_count = pycassa.ColumnFamily(pool2, 'BucketVersionsCount')
+bv_full_cf = None
 
 counts = defaultdict(int)
 
@@ -46,6 +40,8 @@ def print_totals(force=False):
         sys.stdout.flush()
 
 def update_bucketversions(bucketid, oops, key):
+    global bv_full_cf
+
     if 'ProblemType' not in oops or oops['ProblemType'][1] > start:
         # This has come in since this script started running, and will have
         # been correctly bucketed.
@@ -66,11 +62,11 @@ def update_bucketversions(bucketid, oops, key):
     if not release:
         counts['no_release'] += 1
 
-    bv_full.insert((bucketid, release, version), {key: ''})
-    bv_count.add(bucketid, (version, release))
+    if bv_full_cf:
+        bv_full_cf.insert((bucketid, release, version), {key: ''})
 
-    # TODO rebuild DayBuckets in here as well, since we have the bucket ID and
-    # oops ID (with date). But do we really care to? It's only for rebuilding
+    # TODO rebuild DayBuckets in here as well? We have the bucket ID and oops
+    # ID (with date), but do we really care to? It's only for rebuilding
     # bv_count.
 
 idx_key = 'crash_signature_for_stacktrace_address_signature'
@@ -143,18 +139,37 @@ def count_retracing(addr_sig, key, o):
         except NotFoundException:
             counts['not_awaiting_retrace'] += 1
 
-for key, o in oops_cf.get_range(**kwargs):
-    print_totals()
+def main():
+    for key, o in oops_cf.get_range(**kwargs):
+        print_totals()
 
-    if 'DuplicateSignature' in o:
-        handle_duplicate_signature(key, o)
-    elif 'InterpreterPath' in o and 'StacktraceAddressSignature' not in o:
-        # FIXME better check here and in the real code. We might not have an
-        # SAS.
-        handle_python(key, o)
-    elif 'StacktraceAddressSignature' in o:
-        handle_binary(key, o)
-    else:
-        counts['unknown'] += 1
+        if 'DuplicateSignature' in o:
+            handle_duplicate_signature(key, o)
+        elif 'InterpreterPath' in o and 'StacktraceAddressSignature' not in o:
+            # FIXME better check here and in the real code. We might not have an
+            # SAS.
+            handle_python(key, o)
+        elif 'StacktraceAddressSignature' in o:
+            handle_binary(key, o)
+        else:
+            counts['unknown'] += 1
 
-print_totals(force=True)
+    print_totals(force=True)
+
+def parse_options():
+    parser = argparse.ArgumentParser(description='Rebuild BucketVersions.')
+    parser.add_argument('--write-host',
+                        help='Cassandra host and IP (colon-separated) to write'
+                        ' results to.')
+    return parser.parse_args()
+
+if __name__ == '__main__':
+    options = parse_options()
+    if options.write_host:
+        write_pool = pycassa.ConnectionPool(config.cassandra_keyspace,
+                                            [options.write_host], timeout=60,
+                                            pool_size=15, max_retries=100,
+                                            credentials=creds)
+        bv_full_cf = pycassa.ColumnFamily(write_pool, 'BucketVersionsFull')
+
+    main()
