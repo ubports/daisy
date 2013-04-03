@@ -302,10 +302,11 @@ class Retracer:
                     fp.write(chunk)
             return path
         except swiftclient.client.ClientException:
-            rm_eff(path)
             import traceback
             log('Could not retrieve %s (swift):' % key)
             log(traceback.format_exc())
+            # This will still exist if we were partway through a write.
+            rm_eff(path)
             return None
 
     def remove_from_swift(self, key, provider_data):
