@@ -258,6 +258,10 @@ class Retracer:
         return self._sandboxes[release]
 
     def move_to_failed_queue(self, msg):
+        if self.failed:
+            # It's already on the failed queue.
+            return
+
         # We've processed this. Delete it off the MQ.
         msg.channel.basic_ack(msg.delivery_tag)
         # We don't call self.processed here because that would remove the core
