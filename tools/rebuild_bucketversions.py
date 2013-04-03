@@ -20,6 +20,7 @@ oops_cf = pycassa.ColumnFamily(pool, 'OOPS')
 indexes_cf = pycassa.ColumnFamily(pool, 'Indexes')
 awaiting_retrace_cf = pycassa.ColumnFamily(pool, 'AwaitingRetrace')
 bv_full_cf = None
+day_bucket_cf = None
 
 counts = defaultdict(int)
 
@@ -41,10 +42,9 @@ def print_totals(force=False):
 
 def update_bucketversions(bucketid, oops, key):
     global bv_full_cf
+    global day_bucket_cf
 
-    if 'ProblemType' not in oops or oops['ProblemType'][1] > start:
-        # This has come in since this script started running, and will have
-        # been correctly bucketed.
+    if 'ProblemType' not in oops:
         return
 
     version = ''
@@ -65,9 +65,10 @@ def update_bucketversions(bucketid, oops, key):
     if bv_full_cf:
         bv_full_cf.insert((bucketid, release, version), {key: ''})
 
-    # TODO rebuild DayBuckets in here as well? We have the bucket ID and oops
-    # ID (with date), but do we really care to? It's only for rebuilding
-    # bv_count.
+    if day_bucket_cf:
+        ts = oops['ProblemType'][1]
+        day_key = time.strftime('%Y%m%d', time.gmtime(ts / 1000000))
+        day_bucket_cf.insert(day_key, {bucketid: ''})
 
 idx_key = 'crash_signature_for_stacktrace_address_signature'
 crash_sigs = {k:v for k,v in indexes_cf.xget(idx_key)}
@@ -171,5 +172,6 @@ if __name__ == '__main__':
                                             pool_size=15, max_retries=100,
                                             credentials=creds)
         bv_full_cf = pycassa.ColumnFamily(write_pool, 'BucketVersionsFull')
+        day_bucket_cf = pycassa.ColumnFamily(write_pool, 'DayBucket')
 
     main()
