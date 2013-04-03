@@ -293,14 +293,13 @@ class Retracer:
                                              os_options=opts,
                                              auth_version='2.0')
         fmt = '-{}.{}.oopsid'.format(provider_data['type'], key)
-        fp = tempfile.mkstemp(fmt)[1]
+        path = tempfile.mkstemp(fmt)[1]
         bucket = provider_data['bucket']
         try:
-            with open(fp, 'wb') as fp:
-                headers, body = conn.get_object(bucket, key, resp_chunk_size=65536)
+            headers, body = conn.get_object(bucket, key, resp_chunk_size=65536)
+            with open(path, 'wb') as fp:
                 for chunk in body:
                     fp.write(chunk)
-                path = fp.name
             return path
         except swiftclient.client.ClientException:
             import traceback
@@ -341,12 +340,11 @@ class Retracer:
             log(traceback.format_exc())
             return None
         fmt = '-{}.{}.oopsid'.format(provider_data['type'], key)
-        fp = tempfile.mkstemp(fmt)[1]
-        with open(fp, 'wb') as fp:
+        path = tempfile.mkstemp(fmt)[1]
+        with open(path, 'wb') as fp:
             for data in key:
                 # 8K at a time.
                 fp.write(data)
-            path = fp.name
         return path
 
     def remove_from_s3(self, key, provider_data):
