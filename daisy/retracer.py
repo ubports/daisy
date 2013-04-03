@@ -370,6 +370,7 @@ class Retracer:
             oops_id = msg.body
             if getattr(config, 'swift_bucket', ''):
                 provider_data = {
+                    'type': 'swift',
                     'bucket': config.swift_bucket,
                     'os_auth_url': config.os_auth_url,
                     'os_username': config.os_username,
@@ -379,6 +380,7 @@ class Retracer:
                 path = self.write_swift_bucket_to_disk(msg, provider_data)
             elif getattr(config, 'ec2_bucket', ''):
                 provider_data = {
+                    'type': 's3',
                     'host': config.ec2_host,
                     'bucket': config.ec2_bucket,
                     'aws_access_key': config.aws_access_key,
@@ -389,7 +391,11 @@ class Retracer:
                 log('Neither swift_bucket or ec2_bucket set.')
                 sys.exit(1)
         else:
-            path = self.write_local_to_disk(msg.body, provider_data)
+            path, key = msg.body.rsplit('/', 1)
+            provider_data = {
+                'path': path,
+                'type': 'local'}
+            path = self.write_local_to_disk(key, provider_data)
         return path
 
     def write_local_to_disk(self, key, provider_data):
