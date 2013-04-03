@@ -402,8 +402,11 @@ class Retracer:
         path = os.path.join(provider_data['path'], key)
         fmt = '-{}.{}.oopsid'.format(provider_data['type'], key)
         new_path = tempfile.mkstemp(fmt)[1]
-        shutil.copyfile(path, new_path)
-        return new_path
+        if not os.path.exists(path):
+            return None
+        else:
+            shutil.copyfile(path, new_path)
+            return new_path
 
     def remove_from_local(self, key, provider_data):
         path = os.path.join(provider_data['path'], key)
