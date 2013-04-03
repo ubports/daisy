@@ -294,7 +294,7 @@ class Retracer:
                                              auth_version='2.0')
         fmt = '-{}.{}.oopsid'.format(provider_data['type'], key)
         fd, path = tempfile.mkstemp(fmt)
-        fd.close()
+        os.close(fd)
         bucket = provider_data['bucket']
         try:
             headers, body = conn.get_object(bucket, key, resp_chunk_size=65536)
@@ -344,7 +344,7 @@ class Retracer:
             return None
         fmt = '-{}.{}.oopsid'.format(provider_data['type'], key)
         fd, path = tempfile.mkstemp(fmt)
-        fd.close()
+        os.close(fd)
         with open(path, 'wb') as fp:
             for data in key:
                 # 8K at a time.
@@ -406,7 +406,7 @@ class Retracer:
         path = os.path.join(provider_data['path'], key)
         fmt = '-{}.{}.oopsid'.format(provider_data['type'], key)
         fd, new_path = tempfile.mkstemp(fmt)
-        fd.close()
+        os.close(fd)
         if not os.path.exists(path):
             return None
         else:
