@@ -293,7 +293,8 @@ class Retracer:
                                              os_options=opts,
                                              auth_version='2.0')
         fmt = '-{}.{}.oopsid'.format(provider_data['type'], key)
-        path = tempfile.mkstemp(fmt)[1]
+        fd, path = tempfile.mkstemp(fmt)
+        fd.close()
         bucket = provider_data['bucket']
         try:
             headers, body = conn.get_object(bucket, key, resp_chunk_size=65536)
@@ -342,7 +343,8 @@ class Retracer:
             log(traceback.format_exc())
             return None
         fmt = '-{}.{}.oopsid'.format(provider_data['type'], key)
-        path = tempfile.mkstemp(fmt)[1]
+        fd, path = tempfile.mkstemp(fmt)
+        fd.close()
         with open(path, 'wb') as fp:
             for data in key:
                 # 8K at a time.
@@ -403,7 +405,8 @@ class Retracer:
     def write_local_to_disk(self, key, provider_data):
         path = os.path.join(provider_data['path'], key)
         fmt = '-{}.{}.oopsid'.format(provider_data['type'], key)
-        new_path = tempfile.mkstemp(fmt)[1]
+        fd, new_path = tempfile.mkstemp(fmt)
+        fd.close()
         if not os.path.exists(path):
             return None
         else:
