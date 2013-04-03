@@ -280,12 +280,12 @@ class Retracer:
         # Also remove it from the retracing index, if we haven't already.
         try:
             addr_sig = self.oops_fam.get(oops_id,
-                            ['StacktraceAddressSignature'],
-                            read_consistency_level=ConsistencyLevel.QUORUM)
+                            ['StacktraceAddressSignature'])
             addr_sig = addr_sig.values()[0]
             self.indexes_fam.remove('retracing', [addr_sig])
         except NotFoundException:
-            pass
+            log('Could not remove from the retracing row (%s):' % oops_id)
+            log(traceback.format_exc())
 
     def write_swift_bucket_to_disk(self, key, provider_data):
         import swiftclient
