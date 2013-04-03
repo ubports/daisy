@@ -675,9 +675,8 @@ class Retracer:
 
         ids = []
         try:
-            # TODO might need to use xget here if the bucket is large.
-            ids = self.bucket_fam.get('failed:' + crash_signature)
-            ids = ids.keys()
+            failed_key = 'failed:' + crash_signature
+            ids = [k for k,v in self.bucket_fam.xget(failed_key)]
         except NotFoundException:
             return False
         self.bucket(ids, crash_signature)
