@@ -1,11 +1,13 @@
 #!/usr/bin/python
 
+from __future__ import print_function
 import apport
 import sys
 import pycassa
-#from pycassa.cassandra.ttypes import NotFoundException
+from pycassa.cassandra.ttypes import NotFoundException
 from utils import split_package_and_version
 from daisy import config
+from collections import defaultdict
 
 creds = {'username': config.cassandra_username,
          'password': config.cassandra_password}
@@ -14,92 +16,67 @@ pool = pycassa.ConnectionPool(config.cassandra_keyspace,
                               pool_size=15, max_retries=100, credentials=creds)
 
 oops_cf = pycassa.ColumnFamily(pool, 'OOPS')
-indexes_fam = pycassa.ColumnFamily(pool, 'Indexes')
-#awaiting_retrace_cf = pycassa.ColumnFamily(pool, 'AwaitingRetrace')
-#bucketversion_cf = pycassa.ColumnFamily(pool, 'BucketVersion',
-#                                        retry_counter_mutations=True)
+indexes_cf = pycassa.ColumnFamily(pool, 'Indexes')
+awaiting_retrace_cf = pycassa.ColumnFamily(pool, 'AwaitingRetrace')
 
-no_sas = 0
-no_signature = 0
+# TODO make a --write="localhost:9165" option
+pool2 = pycassa.ConnectionPool(config.cassandra_keyspace,
+                               ['localhost:9165'], timeout=60, pool_size=15,
+                               max_retries=100, credentials=creds)
 
-dups = 0
-python = 0
-binary = 0
+bv_full = pycassa.ColumnFamily(pool2, 'BucketVersionsFull')
+bv_count = pycassa.ColumnFamily(pool2, 'BucketVersionsCount')
 
-start = 0
-
-no_package = 0
-no_release = 0
-
-retracing = 0
-not_retracing = 0
-
-#awaiting_retrace = 0
-#not_awaiting_retrace = 0
-
-no_python_signature = 0
+counts = defaultdict(int)
 
 wait_amount = 30000000
 wait = wait_amount
 
 def print_totals(force=False):
-    global no_sas
-    global no_signature
-    global no_package
-    global no_release
-    global dups
-    global python
-    global binary
     global wait
-    global retracing
-    global not_retracing
-    #global awaiting_retrace
-    #global not_awaiting_retrace
-    global no_python_signature
-
     if force or (pycassa.columnfamily.gm_timestamp() - start > wait):
         wait += wait_amount
-        t = float(binary + python + dups + no_sas + no_signature)
+        t = float(counts['binary'] + counts['python'] + counts['dups'] +
+                  counts['no_sas'] + counts['no_signature'])
         r = (t / (pycassa.columnfamily.gm_timestamp() - start) * 1000000 * 60)
-        print 'Processed:', t, '(%d/min)' % r
-        print 'binary:', binary
-        print 'python:', python
-        print 'dups:', dups
-        print 'no_sas:', no_sas
-        print 'no_signature:', no_signature
-        print 'no_package:', no_package
-        print 'no_release:', no_release
-        print 'retracing:', retracing
-        print 'not_retracing:', not_retracing
-        #print 'awaiting_retrace:', awaiting_retrace
-        #print 'not_awaiting_retrace:', not_awaiting_retrace
-        print 'no_python_signature:', no_python_signature
+        print('Processed:', t, '(%d/min)' % r, sep='\t')
+        for k in counts:
+            print('%s:' % k, counts[k], sep='\t')
         print
         sys.stdout.flush()
 
-def update_bucketversions(bucketid, oops):
-    global no_package
-    global no_release
-
+def update_bucketversions(bucketid, oops, key):
     if 'ProblemType' not in oops or oops['ProblemType'][1] > start:
         # This has come in since this script started running, and will have
         # been correctly bucketed.
         return
+
+    version = ''
     package = oops.get('Package', '')
-    if package:
-        package = split_package_and_version(package[0])
     release = oops.get('DistroRelease', '')
+    # These are tuples of (value, timestamp)
     if release:
         release = release[0]
+    if package:
+        package = package[0]
+        package, version = split_package_and_version(package)
 
     if not package:
-        no_package += 1
-        return
-
+        counts['no_package'] += 1
     if not release:
-        no_release += 1
+        counts['no_release'] += 1
 
-    # bucketversion_cf.add(bucketid, (package, release))
+    bv_full.insert((bucketid, release, version), {key: ''})
+    bv_count.add(bucketid, (version, release))
+
+    # TODO rebuild DayBuckets in here as well, since we have the bucket ID and
+    # oops ID (with date). But do we really care to? It's only for rebuilding
+    # bv_count.
+
+idx_key = 'crash_signature_for_stacktrace_address_signature'
+crash_sigs = {k:v for k,v in indexes_cf.xget(idx_key)}
+
+start = pycassa.columnfamily.gm_timestamp()
 
 # We don't need Stacktrace or ThreadStacktrace or any of that because we get
 # the crash signature from *just* the SAS for binary crashes.
@@ -114,66 +91,70 @@ kwargs = {
     'columns': columns,
 }
 
-idx_key = 'crash_signature_for_stacktrace_address_signature'
-crash_sigs = {k:v for k,v in indexes_fam.xget(idx_key)}
+def handle_duplicate_signature(key, o):
+    ds = o['DuplicateSignature'][0].encode('utf-8')
+    update_bucketversions(ds, o, key)
+    counts['dups'] += 1
 
-start = pycassa.columnfamily.gm_timestamp()
+def handle_python(key, o):
+    report = apport.Report()
+    for k in o:
+        report[k.encode('utf-8')] = o[k][0].encode('utf-8')
+    crash_signature = report.crash_signature()
+    if not crash_signature:
+        if 'Stacktrace' not in o:
+            counts['no_python_signature'] += 1
+            return
+    update_bucketversions(crash_signature, o, key)
+    counts['python'] += 1
+
+def handle_binary(key, o):
+    addr_sig = o.get('StacktraceAddressSignature', None)
+    if not addr_sig:
+        counts['no_sas'] += 1
+        return
+    if not addr_sig[0]:
+        counts['empty_sas'] += 1
+        return
+
+    addr_sig = addr_sig[0]
+    crash_sig = crash_sigs.get(addr_sig, None)
+
+    if crash_sig:
+        update_bucketversions(crash_sig, o, key)
+        counts['binary'] += 1
+    else:
+        # If we cannot find the address signature, it may have been bucketed
+        # while this program was running. We do not need to look up the address
+        # signature in the actual indexes CF though, as the new daisy code
+        # would have already written this to bucketversions.
+        counts['no_signature'] += 1
+        #count_retracing(addr_sig, key, o)
+
+def count_retracing(addr_sig, key, o):
+    try:
+        indexes_cf.get('retracing', [addr_sig])
+        counts['retracing'] += 1
+    except NotFoundException:
+        counts['not_retracing'] += 1
+        try:
+            awaiting_retrace_cf.get(addr_sig, [key])
+            counts['awaiting_retrace'] += 1
+        except NotFoundException:
+            counts['not_awaiting_retrace'] += 1
 
 for key, o in oops_cf.get_range(**kwargs):
     print_totals()
+
     if 'DuplicateSignature' in o:
-        ds = o['DuplicateSignature'][0].encode('utf-8')
-        update_bucketversions(ds, o)
-        dups += 1
-        continue
+        handle_duplicate_signature(key, o)
     elif 'InterpreterPath' in o and 'StacktraceAddressSignature' not in o:
-        report = apport.Report()
-        for k in o:
-            report[k.encode('utf-8')] = o[k][0].encode('utf-8')
-        crash_signature = report.crash_signature()
-        if not crash_signature:
-            if 'Stacktrace' not in o:
-                #print 'COULD NOT GENERATE PYTHON SIGNATURE', key
-                no_python_signature += 1
-                continue
-        update_bucketversions(crash_signature, o)
-        python += 1
-        continue
-    addr_sig = o.get('StacktraceAddressSignature', None)
-    if addr_sig:
-        addr_sig = addr_sig[0]
-        if not addr_sig:
-            # TODO BUT WHY IS THIS HAPPENING?
-            print 'EMPTY SAS', key
-            no_sas += 1
-            continue
+        # FIXME better check here and in the real code. We might not have an
+        # SAS.
+        handle_python(key, o)
+    elif 'StacktraceAddressSignature' in o:
+        handle_binary(key, o)
     else:
-        no_sas += 1
-        continue
-
-    crash_sig = crash_sigs.get(addr_sig, None)
-    # If we cannot find the address signature, it may have been bucketed while
-    # this program was running. We do not need to look up the address signature
-    # in the actual indexes CF though, as the new daisy code would have already
-    # written this to bucketversions.
-
-    if crash_sig:
-        update_bucketversions(crash_sig, o)
-        binary += 1
-    else:
-        no_signature += 1
-        #try:
-        #    indexes_fam.get('retracing', [addr_sig])
-        #    retracing += 1
-        #except NotFoundException:
-        #    not_retracing += 1
-        #    try:
-        #        awaiting_retrace_cf.get(addr_sig, [key])
-        #        awaiting_retrace += 1
-        #    except NotFoundException:
-        #        if 'Stacktrace' not in o:
-        #            print 'NOT AWAITING RETRACE', key
-        #        not_awaiting_retrace += 1
-
+        counts['unknown'] += 1
 
 print_totals(force=True)
