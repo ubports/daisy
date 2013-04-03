@@ -718,11 +718,10 @@ class Retracer:
 
         for oops_id in ids:
             try:
-                vals = self.oops_fam.get(oops_id, ['DistroRelease', 'Package'],
-                                read_consistency_level=ConsistencyLevel.QUORUM)
+                o = self.oops_fam.get(oops_id)
             except NotFoundException:
-                vals = {}
-            utils.bucket(self.oops_config, oops_id, crash_signature, vals)
+                o = {}
+            utils.bucket(self.oops_config, oops_id, crash_signature, o)
 
 def parse_options():
     parser = argparse.ArgumentParser(description='Process core dumps.')
