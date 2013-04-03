@@ -302,6 +302,7 @@ class Retracer:
                     fp.write(chunk)
             return path
         except swiftclient.client.ClientException:
+            rm_eff(path)
             import traceback
             log('Could not retrieve %s (swift):' % key)
             log(traceback.format_exc())
