@@ -5,7 +5,7 @@ import apport
 import sys
 import pycassa
 from pycassa.cassandra.ttypes import NotFoundException
-from utils import split_package_and_version
+from daisy.utils import split_package_and_version
 from daisy import config
 from collections import defaultdict
 import argparse
@@ -159,16 +159,16 @@ def main():
 
 def parse_options():
     parser = argparse.ArgumentParser(description='Rebuild BucketVersions.')
-    parser.add_argument('--write-host',
+    parser.add_argument('--write-hosts', nargs='+',
                         help='Cassandra host and IP (colon-separated) to write'
                         ' results to.')
     return parser.parse_args()
 
 if __name__ == '__main__':
     options = parse_options()
-    if options.write_host:
+    if options.write_hosts:
         write_pool = pycassa.ConnectionPool(config.cassandra_keyspace,
-                                            [options.write_host], timeout=60,
+                                            options.write_hosts, timeout=60,
                                             pool_size=15, max_retries=100,
                                             credentials=creds)
         bv_full_cf = pycassa.ColumnFamily(write_pool, 'BucketVersionsFull')
