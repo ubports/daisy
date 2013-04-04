@@ -4,7 +4,7 @@ from __future__ import print_function
 import apport
 import sys
 import pycassa
-from pycassa.cassandra.ttypes import NotFoundException
+from pycassa.cassandra.ttypes import NotFoundException, InvalidRequestException
 from daisy.utils import split_package_and_version
 from daisy import config
 from collections import defaultdict
@@ -66,12 +66,26 @@ def update_bucketversions(bucketid, oops, key):
         counts['no_release'] += 1
 
     if bv_full_cf:
-        bv_full_cf.insert((bucketid, release, version), {key: ''})
+        try:
+            bv_full_cf.insert((bucketid, release, version), {key: ''})
+        except InvalidRequestException:
+            print(bucketid)
+            print(release)
+            print(version)
+            print(key)
+            raise
 
     if bv_day_cf:
         ts = oops['ProblemType'][1]
         day_key = time.strftime('%Y%m%d', time.gmtime(ts / 1000000))
-        bv_day_cf.insert(day_key, {(bucketid, release, version): ''})
+        try:
+            bv_day_cf.insert(day_key, {(bucketid, release, version): ''})
+        except InvalidRequestException:
+            print(day_key)
+            print(bucketid)
+            print(release)
+            print(version)
+            raise
 
 idx_key = 'crash_signature_for_stacktrace_address_signature'
 crash_sigs = {k:v for k,v in indexes_cf.xget(idx_key)}
