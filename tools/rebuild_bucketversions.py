@@ -9,6 +9,7 @@ from daisy.utils import split_package_and_version
 from daisy import config
 from collections import defaultdict
 import argparse
+import uuid
 
 creds = {'username': config.cassandra_username,
          'password': config.cassandra_password}
@@ -47,6 +48,7 @@ def update_bucketversions(bucketid, oops, key):
     if 'ProblemType' not in oops:
         return
 
+    key = uuid.UUID(key)
     version = ''
     package = oops.get('Package', '')
     release = oops.get('DistroRelease', '')
