@@ -10,6 +10,7 @@ from daisy import config
 from collections import defaultdict
 import argparse
 import uuid
+import time
 
 creds = {'username': config.cassandra_username,
          'password': config.cassandra_password}
