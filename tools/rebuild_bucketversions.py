@@ -55,9 +55,9 @@ def update_bucketversions(bucketid, oops, key):
     release = oops.get('DistroRelease', '')
     # These are tuples of (value, timestamp)
     if release:
-        release = release[0]
+        release = release[0].encode('utf-8')
     if package:
-        package = package[0]
+        package = package[0].encode('utf-8')
         package, version = split_package_and_version(package)
 
     if not package:
