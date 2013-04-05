@@ -87,7 +87,7 @@ def submit(_pool, environ, system_token):
     oopses.insert_dict(oops_config, oops_id, data, system_token, fields)
 
     if 'DuplicateSignature' in data:
-        utils.bucket(oops_config, oops_id, data['DuplicateSignature'].encode('UTF-8'), data)
+        utils.bucket(oops_config, oops_id, data['DuplicateSignature'], data)
         if not third_party and problem_type == 'Crash':
             update_release_pkg_counter(counters_fam, release, src_package, day_key)
         return (True, '')
