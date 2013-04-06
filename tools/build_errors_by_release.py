@@ -31,6 +31,9 @@ for key, oops in oops_cf.get_range(columns=cols, include_timestamp=True):
     # 146104fadced68c9dedfd124427b7e05d62511b3c79743dd7b63465bb090f472
     # a6a5b34f32f8ac120ac47003f2a9f08030d368427cdf161cfa9ebad2ec8044bd
     release = oops['DistroRelease'][0][:2048].encode('utf8')
+    if '\n' in release:
+        # Bogus data.
+        continue
     system_token = oops['SystemIdentifier'][0]
 
     if not release.startswith('Ubuntu '):
