@@ -191,8 +191,16 @@ def main():
                     continue
             handle_binary(key, o)
         else:
+            if 'Signal' in o:
+                # We don't have a stacktrace for this signal failure.
+                sig = o['Signal'][0]
+                counts['sig%d' % sig] += 1
+            if 'Traceback' in o:
+                # We don't have a long enough Traceback to form a signature.
+                # These should be replaced with a better signature function
+                # that works with short tracebacks.
+                counts['poor_tb'] += 1
             counts['unknown'] += 1
-            print('unknown', key, o.keys())
 
     print_totals(force=True)
 
