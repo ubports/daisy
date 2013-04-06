@@ -194,7 +194,7 @@ def main():
             if 'Signal' in o:
                 # We don't have a stacktrace for this signal failure.
                 sig = o['Signal'][0]
-                counts['sig%d' % sig] += 1
+                counts['sig%s' % sig] += 1
             if 'Traceback' in o:
                 # We don't have a long enough Traceback to form a signature.
                 # These should be replaced with a better signature function
