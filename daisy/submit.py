@@ -100,6 +100,8 @@ def submit(_pool, environ, system_token):
                 report[key.encode('UTF-8')] = data[key].encode('UTF-8')
             except KeyError:
                 return (False, 'Missing keys in interpreted report.')
+        # FIXME always try to generate a crash signature, *then* check for a
+        # crash needing retracing (see tools/rebuild_bucketversions.py)
         crash_signature = report.crash_signature()
         if crash_signature:
             utils.bucket(oops_config, oops_id, crash_signature, data)
