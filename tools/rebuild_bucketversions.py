@@ -97,7 +97,8 @@ start = pycassa.columnfamily.gm_timestamp()
 # the crash signature from *just* the SAS for binary crashes.
 columns = ['ExecutablePath', 'Traceback', 'ProblemType', 'DuplicateSignature',
            'StacktraceAddressSignature', 'DistroRelease', 'Package',
-           'InterpreterPath', 'OopsText']
+           'InterpreterPath', 'OopsText', 'Signal', 'AssertionMessage',
+           'Stacktrace', 'StacktraceTop', 'ProcMaps']
 columns.sort()
 
 kwargs = {
@@ -191,7 +192,7 @@ def main():
             handle_binary(key, o)
         else:
             counts['unknown'] += 1
-            print('unknown', key)
+            print('unknown', key, o.keys())
 
     print_totals(force=True)
 
