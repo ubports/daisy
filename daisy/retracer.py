@@ -38,6 +38,7 @@ from daisy import utils
 import logging
 from daisy import config
 from oopsrepository import config as oopsconfig
+import traceback
 
 LOGGING_FORMAT = ('%(asctime)s:%(process)d:%(thread)d'
                   ':%(levelname)s:%(name)s:%(message)s')
@@ -307,7 +308,6 @@ class Retracer:
                     fp.write(chunk)
             return path
         except swiftclient.client.ClientException:
-            import traceback
             log('Could not retrieve %s (swift):' % key)
             log(traceback.format_exc())
             # This will still exist if we were partway through a write.
@@ -327,7 +327,6 @@ class Retracer:
             bucket = provider_data['bucket']
             conn.delete_object(bucket, key)
         except swiftclient.client.ClientException:
-            import traceback
             log('Could not remove %s (swift):' % key)
             log(traceback.format_exc())
 
@@ -342,7 +341,6 @@ class Retracer:
             bucket = conn.get_bucket(provider_data['bucket'])
             key = bucket.get_key(key)
         except S3ResponseError:
-            import traceback
             log('Could not retrieve %s (s3):' % key)
             log(traceback.format_exc())
             return None
@@ -368,7 +366,6 @@ class Retracer:
             key = bucket.get_key(key)
             key.delete()
         except S3ResponseError:
-            import traceback
             log('Could not remove %s (s3):' % key)
             log(traceback.format_exc())
 
@@ -562,8 +559,9 @@ class Retracer:
             http_proxy = env.get('retracer_http_proxy')
             if http_proxy:
                 env.update({'http_proxy': http_proxy})
-            proc = Popen(cmd, env=env, stderr=PIPE, universal_newlines=True)
-            err = proc.communicate()[1]
+            proc = Popen(cmd, env=env, stdout=PIPE, stderr=PIPE,
+                         universal_newlines=True)
+            out, err = proc.communicate()
         except:
             rm_eff('%s.new' % report_path)
             raise
@@ -584,8 +582,9 @@ class Retracer:
                 # the database as failures.
                 m = 'Retrace failed (%i), moving to failed queue:'
                 log(m % proc.returncode)
-                for line in err.splitlines():
-                    log(line)
+                for std in (out, err):
+                    for line in std.splitlines():
+                        log(line)
                 self.move_to_failed_queue(msg)
                 retracing_time = time.time() - retracing_start_time
                 self.update_retrace_stats(release, day_key, retracing_time,
