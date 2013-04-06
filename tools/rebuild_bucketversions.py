@@ -4,7 +4,7 @@ from __future__ import print_function
 import apport
 import sys
 import pycassa
-from pycassa.cassandra.ttypes import NotFoundException, InvalidRequestException
+from pycassa.cassandra.ttypes import NotFoundException
 from daisy.utils import split_package_and_version
 from daisy import config
 from collections import defaultdict
@@ -23,6 +23,7 @@ indexes_cf = pycassa.ColumnFamily(pool, 'Indexes')
 awaiting_retrace_cf = pycassa.ColumnFamily(pool, 'AwaitingRetrace')
 bv_full_cf = None
 bv_day_cf = None
+write_oops_cf = None
 
 counts = defaultdict(int)
 
@@ -38,7 +39,7 @@ def print_totals(force=False):
         r = (t / (pycassa.columnfamily.gm_timestamp() - start) * 1000000 * 60)
         print('Processed:', t, '(%d/min)' % r, sep='\t')
         for k in counts:
-            print('%s:' % k, counts[k], sep='\t')
+            print('%s:' % k, counts[k], sep='\t\t')
         print
         sys.stdout.flush()
 
@@ -68,11 +69,11 @@ def update_bucketversions(bucketid, oops, key):
     if bv_full_cf:
         try:
             bv_full_cf.insert((bucketid, release, version), {key: ''})
-        except InvalidRequestException:
-            print(bucketid)
-            print(release)
-            print(version)
-            print(key)
+        except:
+            print(bucketid, type(bucketid))
+            print(release, type(release))
+            print(version, type(version))
+            print(key, type(key))
             raise
 
     if bv_day_cf:
@@ -80,11 +81,11 @@ def update_bucketversions(bucketid, oops, key):
         day_key = time.strftime('%Y%m%d', time.gmtime(ts / 1000000))
         try:
             bv_day_cf.insert(day_key, {(bucketid, release, version): ''})
-        except InvalidRequestException:
-            print(day_key)
-            print(bucketid)
-            print(release)
-            print(version)
+        except:
+            print(bucketid, type(bucketid))
+            print(release, type(release))
+            print(version, type(version))
+            print(key, type(key))
             raise
 
 idx_key = 'crash_signature_for_stacktrace_address_signature'
@@ -106,7 +107,9 @@ kwargs = {
 }
 
 def handle_duplicate_signature(key, o):
-    ds = o['DuplicateSignature'][0].encode('utf-8')
+    ds = o['DuplicateSignature'][0]
+    ds = ds[:32768]
+    ds = ds.encode('utf-8')
     update_bucketversions(ds, o, key)
     counts['dups'] += 1
 
@@ -119,22 +122,20 @@ def handle_python(key, o):
         if 'Stacktrace' not in o:
             counts['no_python_signature'] += 1
             return
+    crash_signature = crash_signature[:32768]
     update_bucketversions(crash_signature, o, key)
     counts['python'] += 1
 
 def handle_binary(key, o):
-    addr_sig = o.get('StacktraceAddressSignature', None)
+    addr_sig = o['StacktraceAddressSignature'][0]
     if not addr_sig:
-        counts['no_sas'] += 1
-        return
-    if not addr_sig[0]:
         counts['empty_sas'] += 1
         return
 
-    addr_sig = addr_sig[0]
     crash_sig = crash_sigs.get(addr_sig, None)
 
     if crash_sig:
+        crash_sig = crash_sig[:32768]
         update_bucketversions(crash_sig, o, key)
         counts['binary'] += 1
     else:
@@ -157,6 +158,25 @@ def count_retracing(addr_sig, key, o):
         except NotFoundException:
             counts['not_awaiting_retrace'] += 1
 
+def repair_sas(key, o):
+    '''Back at the January sprint, Martin found and fixed a bug that was
+    preventing the SAS from being generated. There are at least 796,000 reports
+    in the database that are missing one. Repair them, if possible.'''
+
+    report = apport.Report()
+    for k in o:
+        report[k.encode('utf-8')] = o[k][0].encode('utf-8')
+
+    sas = report.crash_signature_addresses()
+    if not sas:
+        counts['could_not_repair_sas'] += 1
+        return False
+
+    if write_oops_cf:
+        write_oops_cf.insert(key, {'StacktraceAddressSignature': sas})
+    o['StacktraceAddressSignature'] = sas
+    return True
+
 def main():
     for key, o in oops_cf.get_range(**kwargs):
         print_totals()
@@ -170,7 +190,9 @@ def main():
         elif 'StacktraceAddressSignature' in o:
             handle_binary(key, o)
         else:
-            counts['unknown'] += 1
+            counts['no_sas'] += 1
+            if repair_sas(key, o):
+                handle_binary(key, o)
 
     print_totals(force=True)
 
@@ -190,5 +212,6 @@ if __name__ == '__main__':
                                             credentials=creds)
         bv_full_cf = pycassa.ColumnFamily(write_pool, 'BucketVersionsFull')
         bv_day_cf = pycassa.ColumnFamily(write_pool, 'BucketVersionsDay')
+        write_oops_cf = pycassa.ColumnFamily(write_pool, 'OOPS')
 
     main()
