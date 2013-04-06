@@ -113,19 +113,6 @@ def handle_duplicate_signature(key, o):
     update_bucketversions(ds, o, key)
     counts['dups'] += 1
 
-def handle_python(key, o):
-    report = apport.Report()
-    for k in o:
-        report[k.encode('utf-8')] = o[k][0].encode('utf-8')
-    crash_signature = report.crash_signature()
-    if not crash_signature:
-        if 'Stacktrace' not in o:
-            counts['no_python_signature'] += 1
-            return
-    crash_signature = crash_signature[:32768]
-    update_bucketversions(crash_signature, o, key)
-    counts['python'] += 1
-
 def handle_binary(key, o):
     addr_sig = o['StacktraceAddressSignature'][0]
     if not addr_sig:
@@ -183,16 +170,28 @@ def main():
 
         if 'DuplicateSignature' in o:
             handle_duplicate_signature(key, o)
-        elif 'InterpreterPath' in o and 'StacktraceAddressSignature' not in o:
-            # FIXME better check here and in the real code. We might not have an
-            # SAS.
-            handle_python(key, o)
-        elif 'StacktraceAddressSignature' in o:
+            continue
+
+        report = apport.Report()
+        for k in o:
+            report[k.encode('utf-8')] = o[k][0].encode('utf-8')
+        crash_signature = report.crash_signature()
+        if crash_signature:
+            crash_signature = crash_signature[:32768]
+            if 'Traceback' in o:
+                counts['python'] += 1
+            elif 'OopsText' in o:
+                counts['kernel_oops'] += 1
+            update_bucketversions(crash_signature, o, key)
+        elif 'StacktraceTop' in o and 'Signal' in o:
+            if 'StacktraceAddressSignature' not in o:
+                counts['no_sas'] += 1
+                if not repair_sas(key, o):
+                    continue
             handle_binary(key, o)
         else:
-            counts['no_sas'] += 1
-            if repair_sas(key, o):
-                handle_binary(key, o)
+            counts['unknown'] += 1
+            print('unknown', key)
 
     print_totals(force=True)
 
