@@ -192,11 +192,13 @@ class Retracer:
                     is_amqplib_conn_error = isinstance(e, amqplib_conn_errors)
                     if is_amqplib_conn_error or is_amqplib_ioerror:
                         self._lost_connection = time.time()
+                        log('lost connection to Rabbit')
                         # Don't probe immediately, give the network/process
                         # time to come back.
                         time.sleep(0.1)
                     else:
                         raise
+            log('Rabbit did not reappear quickly enough.')
         except KeyboardInterrupt:
             pass
         if channel and channel.is_open:
