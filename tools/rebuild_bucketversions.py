@@ -103,7 +103,7 @@ columns.sort()
 
 kwargs = {
     'include_timestamp': True,
-    'buffer_size': (1024*4),
+    'buffer_size': (1024*2),
     'columns': columns,
 }
 
