@@ -4,7 +4,7 @@ import apport
 import sys
 import pycassa
 #from pycassa.cassandra.ttypes import NotFoundException
-from utils import split_package_and_version
+from daisy.utils import split_package_and_version
 from daisy import config
 
 creds = {'username': config.cassandra_username,

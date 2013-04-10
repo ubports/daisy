@@ -3,7 +3,7 @@
 import pycassa
 import uuid
 from daisy import config
-from utils import split_package_and_version
+from daisy.utils import split_package_and_version
 from collections import Counter
 
 creds = {'username': config.cassandra_username,
