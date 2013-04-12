@@ -40,14 +40,34 @@ oops_config['password'] = config.cassandra_password
 def update_release_pkg_counter(counters_fam, release, src_package, date):
     counters_fam.insert('%s:%s' % (release, src_package), {date: 1})
 
+def create_report_from_bson(data):
+    report = apport.Report()
+    for key in data:
+        report[key.encode('UTF-8')] = data[key].encode('UTF-8')
+    return report
+
+def generate_crash_signature(report):
+    crash_signature = report.crash_signature()
+    if crash_signature:
+        return crash_signature[:32768]
+    else:
+        return None
+
+def try_to_repair_sas(data):
+    '''Try to repair the StacktraceAddressSignature, if this is a binary
+    crash.'''
+
+    if 'StacktraceTop' in data and 'Signal' in data:
+        if not 'StacktraceAddressSignature' in data:
+            report = create_report_from_bson(data)
+            sas = report.crash_signature_addresses()
+            if sas:
+                data['StacktraceAddressSignature'] = sas
 
 def submit(_pool, environ, system_token):
-    indexes_fam = pycassa.ColumnFamily(_pool, 'Indexes')
-    awaiting_retrace_fam = pycassa.ColumnFamily(_pool, 'AwaitingRetrace')
     counters_fam = pycassa.ColumnFamily(_pool, 'Counters',
                                         retry_counter_mutations=True)
 
-    oops_id = str(uuid.uuid1())
     try:
         data = environ['wsgi.input'].read()
     except IOError as e:
@@ -61,16 +81,22 @@ def submit(_pool, environ, system_token):
     except bson.errors.InvalidBSON:
         return (False, 'Invalid BSON.')
 
+    # Keep a reference to the decoded report data. If we crash, we'll
+    # potentially attach it to the OOPS report.
+    environ['wsgi.input.decoded'] = data
+
+    oops_id = str(uuid.uuid1())
     day_key = time.strftime('%Y%m%d', time.gmtime())
+
     if 'KernelCrash' in data or 'VmCore' in data:
         # We do not process these yet, but we keep track of how many reports
         # we're receiving to determine when it's worth solving.
         counters_fam.add('KernelCrash', day_key)
         return (False, 'Kernel crashes are not handled yet.')
 
-    # Keep a reference to the decoded report data. If we crash, we'll
-    # potentially attach it to the OOPS report.
-    environ['wsgi.input.decoded'] = data
+    # Write the SHA512 hash of the system UUID in with the report.
+    if system_token:
+        data['SystemIdentifier'] = system_token
 
     release = data.get('DistroRelease', '')
     package = data.get('Package', '')
@@ -79,79 +105,86 @@ def submit(_pool, environ, system_token):
     third_party = False
     if '[origin:' in package:
         third_party = True
+
     package, version = utils.split_package_and_version(package)
     src_package, src_version = utils.split_package_and_version(src_package)
     fields = utils.get_fields_for_bucket_counters(problem_type, release, package, version)
-    if system_token:
-        data['SystemIdentifier'] = system_token
-    oopses.insert_dict(oops_config, oops_id, data, system_token, fields)
 
-    if 'DuplicateSignature' in data:
-        utils.bucket(oops_config, oops_id, data['DuplicateSignature'], data)
-        if not third_party and problem_type == 'Crash':
-            update_release_pkg_counter(counters_fam, release, src_package, day_key)
-        return (True, '')
-    elif 'InterpreterPath' in data and not 'StacktraceAddressSignature' in data:
-        # Python crashes can be immediately bucketed.
-        report = apport.Report()
-        # TODO just pull in all keys
-        for key in ('ExecutablePath', 'Traceback', 'ProblemType'):
-            try:
-                report[key.encode('UTF-8')] = data[key].encode('UTF-8')
-            except KeyError:
-                return (False, 'Missing keys in interpreted report.')
-        # FIXME always try to generate a crash signature, *then* check for a
-        # crash needing retracing (see tools/rebuild_bucketversions.py)
-        crash_signature = report.crash_signature()
-        if crash_signature:
-            utils.bucket(oops_config, oops_id, crash_signature, data)
-            if not third_party and problem_type == 'Crash':
-                update_release_pkg_counter(counters_fam, release, src_package, day_key)
-            return (True, '')
-        else:
-            return (False, 'Could not generate crash signature for interpreted report.')
-
-    addr_sig = data.get('StacktraceAddressSignature', None)
-    if not addr_sig:
-        counters_fam.add('MissingSAS', day_key)
-        # We received BSON data with unexpected keys.
-        return (False, 'No StacktraceAddressSignature found in report.')
-
-    # Binary
-    output = ''
-    crash_sig = None
-    try:
-        crash_sig = indexes_fam.get(
-            'crash_signature_for_stacktrace_address_signature', [addr_sig])
-        crash_sig = crash_sig.values()[0]
-    except (NotFoundException, KeyError):
-        pass
-    if crash_sig:
-        # We have already retraced for this address signature, so this crash
-        # can be immediately bucketed.
-        utils.bucket(oops_config, oops_id, crash_sig, data)
-    else:
-        # Are we already waiting for this stacktrace address signature to be
-        # retraced?
-        waiting = True
-        try:
-            indexes_fam.get('retracing', [addr_sig])
-        except NotFoundException:
-            waiting = False
-
-        if not waiting and utils.retraceable_release(release):
-            # We do not have a core file in the queue, so ask for one. Do
-            # not assume we're going to get one, so also add this ID the
-            # the AwaitingRetrace CF queue as well.
-
-            # We don't ask derivatives for core dumps. We could technically
-            # check to make sure the Packages and Dependencies fields do not
-            # have '[origin:' lines; however, apport-retrace looks for
-            # configuration data in a directory named by the DistroRelease, so
-            # these would always fail regardless.
-            output = '%s CORE' % oops_id
-
-        awaiting_retrace_fam.insert(addr_sig, {oops_id : ''})
     if not third_party and problem_type == 'Crash':
         update_release_pkg_counter(counters_fam, release, src_package, day_key)
-    return (True, output)
+
+    try_to_repair_sas(data)
+    oopses.insert_dict(oops_config, oops_id, data, system_token, fields)
+
+    success, output = bucket(_pool, oops_config, oops_id, data)
+    return (success, output)
+
+def bucket(_pool, oops_config, oops_id, data):
+    '''Bucket oops_id.
+       If the report was malformed, return (False, failure_msg)
+       If a core file is to be requested, return (True, 'CORE')
+       If no further action is needed, return (True, '')
+    '''
+
+    indexes_fam = pycassa.ColumnFamily(_pool, 'Indexes')
+    day_key = time.strftime('%Y%m%d', time.gmtime())
+
+    # General bucketing
+    report = create_report_from_bson(data)
+    crash_signature = generate_crash_signature(report)
+    if crash_signature:
+        utils.bucket(oops_config, oops_id, crash_signature, data)
+        return (True, '')
+
+    # Binary
+    if 'StacktraceTop' in data and 'Signal' in data:
+        output = ''
+        addr_sig = data.get('StacktraceAddressSignature', None)
+        if not addr_sig:
+            counters_fam = pycassa.ColumnFamily(_pool, 'Counters',
+                                                retry_counter_mutations=True)
+            counters_fam.add('MissingSAS', day_key)
+            # We received BSON data with unexpected keys.
+            return (False, 'No StacktraceAddressSignature found in report.')
+
+        crash_sig = None
+        try:
+            crash_sig = indexes_fam.get(
+                'crash_signature_for_stacktrace_address_signature', [addr_sig])
+            crash_sig = crash_sig.values()[0]
+        except (NotFoundException, KeyError):
+            pass
+        if crash_sig:
+            # We have already retraced for this address signature, so this crash
+            # can be immediately bucketed.
+            utils.bucket(oops_config, oops_id, crash_sig, data)
+        else:
+            # Are we already waiting for this stacktrace address signature to be
+            # retraced?
+            waiting = True
+            try:
+                indexes_fam.get('retracing', [addr_sig])
+            except NotFoundException:
+                waiting = False
+
+            release = data.get('DistroRelease', '')
+            if not waiting and utils.retraceable_release(release):
+                # We do not have a core file in the queue, so ask for one. Do
+                # not assume we're going to get one, so also add this ID the
+                # the AwaitingRetrace CF queue as well.
+
+                # We don't ask derivatives for core dumps. We could technically
+                # check to make sure the Packages and Dependencies fields do not
+                # have '[origin:' lines; however, apport-retrace looks for
+                # configuration data in a directory named by the DistroRelease, so
+                # these would always fail regardless.
+                output = '%s CORE' % oops_id
+
+            awaiting_retrace_fam = pycassa.ColumnFamily(_pool, 'AwaitingRetrace')
+            awaiting_retrace_fam.insert(addr_sig, {oops_id : ''})
+        return (True, output)
+
+    # Could not bucket
+    could_not_bucket_fam = pycassa.ColumnFamily(_pool, 'CouldNotBucket')
+    could_not_bucket_fam.insert(day_key, {uuid.UUID(oops_id): ''})
+    return (True, '')
