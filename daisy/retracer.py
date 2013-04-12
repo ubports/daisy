@@ -601,10 +601,9 @@ class Retracer:
                     report.load(fp)
                 stacktrace_addr_sig = report['StacktraceAddressSignature']
 
-                crash_signature = report.crash_signature()
+                crash_signature = utils.generate_crash_signature(report)
                 if crash_signature:
                     has_signature = True
-                    crash_signature = crash_signature.encode('utf-8')
 
             if has_signature:
                 try:

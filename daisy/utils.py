@@ -43,15 +43,6 @@ def bucket(oops_config, oops_id, crash_signature, report_dict):
     dependencies = report_dict.get('Dependencies', '')
     system_uuid = report_dict.get('SystemIdentifier', '')
 
-    # https://errors.ubuntu.com/oops-local/2013-03-07/50428.daisy.ubuntu.com3
-    # Exception-Value: InvalidRequestException(why='Key length of 127727 is
-    # longer than maximum of 65535')
-    # We use 32768 rather than 65535 to provide padding when the bucket ID
-    # forms part of a composite key, as it does in daybuckets.
-    crash_signature = crash_signature[:32768]
-    if type(crash_signature) == unicode:
-        crash_signature = crash_signature.encode('utf-8')
-
     if '[origin:' in package or '[origin:' in dependencies:
         # This package came from a third-party source. We do not want to show
         # its version as the Last Seen field on the most common problems table,
@@ -127,4 +118,16 @@ def retraceable_release(release):
         return True
     else:
         return False
-        
+
+def generate_crash_signature(report):
+    crash_signature = report.crash_signature()
+    if crash_signature:
+        # Cassandra has limits on the length of a row key and column name.
+        # Slice before converting to UTF-8 to avoid slicing halfway through a
+        # codepoint.
+        signature = crash_signature[:32768]
+        if type(signature) == unicode:
+            signature = signature.encode('UTF-8')
+        return signature
+    else:
+        return None

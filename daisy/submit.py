@@ -46,13 +46,6 @@ def create_report_from_bson(data):
         report[key.encode('UTF-8')] = data[key].encode('UTF-8')
     return report
 
-def generate_crash_signature(report):
-    crash_signature = report.crash_signature()
-    if crash_signature:
-        return crash_signature[:32768]
-    else:
-        return None
-
 def try_to_repair_sas(data):
     '''Try to repair the StacktraceAddressSignature, if this is a binary
     crash.'''
@@ -131,7 +124,7 @@ def bucket(_pool, oops_config, oops_id, data):
 
     # General bucketing
     report = create_report_from_bson(data)
-    crash_signature = generate_crash_signature(report)
+    crash_signature = utils.generate_crash_signature(report)
     if crash_signature:
         utils.bucket(oops_config, oops_id, crash_signature, data)
         return (True, '')
