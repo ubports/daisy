@@ -76,6 +76,9 @@ def update_bucketversions(bucketid, oops, key):
             print(key, type(key))
             raise
 
+    # Unlike the code in oops-repository, we use the day of the OOPS, so we
+    # don't end up with one very wide row for when we ran this. We'll do a
+    # repair on everything up to the current day after this is run.
     if bv_day_cf:
         ts = oops['ProblemType'][1]
         day_key = time.strftime('%Y%m%d', time.gmtime(ts / 1000000))
