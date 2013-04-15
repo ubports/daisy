@@ -1,7 +1,9 @@
 #!/usr/bin/python
 
+from __future__ import print_function
 import pycassa
-import uuid
+import sys
+
 from daisy import config
 from daisy.utils import split_package_and_version
 from collections import Counter
@@ -13,30 +15,56 @@ pool = pycassa.ConnectionPool(config.cassandra_keyspace,
                               max_retries=100, credentials=creds)
 
 oops_cf = pycassa.ColumnFamily(pool, 'OOPS')
+bucket_cf = pycassa.ColumnFamily(pool, 'Bucket')
 srcversbuckets = pycassa.ColumnFamily(pool, 'SourceVersionBuckets')
 
 cols = ['SourcePackage', 'Package', 'DistroRelease']
-count = 0
-for key, oops in oops_cf.get_range(columns=cols):
-    count += 1
-    if count % 100000 == 0:
-        print 'processed', count
+counts = 0
 
-    if Counter(cols) != Counter(oops.keys()):
-        continue
+wait_amount = 30000000
+wait = wait_amount
+start = pycassa.columnfamily.gm_timestamp()
 
-    release = oops.get('DistroRelease', '')
-    if not release.startswith('Ubuntu ') or release == '':
-        continue
-    package = oops.get('Package', '')
-    if package:
-        package, version = split_package_and_version(package)
-    src_package = oops.get('SourcePackage', '')
-    if src_package == '' or version == '':
-        continue
-    oops_id = uuid.UUID(key)
-    #print('Would insert (%s, %s) = {%s, ""}' % (src_package, version,
-    #       oops_id))
-    srcversbuckets.insert((src_package, version), {oops_id : ''})
+def print_totals(force=False):
+    global wait
+    if force or (pycassa.columnfamily.gm_timestamp() - start > wait):
+        wait += wait_amount
+        r = (float(counts) / (pycassa.columnfamily.gm_timestamp() - start) * 1000000 * 60)
+        print('Processed:', counts, '(%d/min)' % r, sep='\t')
+        print
+        sys.stdout.flush()
 
-print 'total processed', count
+for bucket, instances in bucket_cf.get_range(include_timestamp=True, buffer_size=2048):
+    print_totals()
+    str_instances = [str(instance) for instance in instances]
+    counts += 1
+    if counts > 1000:
+        break
+    insertions = []
+    inserted = False
+    for instance in zip(*[iter(str_instances)]*3):
+        if inserted:
+            continue
+        oopses = oops_cf.multiget(instance, columns=cols)
+        for oops in oopses:
+            data = oopses[oops]
+            if Counter(cols) != Counter(data.keys()):
+                continue
+
+            release = data.get('DistroRelease', '')
+            if not release.startswith('Ubuntu ') or release == '':
+                continue
+            package = data.get('Package', '')
+            if package:
+                package, version = split_package_and_version(package)
+            src_package = data.get('SourcePackage', '')
+            if src_package == '' or version == '':
+                continue
+            key = (src_package, version)
+            if key in insertions:
+                inserted = True
+                continue
+            #print('Would insert %s = {%s, ""}' % (key, bucket))
+            insertions.append(key)
+            srcversbuckets.insert(key, {bucket: ''})
+print_totals(force=True)
