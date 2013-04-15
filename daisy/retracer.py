@@ -38,6 +38,7 @@ from daisy import utils
 import logging
 from daisy import config
 from oopsrepository import config as oopsconfig
+import traceback
 
 LOGGING_FORMAT = ('%(asctime)s:%(process)d:%(thread)d'
                   ':%(levelname)s:%(name)s:%(message)s')
@@ -191,11 +192,13 @@ class Retracer:
                     is_amqplib_conn_error = isinstance(e, amqplib_conn_errors)
                     if is_amqplib_conn_error or is_amqplib_ioerror:
                         self._lost_connection = time.time()
+                        log('lost connection to Rabbit')
                         # Don't probe immediately, give the network/process
                         # time to come back.
                         time.sleep(0.1)
                     else:
                         raise
+            log('Rabbit did not reappear quickly enough.')
         except KeyboardInterrupt:
             pass
         if channel and channel.is_open:
@@ -258,6 +261,10 @@ class Retracer:
         return self._sandboxes[release]
 
     def move_to_failed_queue(self, msg):
+        if self.failed:
+            # It's already on the failed queue.
+            return
+
         # We've processed this. Delete it off the MQ.
         msg.channel.basic_ack(msg.delivery_tag)
         # We don't call self.processed here because that would remove the core
@@ -276,12 +283,12 @@ class Retracer:
         # Also remove it from the retracing index, if we haven't already.
         try:
             addr_sig = self.oops_fam.get(oops_id,
-                            ['StacktraceAddressSignature'],
-                            read_consistency_level=ConsistencyLevel.QUORUM)
+                            ['StacktraceAddressSignature'])
             addr_sig = addr_sig.values()[0]
             self.indexes_fam.remove('retracing', [addr_sig])
         except NotFoundException:
-            pass
+            log('Could not remove from the retracing row (%s):' % oops_id)
+            log(traceback.format_exc())
 
     def write_swift_bucket_to_disk(self, key, provider_data):
         import swiftclient
@@ -303,7 +310,6 @@ class Retracer:
                     fp.write(chunk)
             return path
         except swiftclient.client.ClientException:
-            import traceback
             log('Could not retrieve %s (swift):' % key)
             log(traceback.format_exc())
             # This will still exist if we were partway through a write.
@@ -323,7 +329,6 @@ class Retracer:
             bucket = provider_data['bucket']
             conn.delete_object(bucket, key)
         except swiftclient.client.ClientException:
-            import traceback
             log('Could not remove %s (swift):' % key)
             log(traceback.format_exc())
 
@@ -338,7 +343,6 @@ class Retracer:
             bucket = conn.get_bucket(provider_data['bucket'])
             key = bucket.get_key(key)
         except S3ResponseError:
-            import traceback
             log('Could not retrieve %s (s3):' % key)
             log(traceback.format_exc())
             return None
@@ -364,7 +368,6 @@ class Retracer:
             key = bucket.get_key(key)
             key.delete()
         except S3ResponseError:
-            import traceback
             log('Could not remove %s (s3):' % key)
             log(traceback.format_exc())
 
@@ -558,8 +561,9 @@ class Retracer:
             http_proxy = env.get('retracer_http_proxy')
             if http_proxy:
                 env.update({'http_proxy': http_proxy})
-            proc = Popen(cmd, env=env, stderr=PIPE, universal_newlines=True)
-            err = proc.communicate()[1]
+            proc = Popen(cmd, env=env, stdout=PIPE, stderr=PIPE,
+                         universal_newlines=True)
+            out, err = proc.communicate()
         except:
             rm_eff('%s.new' % report_path)
             raise
@@ -580,8 +584,9 @@ class Retracer:
                 # the database as failures.
                 m = 'Retrace failed (%i), moving to failed queue:'
                 log(m % proc.returncode)
-                for line in err.splitlines():
-                    log(line)
+                for std in (out, err):
+                    for line in std.splitlines():
+                        log(line)
                 self.move_to_failed_queue(msg)
                 retracing_time = time.time() - retracing_start_time
                 self.update_retrace_stats(release, day_key, retracing_time,
@@ -644,8 +649,9 @@ class Retracer:
             try:
                 # This will contain the OOPS ID we're currently processing as
                 # well.
-                ids = self.awaiting_retrace_fam.get(stacktrace_addr_sig)
-                oops_ids += ids.keys()
+                gen = self.awaiting_retrace_fam.xget(stacktrace_addr_sig)
+                ids = [k for k,v in gen]
+                oops_ids = ids
             except NotFoundException:
                 # Handle eventual consistency. If the writes to AwaitingRetrace
                 # haven't hit this node yet, that's okay. We'll clean up
@@ -714,11 +720,10 @@ class Retracer:
 
         for oops_id in ids:
             try:
-                vals = self.oops_fam.get(oops_id, ['DistroRelease', 'Package'],
-                                read_consistency_level=ConsistencyLevel.QUORUM)
+                o = self.oops_fam.get(oops_id)
             except NotFoundException:
-                vals = {}
-            utils.bucket(self.oops_config, oops_id, crash_signature, vals)
+                o = {}
+            utils.bucket(self.oops_config, oops_id, crash_signature, o)
 
 def parse_options():
     parser = argparse.ArgumentParser(description='Process core dumps.')

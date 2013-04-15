@@ -46,9 +46,11 @@ def bucket(oops_config, oops_id, crash_signature, report_dict):
     # https://errors.ubuntu.com/oops-local/2013-03-07/50428.daisy.ubuntu.com3
     # Exception-Value: InvalidRequestException(why='Key length of 127727 is
     # longer than maximum of 65535')
-    # We use 65500 rather than 65535 to provide padding when the bucket ID
+    # We use 32768 rather than 65535 to provide padding when the bucket ID
     # forms part of a composite key, as it does in daybuckets.
-    crash_signature = crash_signature[:65500]
+    crash_signature = crash_signature[:32768]
+    if type(crash_signature) == unicode:
+        crash_signature = crash_signature.encode('utf-8')
 
     if '[origin:' in package or '[origin:' in dependencies:
         # This package came from a third-party source. We do not want to show
@@ -74,7 +76,12 @@ def bucket(oops_config, oops_id, crash_signature, report_dict):
         first_version = version
     if version == first_version:
         oopses.update_bucket_systems(oops_config, crash_signature, system_uuid)
+
     oopses.bucket(oops_config, oops_id, crash_signature, fields)
+
+    if hasattr(oopses, 'update_bucket_hashes'):
+        oopses.update_bucket_hashes(oops_config, crash_signature)
+
     if (package and version) and release.startswith('Ubuntu '):
         oopses.update_bucket_metadata(oops_config, crash_signature, package,
                                       version, apt.apt_pkg.version_compare,
