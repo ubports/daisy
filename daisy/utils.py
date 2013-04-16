@@ -35,6 +35,26 @@ def split_package_and_version(package):
         version = ''
     return (package, version)
 
+def format_crash_signature(crash_signature):
+    # https://errors.ubuntu.com/oops-local/2013-03-07/50428.daisy.ubuntu.com3
+    # Exception-Value: InvalidRequestException(why='Key length of 127727 is
+    # longer than maximum of 65535')
+    # We use 32768 rather than 65535 to provide padding when the bucket ID
+    # forms part of a composite key, as it does in daybuckets.
+    if not crash_signature:
+        return ''
+
+    # Translate back to unicode so we can correctly slice this.
+    if type(crash_signature) == str:
+        crash_signature = crash_signature.decode('utf-8')
+
+    crash_signature = crash_signature[:32768]
+
+    if type(crash_signature) == unicode:
+        crash_signature = crash_signature.encode('utf-8')
+
+    return crash_signature
+
 def bucket(oops_config, oops_id, crash_signature, report_dict):
     release = report_dict.get('DistroRelease', '')
     package = report_dict.get('Package', '')
@@ -43,14 +63,7 @@ def bucket(oops_config, oops_id, crash_signature, report_dict):
     dependencies = report_dict.get('Dependencies', '')
     system_uuid = report_dict.get('SystemIdentifier', '')
 
-    # https://errors.ubuntu.com/oops-local/2013-03-07/50428.daisy.ubuntu.com3
-    # Exception-Value: InvalidRequestException(why='Key length of 127727 is
-    # longer than maximum of 65535')
-    # We use 32768 rather than 65535 to provide padding when the bucket ID
-    # forms part of a composite key, as it does in daybuckets.
-    crash_signature = crash_signature[:32768]
-    if type(crash_signature) == unicode:
-        crash_signature = crash_signature.encode('utf-8')
+    crash_signature = format_crash_signature(crash_signature)
 
     if '[origin:' in package or '[origin:' in dependencies:
         # This package came from a third-party source. We do not want to show

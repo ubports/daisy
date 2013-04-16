@@ -595,20 +595,23 @@ class Retracer:
 
             retracing_time = time.time() - retracing_start_time
 
-            has_signature = False
-            if os.path.exists('%s.new' % report_path):
-                log('Writing back to Cassandra')
-                report = apport.Report()
-                with open('%s.new' % report_path, 'rb') as fp:
-                    report.load(fp)
-                stacktrace_addr_sig = report['StacktraceAddressSignature']
+            if not os.path.exists('%s.new' % report_path):
+                log('%s.new did not exist.' % report_path)
+                self.failed_to_process(msg, oops_id)
+                return
 
-                crash_signature = report.crash_signature()
-                if crash_signature:
-                    has_signature = True
-                    crash_signature = crash_signature.encode('utf-8')
+            log('Writing back to Cassandra')
+            report = apport.Report()
+            with open('%s.new' % report_path, 'rb') as fp:
+                report.load(fp)
 
-            if has_signature:
+            stacktrace_addr_sig = report['StacktraceAddressSignature']
+            if type(stacktrace_addr_sig) == unicode:
+                stacktrace_addr_sig = stacktrace_addr_sig.encode('utf-8')
+
+            crash_signature = report.crash_signature()
+            crash_signature = utils.format_crash_signature(crash_signature)
+            if crash_signature:
                 try:
                     self.stack_fam.insert(stacktrace_addr_sig, report)
                 except MaximumRetryException:
@@ -625,9 +628,9 @@ class Retracer:
                 # symbols for every package version, we can reprocess these
                 # with a map/reduce job.
 
-                stacktrace_addr_sig = report['StacktraceAddressSignature']
-                crash_signature = 'failed:%s' % stacktrace_addr_sig
-                crash_signature = crash_signature.encode('utf-8')
+                s = report['StacktraceAddressSignature']
+                crash_signature = 'failed:%s' % utils.format_crash_signature(s)
+
                 log('Could not retrace.')
                 if 'RetraceOutdatedPackages' in report:
                     log('RetraceOutdatedPackages:')
@@ -668,7 +671,7 @@ class Retracer:
                 # continue on were it to.
                 pass
 
-            if has_signature:
+            if crash_signature:
                 if self.rebucket(crash_signature):
                     self.recount(crash_signature, msg.channel)
         finally:
