@@ -48,7 +48,7 @@ def create_report_from_bson(data):
 
 def try_to_repair_sas(data):
     '''Try to repair the StacktraceAddressSignature, if this is a binary
-    crash.'''
+       crash.'''
 
     if 'StacktraceTop' in data and 'Signal' in data:
         if not 'StacktraceAddressSignature' in data:
@@ -109,18 +109,17 @@ def submit(_pool, environ, system_token):
     try_to_repair_sas(data)
     oopses.insert_dict(oops_config, oops_id, data, system_token, fields)
 
-    success, output = bucket(_pool, oops_config, oops_id, data)
+    success, output = bucket(_pool, oops_config, oops_id, data, day_key)
     return (success, output)
 
-def bucket(_pool, oops_config, oops_id, data):
+def bucket(_pool, oops_config, oops_id, data, day_key):
     '''Bucket oops_id.
        If the report was malformed, return (False, failure_msg)
-       If a core file is to be requested, return (True, 'CORE')
+       If a core file is to be requested, return (True, 'UUID CORE')
        If no further action is needed, return (True, '')
     '''
 
     indexes_fam = pycassa.ColumnFamily(_pool, 'Indexes')
-    day_key = time.strftime('%Y%m%d', time.gmtime())
 
     # General bucketing
     report = create_report_from_bson(data)
