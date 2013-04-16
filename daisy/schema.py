@@ -21,6 +21,8 @@ from pycassa.system_manager import (
     UTF8_TYPE,
     LONG_TYPE,
     ASCII_TYPE,
+    INT_TYPE,
+    TIME_UUID_TYPE,
     )
 
 from daisy import config
@@ -69,8 +71,11 @@ def create():
                 comparator_type=ASCII_TYPE)
         if 'BugToCrashSignatures' not in cfs:
             workaround_1779(mgr.create_column_family, keyspace, 'BugToCrashSignatures',
-                key_validation_class=INTEGER_TYPE,
+                key_validation_class=INT_TYPE,
                 comparator_type=UTF8_TYPE)
+        if 'CouldNotBucket' not in cfs:
+            workaround_1779(mgr.create_column_family, keyspace, 'CouldNotBucket',
+                comparator_type=TIME_UUID_TYPE)
     finally:
         mgr.close()
 

@@ -63,8 +63,6 @@ def bucket(oops_config, oops_id, crash_signature, report_dict):
     dependencies = report_dict.get('Dependencies', '')
     system_uuid = report_dict.get('SystemIdentifier', '')
 
-    crash_signature = format_crash_signature(crash_signature)
-
     if '[origin:' in package or '[origin:' in dependencies:
         # This package came from a third-party source. We do not want to show
         # its version as the Last Seen field on the most common problems table,
@@ -140,4 +138,4 @@ def retraceable_release(release):
         return True
     else:
         return False
-        
+
