@@ -34,15 +34,22 @@ def print_totals(force=False):
         print
         sys.stdout.flush()
 
-for bucket, instances in bucket_cf.get_range(include_timestamp=True, buffer_size=2048):
+def chunks(l, n):
+    # http://stackoverflow.com/a/312464/190597
+    """ Yield successive n-sized chunks from l.
+    """
+    for i in xrange(0, len(l), n):
+        yield l[i:i+n]
+
+for bucket, instances in bucket_cf.get_range(include_timestamp=True, buffer_size=2*1024):
     print_totals()
     str_instances = [str(instance) for instance in instances]
     counts += 1
-    if counts > 1000:
-        break
+    #if counts > 1000:
+    #    break
     insertions = []
     inserted = False
-    for instance in zip(*[iter(str_instances)]*3):
+    for instance in chunks(str_instances, 3):
         if inserted:
             continue
         oopses = oops_cf.multiget(instance, columns=cols)
@@ -52,7 +59,7 @@ for bucket, instances in bucket_cf.get_range(include_timestamp=True, buffer_size
                 continue
 
             release = data.get('DistroRelease', '')
-            if not release.startswith('Ubuntu ') or release == '':
+            if not release.startswith('Ubuntu '):
                 continue
             package = data.get('Package', '')
             if package:
