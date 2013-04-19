@@ -149,14 +149,10 @@ def count_retracing(addr_sig, key, o):
         except NotFoundException:
             counts['not_awaiting_retrace'] += 1
 
-def repair_sas(key, o):
+def repair_sas(key, o, report):
     '''Back at the January sprint, Martin found and fixed a bug that was
     preventing the SAS from being generated. There are at least 796,000 reports
     in the database that are missing one. Repair them, if possible.'''
-
-    report = apport.Report()
-    for k in o:
-        report[k.encode('utf-8')] = o[k][0].encode('utf-8')
 
     sas = report.crash_signature_addresses()
     if not sas:
@@ -190,7 +186,7 @@ def main():
         elif 'StacktraceTop' in o and 'Signal' in o:
             if 'StacktraceAddressSignature' not in o:
                 counts['no_sas'] += 1
-                if not repair_sas(key, o):
+                if not repair_sas(key, o, report):
                     continue
             handle_binary(key, o)
         else:
