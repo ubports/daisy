@@ -20,7 +20,7 @@ def main(release, start, end, verbose=False):
 
     while start <= end:
         target_date = start.replace(hour=0, minute=0, second=0, microsecond=0)
-        working_date = target_date - datetime.timedelta(days=90)
+        working_date = target_date - datetime.timedelta(days=89)
         one_day = datetime.timedelta(days=1)
 
         unique = set()
@@ -33,7 +33,11 @@ def main(release, start, end, verbose=False):
         start += one_day
 
 if __name__ == '__main__':
-    release = 'Ubuntu 13.04'
-    start = datetime.datetime.strptime(sys.argv[1], '%Y%m%d')
-    end = datetime.datetime.strptime(sys.argv[2], '%Y%m%d')
+    release = sys.argv[1]
+    if len(sys.argv) > 2:
+        start = datetime.datetime.strptime(sys.argv[2], '%Y%m%d')
+        end = datetime.datetime.strptime(sys.argv[3], '%Y%m%d')
+    else:
+        start = datetime.datetime.today() - datetime.timedelta(days=1)
+        end = start
     main(release, start, end, verbose=True)
