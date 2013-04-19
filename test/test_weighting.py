@@ -38,7 +38,6 @@ class T(TestCase):
         oops_config['username'] = config.cassandra_username
         oops_config['password'] = config.cassandra_password
         oopsschema.create(oops_config)
-        #build_errors_by_release.config = config
 
     def test_weighting(self):
         # This has to go here and there can't be any other tests.
@@ -48,6 +47,7 @@ class T(TestCase):
 
         pool = pycassa.ConnectionPool(self.keyspace, config.cassandra_hosts,
                                       credentials=self.creds)
+        build_errors_by_release.write_pool = pool
         args = (pool, 'FirstError')
         build_errors_by_release.firsterror = pycassa.ColumnFamily(*args)
         args = (pool, 'ErrorsByRelease')
@@ -67,13 +67,8 @@ class T(TestCase):
             time.mktime((last_week + datetime.timedelta(days=2)).timetuple()) * 1e6,
         ]
 
-        # Ensure the random processing of error reports.
-        import random
-        random_timestamps = list(timestamps)
-        random.shuffle(random_timestamps)
-
         ident = sha512('To be filled by OEM').hexdigest()
-        for timestamp in random_timestamps:
+        for timestamp in timestamps:
             u = str(uuid.uuid1())
             d = {'DistroRelease': 'Ubuntu 12.04',
                  'SystemIdentifier': ident}
