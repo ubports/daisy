@@ -40,11 +40,21 @@ class T(TestCase):
         oopsschema.create(oops_config)
 
     def test_weighting(self):
-        # This has to go here and there can't be any other tests.
+        '''Test the weighting of errors per calendar day.
+           The first error ever seen for a system running a given release
+           should be 0.
+           Subsequent errors should be the number of days since that first
+           error, divided by 90, up to 1.0.
+        '''
+
+        # This has to go here and there can't be any other tests in this file,
+        # as these modules set up the Cassandra connections at import time.
         from tools import build_errors_by_release
         from tools import weight_errors_per_day
         from tools import unique_systems_for_errors_by_release
 
+        # Configure the script that back populates the data to use our test
+        # Cassandra keyspace for writing data into.
         pool = pycassa.ConnectionPool(self.keyspace, config.cassandra_hosts,
                                       credentials=self.creds)
         build_errors_by_release.write_pool = pool
@@ -67,6 +77,8 @@ class T(TestCase):
             time.mktime((last_week + datetime.timedelta(days=2)).timetuple()) * 1e6,
         ]
 
+        # All the reports for this test will be from the same machine, running
+        # Ubuntu 12.04.
         ident = sha512('To be filled by OEM').hexdigest()
         for timestamp in timestamps:
             u = str(uuid.uuid1())
@@ -90,6 +102,8 @@ class T(TestCase):
         build_errors_by_release.main()
         build_errors_by_release.main()
 
+        # Now actually produce the weights for all of last week (it will only
+        # process the three days there were reports).
         start = last_week
         end = datetime.datetime.today()
         unique_systems_for_errors_by_release.main('Ubuntu 12.04', start, end)
