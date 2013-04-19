@@ -30,6 +30,25 @@ counts = defaultdict(int)
 wait_amount = 30000000
 wait = wait_amount
 
+idx_key = 'crash_signature_for_stacktrace_address_signature'
+crash_sigs = {k:v for k,v in indexes_cf.xget(idx_key)}
+
+start = pycassa.columnfamily.gm_timestamp()
+
+# We don't need Stacktrace or ThreadStacktrace or any of that because we get
+# the crash signature from *just* the SAS for binary crashes.
+columns = ['ExecutablePath', 'Traceback', 'ProblemType', 'DuplicateSignature',
+           'StacktraceAddressSignature', 'DistroRelease', 'Package',
+           'InterpreterPath', 'OopsText', 'Signal', 'AssertionMessage',
+           'Stacktrace', 'StacktraceTop', 'ProcMaps']
+columns.sort()
+
+kwargs = {
+    'include_timestamp': True,
+    'buffer_size': (1024*2),
+    'columns': columns,
+}
+
 def print_totals(force=False):
     global wait
     if force or (pycassa.columnfamily.gm_timestamp() - start > wait):
@@ -90,25 +109,6 @@ def update_bucketversions(bucketid, oops, key):
             print(version, type(version))
             print(key, type(key))
             raise
-
-idx_key = 'crash_signature_for_stacktrace_address_signature'
-crash_sigs = {k:v for k,v in indexes_cf.xget(idx_key)}
-
-start = pycassa.columnfamily.gm_timestamp()
-
-# We don't need Stacktrace or ThreadStacktrace or any of that because we get
-# the crash signature from *just* the SAS for binary crashes.
-columns = ['ExecutablePath', 'Traceback', 'ProblemType', 'DuplicateSignature',
-           'StacktraceAddressSignature', 'DistroRelease', 'Package',
-           'InterpreterPath', 'OopsText', 'Signal', 'AssertionMessage',
-           'Stacktrace', 'StacktraceTop', 'ProcMaps']
-columns.sort()
-
-kwargs = {
-    'include_timestamp': True,
-    'buffer_size': (1024*2),
-    'columns': columns,
-}
 
 def handle_duplicate_signature(key, o):
     ds = o['DuplicateSignature'][0]
