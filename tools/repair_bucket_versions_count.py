@@ -33,9 +33,9 @@ for bucket in buckets:
         print i
     bucketid, release, version = bucket
     real_count = bv_full_cf.get_count(bucket)
-    actual_count = bv_count_cf.get(bucketid, (version, release))
+    actual_count = bv_count_cf.get(bucketid, (release, version))
     c = real_count - actual_count
     if c != 0:
         print bucket, 'adjusted by', c
-        bv_count_cf.insert(bucketid, {(version, release): c})
+        bv_count_cf.insert(bucketid, {(release, version): c})
 print i
