@@ -73,5 +73,7 @@ for bucket, instances in bucket_cf.get_range(include_timestamp=True, buffer_size
                 continue
             #print('Would insert %s = {%s, ""}' % (key, bucket))
             insertions.append(key)
+            if type(bucket) == unicode:
+                bucket = bucket.encode('utf-8')
             srcversbuckets.insert(key, {bucket: ''})
 print_totals(force=True)
