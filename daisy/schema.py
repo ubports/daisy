@@ -16,6 +16,10 @@
 # You should have received a copy of the GNU Affero Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+from pycassa.types import (
+    DateType,
+    )
+
 from pycassa.system_manager import (
     SystemManager,
     UTF8_TYPE,
@@ -76,6 +80,11 @@ def create():
         if 'CouldNotBucket' not in cfs:
             workaround_1779(mgr.create_column_family, keyspace, 'CouldNotBucket',
                 comparator_type=TIME_UUID_TYPE)
+        if 'UniqueSystemsForErrorsByRelease' not in cfs:
+            workaround_1779(mgr.create_column_family, keyspace,
+                            'UniqueSystemsForErrorsByRelease',
+                            comparator_type=DateType(),
+                            default_validation_class=LONG_TYPE)
     finally:
         mgr.close()
 
