@@ -696,26 +696,20 @@ class Retracer:
         msg.channel.basic_ack(msg.delivery_tag)
 
         if oops_id:
-            update_time_to_retrace(oops_id)
+            self.update_time_to_retrace(oops_id, msg)
 
-    def update_time_to_retrace(self, oops_id):
+    def update_time_to_retrace(self, oops_id, msg):
         '''Record how long it took to retrace this crash, from the time we got
            a core file to the point that we got a either a successful or failed
            retrace out of it.
         '''
-        current = time.time()
-        try:
-            s = 'StacktraceAddressSignature'
-            sas = self.oops_fam.get(oops_id, columns=[s])[s]
-            kwargs = {'columns': [sas], 'include_timestamp': True}
-            timestamp = self.indexes_fam.get('retracing', **kwargs)[sas][1]
-        except NotFoundException:
-            # Just don't write anything in.
+        timestamp = msg.properties.get('timestamp')
+        if not timestamp:
             return
 
-        timestamp = timestamp / 1e6
-        time_taken = current - timestamp
-        day_key = datetime.date.fromtimestamp(timestamp).strftime('%Y%m%d')
+        time_taken = datetime.datetime.utcnow() - timestamp
+        time_taken = time_taken.total_seconds()
+        day_key = timestamp.strftime('%Y%m%d')
         self.time_to_retrace_fam.insert(day_key, {oops_id: time_taken})
 
     def rebucket(self, crash_signature):

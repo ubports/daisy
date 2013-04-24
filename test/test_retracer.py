@@ -15,6 +15,8 @@ import time
 import pycassa
 from pycassa.types import IntegerType, FloatType
 import uuid
+import amqplib.client_0_8 as amqp
+import datetime
 
 # Actually show the messages (info) with the retracer format.
 import logging
@@ -138,17 +140,15 @@ class TestSubmission(TestCase):
         self.assertIn(':pycassa.pool:pycassa-message', contents)
 
     def test_update_time_to_retrace(self):
-        oops = pycassa.ColumnFamily(self.pool, 'OOPS')
         time_to_retrace = pycassa.ColumnFamily(self.pool, 'TimeToRetrace')
-        indexes = pycassa.ColumnFamily(self.pool, 'Indexes')
 
         oops_id = str(uuid.uuid1())
-        ts = (time.mktime(time.gmtime()) - 60 * 5) * 1e6
-        data = {'ProblemType': 'Crash', 'StacktraceAddressSignature': 'w'}
+        ts = datetime.datetime.utcnow()
+        ts = ts - datetime.timedelta(minutes=5)
 
-        oops.insert(oops_id, data, timestamp=ts)
-        indexes.insert('retracing', {'w': ''}, timestamp=ts)
-        self.retracer.update_time_to_retrace(oops_id)
+        msg = amqp.Message(oops_id, timestamp=ts)
+
+        self.retracer.update_time_to_retrace(oops_id, msg)
         date, vals = time_to_retrace.get_range().next()
         day_key = time.strftime('%Y%m%d', time.gmtime())
         self.assertEqual(date, day_key)

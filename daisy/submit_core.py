@@ -24,6 +24,7 @@ import os
 import random
 from daisy import config
 import sys
+import datetime
 
 def write_policy_allow(oops_id, bytes_used, provider_data):
     if (provider_data.get('usage_max_mb')):
@@ -202,7 +203,10 @@ def submit(_pool, fileobj, uuid, arch):
     try:
         queue = 'retrace_%s' % arch
         channel.queue_declare(queue=queue, durable=True, auto_delete=False)
-        body = amqp.Message(message)
+        # We'll use this timestamp to measure how long it takes to process a
+        # retrace, from receiving the core file to writing the data back to
+        # Cassandra.
+        body = amqp.Message(message, timestamp=datetime.datetime.utcnow())
         # Persistent
         body.properties['delivery_mode'] = 2
         channel.basic_publish(body, exchange='', routing_key=queue)
