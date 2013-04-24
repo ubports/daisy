@@ -39,6 +39,7 @@ import logging
 from daisy import config
 from oopsrepository import config as oopsconfig
 import traceback
+import datetime
 
 LOGGING_FORMAT = ('%(asctime)s:%(process)d:%(thread)d'
                   ':%(levelname)s:%(name)s:%(message)s')
@@ -142,6 +143,7 @@ class Retracer:
         self.retrace_stats_fam = ColumnFamily(self.pool, 'RetraceStats',
                                               retry_counter_mutations=True)
         self.bucket_fam = ColumnFamily(self.pool, 'Bucket')
+        self.time_to_retrace_fam = ColumnFamily(self.pool, 'TimeToRetrace')
 
         # We didn't set a default_validation_class for these in the schema.
         # Whoops.
@@ -682,6 +684,7 @@ class Retracer:
 
     def processed(self, msg):
         parts = msg.body.split(':', 1)
+        oops_id = None
         if len(parts) > 1:
             oops_id, provider = parts
             self.remove(*parts)
@@ -691,6 +694,29 @@ class Retracer:
 
         # We've processed this. Delete it off the MQ.
         msg.channel.basic_ack(msg.delivery_tag)
+
+        if oops_id:
+            update_time_to_retrace(oops_id)
+
+    def update_time_to_retrace(self, oops_id):
+        '''Record how long it took to retrace this crash, from the time we got
+           a core file to the point that we got a either a successful or failed
+           retrace out of it.
+        '''
+        current = time.time()
+        try:
+            s = 'StacktraceAddressSignature'
+            sas = self.oops_fam.get(oops_id, columns=[s])[s]
+            kwargs = {'columns': [sas], 'include_timestamp': True}
+            timestamp = self.indexes_fam.get('retracing', **kwargs)[sas][1]
+        except NotFoundException:
+            # Just don't write anything in.
+            return
+
+        timestamp = timestamp / 1e6
+        time_taken = current - timestamp
+        day_key = datetime.date.fromtimestamp(timestamp).strftime('%Y%m%d')
+        self.time_to_retrace_fam.insert(day_key, {oops_id: time_taken})
 
     def rebucket(self, crash_signature):
         '''Rebucket any failed retraces into the bucket just created for the

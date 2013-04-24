@@ -137,5 +137,23 @@ class TestSubmission(TestCase):
         self.assertIn('%s:%s' % (str(u), 'local'), contents)
         self.assertIn(':pycassa.pool:pycassa-message', contents)
 
+    def test_update_time_to_retrace(self):
+        oops = pycassa.ColumnFamily(self.pool, 'OOPS')
+        time_to_retrace = pycassa.ColumnFamily(self.pool, 'TimeToRetrace')
+        indexes = pycassa.ColumnFamily(self.pool, 'Indexes')
+
+        oops_id = str(uuid.uuid1())
+        ts = (time.mktime(time.gmtime()) - 60 * 5) * 1e6
+        data = {'ProblemType': 'Crash', 'StacktraceAddressSignature': 'w'}
+
+        oops.insert(oops_id, data, timestamp=ts)
+        indexes.insert('retracing', {'w': ''}, timestamp=ts)
+        self.retracer.update_time_to_retrace(oops_id)
+        date, vals = time_to_retrace.get_range().next()
+        day_key = time.strftime('%Y%m%d', time.gmtime())
+        self.assertEqual(date, day_key)
+        # Tolerate it being 9.9 seconds off at most.
+        self.assertAlmostEqual(vals[oops_id], 60*5, places=-1)
+
 if __name__ == '__main__':
     unittest.main()

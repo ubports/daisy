@@ -23,6 +23,7 @@ from pycassa.system_manager import (
     ASCII_TYPE,
     INT_TYPE,
     TIME_UUID_TYPE,
+    FLOAT_TYPE,
     )
 
 from daisy import config
@@ -76,6 +77,9 @@ def create():
         if 'CouldNotBucket' not in cfs:
             workaround_1779(mgr.create_column_family, keyspace, 'CouldNotBucket',
                 comparator_type=TIME_UUID_TYPE)
+        if 'TimeToRetrace' not in cfs:
+            workaround_1779(mgr.create_column_family, keyspace, 'TimeToRetrace',
+                default_validation_class=FLOAT_TYPE)
     finally:
         mgr.close()
 
