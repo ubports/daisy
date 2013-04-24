@@ -19,16 +19,22 @@ firsterror = None
 errorsbyrelease = None
 systems = None
 
+columns = ['SystemIdentifier', 'DistroRelease']
+kwargs = {
+    'buffer_size': 1024 * 10,
+    'include_timestamp': True,
+    'columns': columns,
+}
+
 def main(verbose=False):
-    cols = ['SystemIdentifier', 'DistroRelease']
     count = 0
-    for key, oops in oops_cf.get_range(columns=cols, include_timestamp=True):
+    for key, oops in oops_cf.get_range(**kwargs):
         if verbose:
             count += 1
             if count % 100000 == 0:
                 print 'processed', count
 
-        if Counter(cols) != Counter(oops.keys()):
+        if Counter(columns) != Counter(oops.keys()):
             continue
 
         # Some bogus release names, like that of
