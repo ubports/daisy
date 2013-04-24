@@ -51,6 +51,8 @@ kwargs = {
 
 def print_totals(force=False):
     global wait
+    if force:
+        print('Final total:')
     if force or (pycassa.columnfamily.gm_timestamp() - start > wait):
         wait += wait_amount
         t = float(counts['binary'] + counts['python'] + counts['dups'] +
