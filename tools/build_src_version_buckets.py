@@ -41,6 +41,11 @@ def chunks(l, n):
     for i in xrange(0, len(l), n):
         yield l[i:i+n]
 
+def to_utf8(string):
+    if type(string) == unicode:
+        string = string.encode('utf-8')
+    return string
+
 for bucket, instances in bucket_cf.get_range(include_timestamp=True, buffer_size=2*1024):
     print_totals()
     str_instances = [str(instance) for instance in instances]
@@ -67,13 +72,11 @@ for bucket, instances in bucket_cf.get_range(include_timestamp=True, buffer_size
             src_package = data.get('SourcePackage', '')
             if src_package == '' or version == '':
                 continue
-            key = (src_package, version)
+            key = (to_utf8(src_package), to_utf8(version))
             if key in insertions:
                 inserted = True
                 continue
             #print('Would insert %s = {%s, ""}' % (key, bucket))
             insertions.append(key)
-            if type(bucket) == unicode:
-                bucket = bucket.encode('utf-8')
-            srcversbuckets.insert(key, {bucket: ''})
+            srcversbuckets.insert(key, {to_utf8(bucket): ''})
 print_totals(force=True)
