@@ -1,0 +1,13 @@
+deb http://archive.ubuntu.com/ubuntu/ saucy main restricted universe multiverse
+deb http://archive.ubuntu.com/ubuntu/ saucy-updates main restricted universe multiverse
+#deb http://archive.ubuntu.com/ubuntu/ saucy-proposed main restricted universe multiverse
+deb http://security.ubuntu.com/ubuntu/ saucy-security main restricted universe multiverse
+
+deb http://ddebs.ubuntu.com raring main restricted universe multiverse
+deb http://ddebs.ubuntu.com raring-updates main restricted universe multiverse
+deb http://ddebs.ubuntu.com raring-proposed main restricted universe multiverse
+deb http://ddebs.ubuntu.com raring-security main restricted universe multiverse
+deb http://ddebs.ubuntu.com saucy main restricted universe multiverse
+deb http://ddebs.ubuntu.com saucy-updates main restricted universe multiverse
+deb http://ddebs.ubuntu.com saucy-security main restricted universe multiverse
+#deb http://ddebs.ubuntu.com saucy-proposed main restricted universe multiverse
