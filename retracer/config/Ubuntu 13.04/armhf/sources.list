@@ -1,7 +1,7 @@
 deb http://ports.ubuntu.com/ raring main restricted universe multiverse
 deb http://ports.ubuntu.com/ raring-updates main restricted universe multiverse
 deb http://ports.ubuntu.com/ raring-security main restricted universe multiverse
-#deb http://ports.ubuntu.com/ raring-proposed main restricted universe multiverse
+deb http://ports.ubuntu.com/ raring-proposed main restricted universe multiverse
 
 deb http://ddebs.ubuntu.com quantal main restricted universe multiverse
 deb http://ddebs.ubuntu.com quantal-updates main restricted universe multiverse
@@ -10,4 +10,4 @@ deb http://ddebs.ubuntu.com quantal-security main restricted universe multiverse
 deb http://ddebs.ubuntu.com raring main restricted universe multiverse
 deb http://ddebs.ubuntu.com raring-updates main restricted universe multiverse
 deb http://ddebs.ubuntu.com raring-security main restricted universe multiverse
-#deb http://ddebs.ubuntu.com raring-proposed main restricted universe multiverse
+deb http://ddebs.ubuntu.com raring-proposed main restricted universe multiverse
