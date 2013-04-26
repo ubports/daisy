@@ -5,6 +5,9 @@ import datetime
 import sys
 from daisy import config
 
+# The span of time (in days) we count for unique systems.
+RAMP_UP = 90
+
 def main(release, start, end, verbose=False):
     start = start.replace(hour=0, minute=0, second=0, microsecond=0)
     end = end.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -20,7 +23,7 @@ def main(release, start, end, verbose=False):
 
     while start <= end:
         target_date = start.replace(hour=0, minute=0, second=0, microsecond=0)
-        working_date = target_date - datetime.timedelta(days=89)
+        working_date = target_date - datetime.timedelta(days=RAMP_UP - 1)
         one_day = datetime.timedelta(days=1)
 
         unique = set()

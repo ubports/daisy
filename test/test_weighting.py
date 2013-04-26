@@ -110,14 +110,14 @@ class T(TestCase):
         weights = weight_errors_per_day.weight()
 
         # On the first day we had any error reports, the weighting would be 0
-        # because 0 days have past since the first report.
+        # because 0 days have passed since the first report.
         self.assertEqual(weights[timestamps[0] / 1e6], 0.0)
 
-        # The second report is one day after the first and the only report of
+        # The second report is one day after the first, and the only report of
         # the day.
         self.assertEqual(weights[timestamps[1] / 1e6], 1/90.0)
 
-        # The third report is two days after the first and the only report of
+        # The third report is two days after the first, and the only report of
         # the day.
         self.assertEqual(weights[timestamps[2] / 1e6], 2/90.0)
 
