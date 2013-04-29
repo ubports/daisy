@@ -100,8 +100,9 @@ def bucket(oops_config, oops_id, crash_signature, report_dict):
         if hasattr(oopses, 'update_source_version_buckets'):
             oopses.update_source_version_buckets(oops_config, src_package,
                                                  version, crash_signature)
-    if version:
-        oopses.update_bucket_versions(oops_config, crash_signature, version)
+    if version and release:
+        oopses.update_bucket_versions(oops_config, crash_signature, version,
+                                      release=release, oopsid=oops_id)
 
     if hasattr(oopses, 'update_errors_by_release'):
         if (system_uuid and release) and not third_party:
