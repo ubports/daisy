@@ -37,6 +37,9 @@ _get_published_binaries_url = (_launchpad_base + '/ubuntu/+archive/primary'
 _get_published_binary_version_url = (_launchpad_base + '/ubuntu/+archive/primary'
     '?ws.op=getPublishedBinaries&binary_name=%s&version=%s'
     '&exact_match=true&ordered=true&status=Published')
+_get_published_source_version_url = (_launchpad_base + '/ubuntu/+archive/primary'
+    '?ws.op=getPublishedSources&source_name=%s&version=%s'
+    '&exact_match=true&ordered=true')
 _get_bug_tasks_url = _launchpad_base + '/bugs/%s/bug_tasks'
 
 _get_published_binaries_for_release_url = (_launchpad_base +
@@ -286,6 +289,17 @@ def get_subscribed_packages(user):
         bin_pkgs.extend(list(get_binaries_in_source_package(src_pkg,
             dev_series)))
     return bin_pkgs
+
+def is_valid_source_version(src_package, version):
+    url = _get_published_source_version_url % \
+        (urllib.quote_plus(src_package), urllib.quote_plus(version))
+    json_data = json_request(url)
+    if 'total_size' not in json_data.keys():
+        return False
+    if json_data['total_size'] == 0:
+        return False
+    elif json_data['total_size'] >= 1:
+        return True
 
 
 # Bug creation.
