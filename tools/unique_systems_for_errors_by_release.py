@@ -22,7 +22,7 @@ def main(release, start, end, verbose=False):
     uniquesys = pycassa.ColumnFamily(pool, 'UniqueSystemsForErrorsByRelease')
 
     while start <= end:
-        target_date = start.replace(hour=0, minute=0, second=0, microsecond=0)
+        target_date = start
         working_date = target_date - datetime.timedelta(days=RAMP_UP - 1)
         one_day = datetime.timedelta(days=1)
 
