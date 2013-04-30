@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 # 
-# Copyright © 2011-2012 Canonical Ltd.
+# Copyright © 2011-2013 Canonical Ltd.
 # Author: Evan Dandrea <evan.dandrea@canonical.com>
 # 
 # This program is free software: you can redistribute it and/or modify
@@ -15,6 +15,10 @@
 # 
 # You should have received a copy of the GNU Affero Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+from pycassa.types import (
+    DateType,
+    )
 
 from pycassa.system_manager import (
     SystemManager,
@@ -80,6 +84,11 @@ def create():
         if 'TimeToRetrace' not in cfs:
             workaround_1779(mgr.create_column_family, keyspace, 'TimeToRetrace',
                 default_validation_class=FLOAT_TYPE)
+        if 'UniqueSystemsForErrorsByRelease' not in cfs:
+            workaround_1779(mgr.create_column_family, keyspace,
+                            'UniqueSystemsForErrorsByRelease',
+                            comparator_type=DateType(),
+                            default_validation_class=LONG_TYPE)
     finally:
         mgr.close()
 

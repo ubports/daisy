@@ -19,15 +19,22 @@ firsterror = None
 errorsbyrelease = None
 systems = None
 
-def main():
-    cols = ['SystemIdentifier', 'DistroRelease']
-    count = 0
-    for key, oops in oops_cf.get_range(columns=cols, include_timestamp=True):
-        count += 1
-        if count % 100000 == 0:
-            print 'processed', count
+columns = ['SystemIdentifier', 'DistroRelease']
+kwargs = {
+    'buffer_size': 1024 * 10,
+    'include_timestamp': True,
+    'columns': columns,
+}
 
-        if Counter(cols) != Counter(oops.keys()):
+def main(verbose=False):
+    count = 0
+    for key, oops in oops_cf.get_range(**kwargs):
+        if verbose:
+            count += 1
+            if count % 100000 == 0:
+                print 'processed', count
+
+        if Counter(columns) != Counter(oops.keys()):
             continue
 
         # Some bogus release names, like that of
@@ -63,7 +70,8 @@ def main():
         # DistroRelease field and are running an official Ubuntu release.
         systems.insert((release, occurred), {system_token: ''})
 
-    print 'total processed', count
+    if verbose:
+        print 'total processed', count
 
 def parse_options():
     parser = argparse.ArgumentParser(
@@ -84,5 +92,5 @@ if __name__ == '__main__':
         errorsbyrelease = pycassa.ColumnFamily(write_pool, 'ErrorsByRelease')
         systems = pycassa.ColumnFamily(write_pool, 'SystemsForErrorsByRelease')
 
-    main()
+    main(True)
  

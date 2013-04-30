@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 # 
-# Copyright © 2011-2012 Canonical Ltd.
+# Copyright © 2011-2013 Canonical Ltd.
 # Author: Evan Dandrea <evan.dandrea@canonical.com>
 # 
 # This program is free software: you can redistribute it and/or modify
