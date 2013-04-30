@@ -1,5 +1,6 @@
 import pycassa
 from daisy import config
+from daisy.constants import RAMP_UP
 import datetime
 import time
 import sys
@@ -12,9 +13,6 @@ pool = pycassa.ConnectionPool(config.cassandra_keyspace,
 
 errorsbyrelease = pycassa.ColumnFamily(pool, 'ErrorsByRelease')
 uniquesys = pycassa.ColumnFamily(pool, 'UniqueSystemsForErrorsByRelease')
-
-# The span of time (in days) that we count for unique systems.
-RAMP_UP = 90
 
 def weight(release='Ubuntu 12.04'):
     results = {}

@@ -4,9 +4,7 @@ import pycassa
 import datetime
 import sys
 from daisy import config
-
-# The span of time (in days) we count for unique systems.
-RAMP_UP = 90
+from daisy.constants import RAMP_UP
 
 def main(release, start, end, verbose=False):
     start = start.replace(hour=0, minute=0, second=0, microsecond=0)
