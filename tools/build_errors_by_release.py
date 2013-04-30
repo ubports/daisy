@@ -7,6 +7,7 @@ from pycassa.cassandra.ttypes import NotFoundException
 from daisy import config
 from collections import Counter
 import argparse
+import sys
 
 creds = {'username': config.cassandra_username,
          'password': config.cassandra_password}
@@ -33,6 +34,7 @@ def main(verbose=False):
             count += 1
             if count % 100000 == 0:
                 print 'processed', count
+                sys.stdout.flush()
 
         if Counter(columns) != Counter(oops.keys()):
             continue
