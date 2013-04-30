@@ -53,10 +53,7 @@ for bucket, instances in bucket_cf.get_range(include_timestamp=True, buffer_size
     #if counts > 1000:
     #    break
     insertions = []
-    inserted = False
     for instance in chunks(str_instances, 3):
-        if inserted:
-            continue
         oopses = oops_cf.multiget(instance, columns=cols)
         for oops in oopses:
             data = oopses[oops]
@@ -74,9 +71,8 @@ for bucket, instances in bucket_cf.get_range(include_timestamp=True, buffer_size
                 continue
             key = (to_utf8(src_package), to_utf8(version))
             if key in insertions:
-                inserted = True
                 continue
-            #print('Would insert %s = {%s, ""}' % (key, bucket))
+            #print('Would insert %s = {%s, ""}' % (key, to_utf8(bucket)))
             insertions.append(key)
             srcversbuckets.insert(key, {to_utf8(bucket): ''})
 print_totals(force=True)
