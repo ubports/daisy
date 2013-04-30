@@ -77,9 +77,9 @@ def update_bucketversions(bucketid, oops, key):
     release = oops.get('DistroRelease', '')
     # These are tuples of (value, timestamp)
     if release:
-        release = release[0].encode('utf-8')
+        release = release[0].encode('ascii', errors='ignore')
     if package:
-        package = package[0].encode('utf-8')
+        package = package[0].encode('ascii', errors='ignore')
         package, version = split_package_and_version(package)
 
     if not package:
@@ -91,10 +91,10 @@ def update_bucketversions(bucketid, oops, key):
         try:
             bv_full_cf.insert((bucketid, release, version), {key: ''})
         except:
-            print(bucketid, type(bucketid))
-            print(release, type(release))
-            print(version, type(version))
-            print(key, type(key))
+            print(repr(bucketid), type(bucketid))
+            print(repr(release), type(release))
+            print(repr(version), type(version))
+            print(repr(key), type(key))
             raise
 
     # Unlike the code in oops-repository, we use the day of the OOPS, so we
@@ -106,10 +106,10 @@ def update_bucketversions(bucketid, oops, key):
         try:
             bv_day_cf.insert(day_key, {(bucketid, release, version): ''})
         except:
-            print(bucketid, type(bucketid))
-            print(release, type(release))
-            print(version, type(version))
-            print(key, type(key))
+            print(repr(bucketid), type(bucketid))
+            print(repr(release), type(release))
+            print(repr(version), type(version))
+            print(repr(key), type(key))
             raise
 
 def handle_duplicate_signature(key, o):
