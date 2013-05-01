@@ -130,3 +130,6 @@ core_storage = {}
 # storage_write_weights = {'local-s1': 0.25, 'swift-storage': 0.75}
 
 storage_write_weights = {}
+
+# The domain name for the Errors service.
+openid_trust_root = 'https://errors.ubuntu.com/'
