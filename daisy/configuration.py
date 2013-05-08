@@ -37,6 +37,9 @@ amqp_username = ''
 # The AMQP username.
 amqp_password = ''
 
+# The AMQP exchange name.
+amqp_exchange = ''
+
 # The path to the SAN for storing core dumps (deprecated).
 san_path = '/srv/cores'
 
@@ -136,3 +139,23 @@ openid_trust_root = 'https://errors.ubuntu.com/'
 
 # The base URL for static content for https://errors.ubuntu.com
 errors_static_url = 'https://assets.ubuntu.com/sites/errors/398'
+
+# Configuration for OOPS reports.
+oops_config = {
+    'publishers': [
+        {
+            'type': 'amqp',
+            'host': amqp_host,
+            'user': amqp_username,
+            'password': amqp_password,
+            'vhost': amqp_vhost,
+            'exchange_name': amqp_exchange,
+            'routing_key': 'oopses',
+        },
+        {
+            'type': 'datedir',
+            'error_dir': oops_repository,
+            'new_only': True,
+        },
+    ],
+}

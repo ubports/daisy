@@ -120,17 +120,11 @@ def attach_error_report(report, context):
                 report['req_vars'] = {}
             report['req_vars']['wsgi.input.decoded'] = data
 
-def wrap_in_oops_wsgi(wsgi_handler, path, hostname):
-    from oops import Config
+def wrap_in_oops_wsgi(wsgi_handler):
+    import oops_dictconfig
     from oops_wsgi import install_hooks, make_app
-    from oops_datedir_repo import DateDirRepo, serializer_rfc822
-
-    config = Config()
-    if not os.path.exists(path):
-        os.mkdir(path)
-    repo = DateDirRepo(path, hostname, serializer=serializer_rfc822)
-    config.publishers.append(repo.publish)
-    config.on_create.append(attach_error_report)
+    from daisy import config
+    config = oops_dictconfig.config_from_dict(config.oops_config)
     install_hooks(config)
     return make_app(wsgi_handler, config, oops_on_status=['500'])
 

@@ -73,5 +73,4 @@ def app(environ, start_response):
     else:
         return bad_request_response(start_response, response[1])
 
-oops_repo = config.oops_repository
-application = utils.wrap_in_oops_wsgi(app, oops_repo, 'daisy.ubuntu.com')
+application = utils.wrap_in_oops_wsgi(app)
