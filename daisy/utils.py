@@ -124,9 +124,9 @@ def wrap_in_oops_wsgi(wsgi_handler):
     import oops_dictconfig
     from oops_wsgi import install_hooks, make_app
     from daisy import config
-    config = oops_dictconfig.config_from_dict(config.oops_config)
-    install_hooks(config)
-    return make_app(wsgi_handler, config, oops_on_status=['500'])
+    cfg = oops_dictconfig.config_from_dict(config.oops_config)
+    install_hooks(cfg)
+    return make_app(wsgi_handler, cfg, oops_on_status=['500'])
 
 def retraceable_release(release):
     if release.startswith('Ubuntu '):
