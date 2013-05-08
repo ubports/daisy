@@ -37,8 +37,17 @@ amqp_username = ''
 # The AMQP username.
 amqp_password = ''
 
-# The AMQP exchange name.
-amqp_exchange = ''
+# The AMQP host to receive messages from for OOPS reports.
+oops_amqp_host = '127.0.0.1'
+
+# The AMQP username for OOPS reports.
+oops_amqp_username = ''
+
+# The AMQP username for OOPS reports.
+oops_amqp_password = ''
+
+# The AMQP exchange name for OOPS reports.
+oops_amqp_exchange = ''
 
 # The path to the SAN for storing core dumps (deprecated).
 san_path = '/srv/cores'
@@ -145,11 +154,11 @@ oops_config = {
     'publishers': [
         {
             'type': 'amqp',
-            'host': amqp_host,
-            'user': amqp_username,
-            'password': amqp_password,
-            'vhost': amqp_vhost,
-            'exchange_name': amqp_exchange,
+            'host': oops_amqp_host,
+            'user': oops_amqp_username,
+            'password': oops_amqp_password,
+            'vhost': oops_amqp_vhost,
+            'exchange_name': oops_amqp_exchange,
             'routing_key': 'oopses',
         },
         {
