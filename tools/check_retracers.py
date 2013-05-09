@@ -26,7 +26,8 @@ def main():
             print 'Retracers are taking too long to process:'
             msg = 'Currently: %d. Maximum: %d (config.time_to_retrace_alert)'
             print msg % (m, config.time_to_retrace_alert)
-            sys.exit(1)
+            # Nagios uses exit code 1 for WARNING and 2 for CRITICAL.
+            sys.exit(2)
 
 if __name__ == '__main__':
     main()
