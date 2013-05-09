@@ -168,3 +168,8 @@ oops_config = {
         },
     ],
 }
+
+# The upper bound for the time it takes from receiving a core to processing it.
+# Beyond this point, we'll start alerting.
+
+time_to_retrace_alert = 86400 # 1 day in seconds
