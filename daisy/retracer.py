@@ -709,7 +709,7 @@ class Retracer:
 
         time_taken = datetime.datetime.utcnow() - timestamp
         time_taken = time_taken.total_seconds()
-        day_key = timestamp.strftime('%Y%m%d')
+        day_key = time.strftime('%Y%m%d', time.gmtime())
         self.time_to_retrace_fam.insert(day_key, {oops_id: time_taken})
 
     def rebucket(self, crash_signature):
