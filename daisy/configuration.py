@@ -176,3 +176,14 @@ oops_config = {
 # Beyond this point, we'll start alerting.
 
 time_to_retrace_alert = 86400 # 1 day in seconds
+
+# Hooks for relations in charms to contribute their configuration settings.
+try:
+    from db_settings import *
+except ImportError:
+    pass
+
+try:
+    from amqp_settings import *
+except ImportError:
+    pass
