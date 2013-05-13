@@ -49,6 +49,9 @@ oops_amqp_password = ''
 # The AMQP exchange name for OOPS reports.
 oops_amqp_exchange = ''
 
+# The AMQP virtual host for OOPS reports.
+oops_amqp_vhost = ''
+
 # The path to the SAN for storing core dumps (deprecated).
 san_path = '/srv/cores'
 
