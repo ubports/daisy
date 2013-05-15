@@ -3,6 +3,7 @@ from daisy import submit_core
 from daisy import utils
 from daisy import metrics
 from daisy import config
+from daisy.version_middleware import VersionMiddleware
 import re
 
 _pool = None
@@ -73,4 +74,4 @@ def app(environ, start_response):
     else:
         return bad_request_response(start_response, response[1])
 
-application = utils.wrap_in_oops_wsgi(app)
+application = utils.wrap_in_oops_wsgi(VersionMiddleware(app))

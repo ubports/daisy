@@ -35,6 +35,7 @@ import socket
 import re
 from daisy import metrics
 from daisy import utils
+from daisy.version import version_info
 import logging
 from daisy import config
 from oopsrepository import config as oopsconfig
@@ -781,8 +782,11 @@ def main():
 
     options = parse_options()
     if options.output:
+        path = '%s.%s' % (options.output, options.architecture)
+        if 'revno' in version_info:
+            path = '%s.%s' % (path, version_info['revno'])
         sys.stdout.close()
-        sys.stdout = open(options.output, 'a')
+        sys.stdout = open(path, 'a')
         sys.stderr.close()
         sys.stderr = sys.stdout
 
