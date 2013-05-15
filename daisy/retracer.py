@@ -720,11 +720,12 @@ class Retracer:
         given correct crash signature.'''
 
         ids = []
-        try:
-            failed_key = 'failed:' + crash_signature
-            ids = [k for k,v in self.bucket_fam.xget(failed_key)]
-        except NotFoundException:
+        failed_key = 'failed:' + crash_signature
+        ids = [k for k,v in self.bucket_fam.xget(failed_key)]
+
+        if not ids:
             return False
+
         self.bucket(ids, crash_signature)
 
         # We don't have to remove the 'failed:' signature from
