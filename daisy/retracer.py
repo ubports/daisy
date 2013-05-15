@@ -530,6 +530,10 @@ class Retracer:
             for k in col:
                 report[k.encode('UTF-8')] = col[k].encode('UTF-8')
             
+            stacktrace_addr_sig = report['StacktraceAddressSignature']
+            if type(stacktrace_addr_sig) == unicode:
+                stacktrace_addr_sig = stacktrace_addr_sig.encode('utf-8')
+
             release = report.get('DistroRelease', '')
             bad = '[^-a-zA-Z0-9_.() ]+'
             retraceable = utils.retraceable_release(release)
@@ -608,10 +612,6 @@ class Retracer:
             with open('%s.new' % report_path, 'rb') as fp:
                 report.load(fp)
 
-            stacktrace_addr_sig = report['StacktraceAddressSignature']
-            if type(stacktrace_addr_sig) == unicode:
-                stacktrace_addr_sig = stacktrace_addr_sig.encode('utf-8')
-
             crash_signature = report.crash_signature()
             crash_signature = utils.format_crash_signature(crash_signature)
             if crash_signature:
@@ -624,6 +624,7 @@ class Retracer:
                     chunked_insert(self.stack_fam, stacktrace_addr_sig, report)
                 args = (release, day_key, retracing_time, True)
                 self.update_retrace_stats(*args)
+                log('Successfully retraced.')
             else:
                 # Given that we do not as yet keep debugging symbols around for
                 # every package version ever released, it's worth knowing the
@@ -676,6 +677,7 @@ class Retracer:
 
             if crash_signature:
                 if self.rebucket(crash_signature):
+                    log('Recounting %s' % crash_signature)
                     self.recount(crash_signature, msg.channel)
         finally:
             rm_eff('%s.new' % report_path)
@@ -746,6 +748,7 @@ class Retracer:
             try:
                 o = self.oops_fam.get(oops_id)
             except NotFoundException:
+                log('Could not find %s for %s.' % (oops_id, crash_signature))
                 o = {}
             utils.bucket(self.oops_config, oops_id, crash_signature, o)
 
