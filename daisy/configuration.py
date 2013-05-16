@@ -187,3 +187,8 @@ try:
     from amqp_settings import *
 except ImportError:
     pass
+
+try:
+    from postgres_settings import *
+except ImportError:
+    pass
