@@ -177,6 +177,10 @@ oops_config = {
 
 time_to_retrace_alert = 86400 # 1 day in seconds
 
+
+# Secret key for errors.ubuntu.com
+errors_secret_key = ''
+
 # Hooks for relations in charms to contribute their configuration settings.
 try:
     from db_settings import *
