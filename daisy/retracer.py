@@ -45,6 +45,9 @@ import datetime
 LOGGING_FORMAT = ('%(asctime)s:%(process)d:%(thread)d'
                   ':%(levelname)s:%(name)s:%(message)s')
 
+_cached_swift = None
+_cached_s3 = None
+
 def log(message, level=logging.INFO):
     logging.log(level, message)
 
@@ -294,20 +297,24 @@ class Retracer:
             log(traceback.format_exc())
 
     def write_swift_bucket_to_disk(self, key, provider_data):
+        global _cached_swift
         import swiftclient
         opts = {'tenant_name': provider_data['os_tenant_name'],
                 'region_name': provider_data['os_region_name']}
-        conn = swiftclient.client.Connection(provider_data['os_auth_url'],
-                                             provider_data['os_username'],
-                                             provider_data['os_password'],
-                                             os_options=opts,
-                                             auth_version='2.0')
+        if not _cached_swift:
+            _cached_swift = swiftclient.client.Connection(
+                        provider_data['os_auth_url'],
+                        provider_data['os_username'],
+                        provider_data['os_password'],
+                        os_options=opts,
+                        auth_version='2.0')
         fmt = '-{}.{}.oopsid'.format(provider_data['type'], key)
         fd, path = tempfile.mkstemp(fmt)
         os.close(fd)
         bucket = provider_data['bucket']
         try:
-            headers, body = conn.get_object(bucket, key, resp_chunk_size=65536)
+            headers, body = _cached_swift.get_object(bucket, key,
+                                                     resp_chunk_size=65536)
             with open(path, 'wb') as fp:
                 for chunk in body:
                     fp.write(chunk)
@@ -320,30 +327,35 @@ class Retracer:
             return None
 
     def remove_from_swift(self, key, provider_data):
+        global _cached_swift
         import swiftclient
         opts = {'tenant_name': provider_data['os_tenant_name'],
                 'region_name': provider_data['os_region_name']}
         try:
-            conn = swiftclient.client.Connection(provider_data['os_auth_url'],
-                                                 provider_data['os_username'],
-                                                 provider_data['os_password'],
-                                                 os_options=opts,
-                                                 auth_version='2.0')
+            if not _cached_swift:
+                _cached_swift = swiftclient.client.Connection(
+                            provider_data['os_auth_url'],
+                            provider_data['os_username'],
+                            provider_data['os_password'], os_options=opts,
+                            auth_version='2.0')
             bucket = provider_data['bucket']
-            conn.delete_object(bucket, key)
+            _cached_swift.delete_object(bucket, key)
         except swiftclient.client.ClientException:
             log('Could not remove %s (swift):' % key)
             log(traceback.format_exc())
 
     def write_s3_bucket_to_disk(self, key, provider_data):
+        global _cached_s3
         from boto.s3.connection import S3Connection
         from boto.exception import S3ResponseError
 
-        conn = S3Connection(aws_access_key_id=provider_data['aws_access_key'],
-                            aws_secret_access_key=provider_data['aws_secret_key'],
-                            host=provider_data['host'])
+        if not _cached_s3:
+            _cached_s3 = S3Connection(
+                    aws_access_key_id=provider_data['aws_access_key'],
+                    aws_secret_access_key=provider_data['aws_secret_key'],
+                    host=provider_data['host'])
         try:
-            bucket = conn.get_bucket(provider_data['bucket'])
+            bucket = _cached_s3.get_bucket(provider_data['bucket'])
             key = bucket.get_key(key)
         except S3ResponseError:
             log('Could not retrieve %s (s3):' % key)
@@ -359,15 +371,17 @@ class Retracer:
         return path
 
     def remove_from_s3(self, key, provider_data):
+        global _cached_s3
         from boto.s3.connection import S3Connection
         from boto.exception import S3ResponseError
 
         try:
-            conn = S3Connection(
+            if not _cached_s3:
+                _cached_s3 = S3Connection(
                     aws_access_key_id=provider_data['aws_access_key'],
                     aws_secret_access_key=provider_data['aws_secret_key'],
                     host=provider_data['host'])
-            bucket = conn.get_bucket(provider_data['bucket'])
+            bucket = _cached_s3.get_bucket(provider_data['bucket'])
             key = bucket.get_key(key)
             key.delete()
         except S3ResponseError:
