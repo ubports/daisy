@@ -374,40 +374,6 @@ class Retracer:
             log('Could not remove %s (s3):' % key)
             log(traceback.format_exc())
 
-    def legacy_write_bucket_to_disk(self, msg):
-        path = ''
-        if not msg.body.startswith('/'):
-            oops_id = msg.body
-            if getattr(config, 'swift_bucket', ''):
-                provider_data = {
-                    'type': 'swift',
-                    'bucket': config.swift_bucket,
-                    'os_auth_url': config.os_auth_url,
-                    'os_username': config.os_username,
-                    'os_password': config.os_password,
-                    'os_tenant_name': config.os_tenant_name,
-                    'os_region_name': config.os_region_name}
-                path = self.write_swift_bucket_to_disk(msg, provider_data)
-            elif getattr(config, 'ec2_bucket', ''):
-                provider_data = {
-                    'type': 's3',
-                    'host': config.ec2_host,
-                    'bucket': config.ec2_bucket,
-                    'aws_access_key': config.aws_access_key,
-                    'aws_secret_key': config.aws_secret_key}
-                path = self.write_s3_bucket_to_disk(oops_id, provider_data)
-            else:
-                # Bail out.
-                log('Neither swift_bucket or ec2_bucket set.')
-                sys.exit(1)
-        else:
-            path, key = msg.body.rsplit('/', 1)
-            provider_data = {
-                'path': path,
-                'type': 'local'}
-            path = self.write_local_to_disk(key, provider_data)
-        return path
-
     def write_local_to_disk(self, key, provider_data):
         path = os.path.join(provider_data['path'], key)
         fmt = '-{}.{}.oopsid'.format(provider_data['type'], key)
@@ -453,43 +419,12 @@ class Retracer:
         elif t == 'local':
             self.remove_from_local(oops_id, provider_data)
 
-    def legacy_remove(self, msg):
-        if not msg.body.startswith('/'):
-            oops_id = msg.body
-            if getattr(config, 'swift_bucket', ''):
-                provider_data = {
-                    'bucket': config.swift_bucket,
-                    'os_auth_url': config.os_auth_url,
-                    'os_username': config.os_username,
-                    'os_password': config.os_password,
-                    'os_tenant_name': config.os_tenant_name,
-                    'os_region_name': config.os_region_name}
-                self.remove_from_swift(msg, provider_data)
-            elif getattr(config, 'ec2_bucket', ''):
-                provider_data = {
-                    'host': config.ec2_host,
-                    'bucket': config.ec2_bucket,
-                    'aws_access_key': config.aws_access_key,
-                    'aws_secret_key': config.aws_secret_key}
-                self.remove_from_s3(oops_id, provider_data)
-            else:
-                # Bail out.
-                log('Neither swift_bucket or ec2_bucket set.')
-                sys.exit(1)
-        else:
-            rm_eff(msg.body)
-
     @prefix_log_with_amqp_message
     def callback(self, msg):
         log('Processing.')
         parts = msg.body.split(':', 1)
-        if len(parts) > 1:
-            oops_id, provider = parts
-            path = self.write_bucket_to_disk(*parts)
-        else:
-            # Compatibility with the existing items on the queue.
-            oops_id = msg.body.rsplit('/', 1)[1]
-            path = self.legacy_write_bucket_to_disk(msg)
+        oops_id, provider = parts
+        path = self.write_bucket_to_disk(*parts)
 
         if not path or not os.path.exists(path):
             log('Could not find %s' % path)
@@ -688,12 +623,8 @@ class Retracer:
     def processed(self, msg):
         parts = msg.body.split(':', 1)
         oops_id = None
-        if len(parts) > 1:
-            oops_id, provider = parts
-            self.remove(*parts)
-        else:
-            # Compatibility with the existing items on the queue.
-            self.legacy_remove(msg)
+        oops_id, provider = parts
+        self.remove(*parts)
 
         # We've processed this. Delete it off the MQ.
         msg.channel.basic_ack(msg.delivery_tag)
