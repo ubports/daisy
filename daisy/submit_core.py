@@ -26,6 +26,9 @@ from daisy import config
 import sys
 import datetime
 
+_cached_swift = None
+_cached_s3 = None
+
 def write_policy_allow(oops_id, bytes_used, provider_data):
     if (provider_data.get('usage_max_mb')):
         usage_max = provider_data['usage_max_mb']*1024*1024
@@ -42,34 +45,38 @@ def write_policy_allow(oops_id, bytes_used, provider_data):
     return True
 
 def swift_delete_ignoring_error(conn, bucket, oops_id):
+    global _cached_swift
     import swiftclient
     try:
-        conn.delete_object(bucket, oops_id)
+        _cached_swift.delete_object(bucket, oops_id)
     except swiftclient.ClientException:
         pass
 
 def write_to_swift(fileobj, oops_id, provider_data):
     '''Write the core file to OpenStack Swift.'''
+    global _cached_swift
     import swiftclient
     opts = {'tenant_name': provider_data['os_tenant_name'],
             'region_name': provider_data['os_region_name']}
-    conn = swiftclient.client.Connection(provider_data['os_auth_url'],
+    if not _cached_swift:
+        _cached_swift = swiftclient.client.Connection(
+                                         provider_data['os_auth_url'],
                                          provider_data['os_username'],
                                          provider_data['os_password'],
                                          os_options=opts,
                                          auth_version='2.0')
     bucket = provider_data['bucket']
     if (provider_data.get('usage_max_mb')):
-        headers = conn.head_account()
+        headers = _cached_swift.head_account()
         bytes_used = int(headers.get('x-account-bytes-used', 0))
         if (not write_policy_allow(oops_id, bytes_used, provider_data)):
             return False
 
-    conn.put_container(bucket)
+    _cached_swift.put_container(bucket)
     try:
         # Don't set a content_length (that we don't have) to force a chunked
         # transfer.
-        conn.put_object(bucket, oops_id, fileobj)
+        _cached_swift.put_object(bucket, oops_id, fileobj)
     except IOError, e:
         swift_delete_ignoring_error(conn, bucket, oops_id)
         if e.message == 'request data read error':
@@ -89,17 +96,20 @@ def s3_delete_ignoring_error(bucket, oops_id):
         pass
 
 def write_to_s3(fileobj, oops_id, provider_data):
+    global _cached_s3
     '''Write the core file to Amazon S3.'''
     from boto.s3.connection import S3Connection
     from boto.exception import S3ResponseError
 
-    conn = S3Connection(aws_access_key_id=provider_data['aws_access_key'],
+    if not _cached_s3:
+        _cached_s3 = S3Connection(
+                        aws_access_key_id=provider_data['aws_access_key'],
                         aws_secret_access_key=provider_data['aws_secret_key'],
                         host=provider_data['host'])
     try:
-        bucket = conn.get_bucket(provider_data['bucket'])
+        bucket = _cached_s3.get_bucket(provider_data['bucket'])
     except S3ResponseError:
-        bucket = conn.create_bucket(provider_data['bucket'])
+        bucket = _cached_s3.create_bucket(provider_data['bucket'])
 
     key = bucket.new_key(oops_id)
     try:
