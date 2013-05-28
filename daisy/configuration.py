@@ -52,6 +52,9 @@ oops_amqp_exchange = ''
 # The AMQP virtual host for OOPS reports.
 oops_amqp_vhost = ''
 
+# The AMQP routing key (queue) for OOPS reports.
+oops_amqp_routing_key = 'oopses'
+
 # The path to the SAN for storing core dumps (deprecated).
 san_path = '/srv/cores'
 
@@ -162,7 +165,7 @@ oops_config = {
             'password': oops_amqp_password,
             'vhost': oops_amqp_vhost,
             'exchange_name': oops_amqp_exchange,
-            'routing_key': 'oopses',
+            'routing_key': oops_amqp_routing_key,
         },
         {
             'type': 'datedir',
