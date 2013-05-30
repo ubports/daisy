@@ -13,7 +13,8 @@ creds = {'username': config.cassandra_username,
          'password': config.cassandra_password}
 pool = pycassa.ConnectionPool(config.cassandra_keyspace,
                               config.cassandra_hosts, timeout=10,
-                              max_retries=100, credentials=creds)
+                              # Will retry for up to three hours.
+                              max_retries=20, credentials=creds)
 
 oops_cf = pycassa.ColumnFamily(pool, 'OOPS')
 firsterror = None
