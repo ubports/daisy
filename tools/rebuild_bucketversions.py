@@ -16,7 +16,8 @@ creds = {'username': config.cassandra_username,
          'password': config.cassandra_password}
 pool = pycassa.ConnectionPool(config.cassandra_keyspace,
                               config.cassandra_hosts, timeout=60,
-                              pool_size=15, max_retries=100, credentials=creds)
+                              listeners=[VerboseListener()],
+                              pool_size=15, max_retries=20, credentials=creds)
 
 oops_cf = pycassa.ColumnFamily(pool, 'OOPS')
 indexes_cf = pycassa.ColumnFamily(pool, 'Indexes')
