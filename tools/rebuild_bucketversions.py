@@ -7,6 +7,7 @@ import pycassa
 from pycassa.cassandra.ttypes import NotFoundException
 from daisy.utils import split_package_and_version
 from daisy import config
+from daisy.metrics import VerboseListener
 from collections import defaultdict
 import argparse
 import uuid
