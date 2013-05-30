@@ -5,6 +5,7 @@ import pycassa
 import uuid
 from pycassa.cassandra.ttypes import NotFoundException
 from daisy import config
+from daisy.metrics import VerboseListener
 from collections import Counter
 import argparse
 import sys
@@ -13,6 +14,7 @@ creds = {'username': config.cassandra_username,
          'password': config.cassandra_password}
 pool = pycassa.ConnectionPool(config.cassandra_keyspace,
                               config.cassandra_hosts, timeout=10,
+                              listeners=[VerboseListener()],
                               # Will retry for up to three hours.
                               max_retries=20, credentials=creds)
 

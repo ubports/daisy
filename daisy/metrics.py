@@ -16,6 +16,26 @@ def get_metrics():
         METRICS = Metrics(connection=connection, namespace='whoopsie-daisy.daisy')
     return METRICS
 
+class VerboseListener(pycassa.pool.PoolListener):
+    def connection_checked_in(self, dic):
+        print 'connection_checked_in', dic
+    def connection_checked_out(self, dic):
+        print 'connection_checked_out', dic
+    def connection_created(self, dic):
+        print 'connection_created', dic
+    def connection_disposed(self, dic):
+        print 'connection_disposed', dic
+    def connection_failed(self, dic):
+        print 'connection_failed', dic
+    def connection_recycled(self, dic):
+        print 'connection_recycled', dic
+    def pool_at_max(self, dic):
+        print 'pool_at_max', dic
+    def pool_disposed(self, dic):
+        print 'pool_disposed', dic
+    def server_list_obtained(self, dic):
+        print 'server_list_obtained', dic
+
 class FailureListener(pycassa.pool.PoolListener):
     def connection_failed(self, dic):
         name = 'cassandra_connection_failures'
