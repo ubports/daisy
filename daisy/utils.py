@@ -125,6 +125,7 @@ def wrap_in_oops_wsgi(wsgi_handler):
     from oops_wsgi import install_hooks, make_app
     from daisy import config
     cfg = oops_dictconfig.config_from_dict(config.oops_config)
+    cfg.template['reporter'] = 'daisy'
     install_hooks(cfg)
     return make_app(wsgi_handler, cfg, oops_on_status=['500'])
 
