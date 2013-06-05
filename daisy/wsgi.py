@@ -49,6 +49,12 @@ def app(environ, start_response):
         _pool = metrics.failure_wrapped_connection_pool()
 
     path = environ.get('PATH_INFO', '')
+    if path == '/oops-please':
+        if environ.get('REMOTE_ADDR') == '127.0.0.1':
+            raise Exception('User requested OOPS.')
+        else:
+            return bad_request_response(start_response, 'Not allowed.')
+
     components = path.split('/')
     l = len(components)
 
