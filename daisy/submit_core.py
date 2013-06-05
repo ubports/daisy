@@ -83,7 +83,8 @@ def write_to_swift(fileobj, oops_id, provider_data):
             return False
         else:
             raise
-    except swiftclient.ClientException:
+    except swiftclient.ClientException as e:
+        print >>sys.stderr, 'Exception when trying to add to bucket:', str(e)
         swift_delete_ignoring_error(bucket, oops_id)
         return False
     return True
