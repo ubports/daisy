@@ -25,6 +25,7 @@ import random
 from daisy import config
 import sys
 import datetime
+from daisy.metrics import get_metrics
 
 _cached_swift = None
 _cached_s3 = None
@@ -82,9 +83,11 @@ def write_to_swift(fileobj, oops_id, provider_data):
         if e.message == 'request data read error':
             return False
         else:
+            get_metrics().increment('swift_ioerror')
             raise
     except swiftclient.ClientException as e:
         print >>sys.stderr, 'Exception when trying to add to bucket:', str(e)
+        get_metrics().increment('swift_client_exception')
         swift_delete_ignoring_error(bucket, oops_id)
         return False
     return True
