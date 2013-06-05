@@ -44,7 +44,7 @@ def write_policy_allow(oops_id, bytes_used, provider_data):
             return False
     return True
 
-def swift_delete_ignoring_error(conn, bucket, oops_id):
+def swift_delete_ignoring_error(bucket, oops_id):
     global _cached_swift
     import swiftclient
     try:
@@ -78,13 +78,13 @@ def write_to_swift(fileobj, oops_id, provider_data):
         # transfer.
         _cached_swift.put_object(bucket, oops_id, fileobj)
     except IOError, e:
-        swift_delete_ignoring_error(conn, bucket, oops_id)
+        swift_delete_ignoring_error(bucket, oops_id)
         if e.message == 'request data read error':
             return False
         else:
             raise
     except swiftclient.ClientException:
-        swift_delete_ignoring_error(conn, bucket, oops_id)
+        swift_delete_ignoring_error(bucket, oops_id)
         return False
     return True
 
