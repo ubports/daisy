@@ -1,7 +1,7 @@
 #!/usr/bin/python
 from txstatsd.client import UdpStatsDClient
 from txstatsd.metrics.metrics import Metrics
-from datetime.datetime import now
+from datetime import datetime
 
 import pycassa
 
@@ -19,23 +19,23 @@ def get_metrics():
 
 class VerboseListener(pycassa.pool.PoolListener):
     def connection_checked_in(self, dic):
-        print now(), 'connection_checked_in', dic
+        print datetime.now(), 'connection_checked_in', dic
     def connection_checked_out(self, dic):
-        print now(), 'connection_checked_out', dic
+        print datetime.now(), 'connection_checked_out', dic
     def connection_created(self, dic):
-        print now(), 'connection_created', dic
+        print datetime.now(), 'connection_created', dic
     def connection_disposed(self, dic):
-        print now(), 'connection_disposed', dic
+        print datetime.now(), 'connection_disposed', dic
     def connection_failed(self, dic):
-        print now(), 'connection_failed', dic
+        print datetime.now(), 'connection_failed', dic
     def connection_recycled(self, dic):
-        print now(), 'connection_recycled', dic
+        print datetime.now(), 'connection_recycled', dic
     def pool_at_max(self, dic):
-        print now(), 'pool_at_max', dic
+        print datetime.now(), 'pool_at_max', dic
     def pool_disposed(self, dic):
-        print now(), 'pool_disposed', dic
+        print datetime.now(), 'pool_disposed', dic
     def server_list_obtained(self, dic):
-        print now(), 'server_list_obtained', dic
+        print datetime.now(), 'server_list_obtained', dic
 
 class FailureListener(pycassa.pool.PoolListener):
     def connection_failed(self, dic):
