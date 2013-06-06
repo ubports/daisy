@@ -53,7 +53,7 @@ def swift_delete_ignoring_error(bucket, oops_id):
     except swiftclient.ClientException:
         pass
 
-def write_to_swift(fileobj, oops_id, provider_data):
+def write_to_swift(environ, fileobj, oops_id, provider_data):
     '''Write the core file to OpenStack Swift.'''
     global _cached_swift
     import swiftclient
@@ -70,6 +70,10 @@ def write_to_swift(fileobj, oops_id, provider_data):
     if (provider_data.get('usage_max_mb')):
         headers = _cached_swift.head_account()
         bytes_used = int(headers.get('x-account-bytes-used', 0))
+        # Keep a reference to the number of bytes used by swift in a possible
+        # future OOPS report. We may find that a series of OOPSes are actually
+        # related to heavy load on Swift, as has been the case before.
+        environ['swift.bytes_used'] = bytes_used
         if (not write_policy_allow(oops_id, bytes_used, provider_data)):
             return False
 
@@ -158,7 +162,7 @@ def write_to_local(fileobj, oops_id, provider_data):
             pass
         return False
 
-def write_to_storage_provider(fileobj, uuid):
+def write_to_storage_provider(environ, fileobj, uuid):
     # We trade deteriminism for forgetfulness and make up for it by passing the
     # decision along with the UUID as part of the queue message.
     r = random.randint(1, 100)
@@ -173,7 +177,7 @@ def write_to_storage_provider(fileobj, uuid):
     message = uuid
     t = provider_data['type']
     if t == 'swift':
-        written = write_to_swift(fileobj, uuid, provider_data)
+        written = write_to_swift(environ, fileobj, uuid, provider_data)
     elif t == 's3':
         written = write_to_s3(fileobj, uuid, provider_data)
     elif t == 'local':
@@ -186,7 +190,7 @@ def write_to_storage_provider(fileobj, uuid):
     else:
         return None
 
-def submit(_pool, fileobj, uuid, arch):
+def submit(_pool, environ, fileobj, uuid, arch):
     indexes_fam = pycassa.ColumnFamily(_pool, 'Indexes')
     oops_fam = pycassa.ColumnFamily(_pool, 'OOPS')
 
@@ -202,7 +206,7 @@ def submit(_pool, fileobj, uuid, arch):
         return (False, msg)
 
 
-    message = write_to_storage_provider(fileobj, uuid)
+    message = write_to_storage_provider(environ, fileobj, uuid)
     if not message:
         return (False, '')
 

@@ -20,7 +20,7 @@ def bad_request_response(start_response, text=''):
     start_response('400 Bad Request', [])
     return [text]
 
-def handle_core_dump(_pool, fileobj, components, content_type):
+def handle_core_dump(_pool, environ, fileobj, components, content_type):
     l = len(components)
     operation = ''
     if l >= 4:
@@ -41,7 +41,7 @@ def handle_core_dump(_pool, fileobj, components, content_type):
     uuid = path_filter.sub('', uuid)
     arch = path_filter.sub('', arch)
 
-    return submit_core.submit(_pool, fileobj, uuid, arch)
+    return submit_core.submit(_pool, environ, fileobj, uuid, arch)
 
 def app(environ, start_response):
     global _pool
@@ -73,7 +73,7 @@ def app(environ, start_response):
         # A core dump submission.
         content_type = environ.get('CONTENT_TYPE', '')
         fileobj = environ['wsgi.input']
-        response = handle_core_dump(_pool, fileobj, components, content_type)
+        response = handle_core_dump(_pool, environ, fileobj, components, content_type)
 
     if response[0]:
         return ok_response(start_response, response[1])
