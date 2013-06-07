@@ -41,7 +41,7 @@ class VerboseListener(pycassa.pool.PoolListener):
 class FailureListener(pycassa.pool.PoolListener):
     def connection_failed(self, dic):
         name = 'cassandra_connection_failures'
-        get_metrics().increment(name)
+        get_metrics().meter(name)
 
 # TODO: Specifying a separate namespace for the retracers.
 def failure_wrapped_connection_pool():

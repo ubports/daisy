@@ -49,7 +49,7 @@ def swift_delete_ignoring_error(conn, bucket, oops_id):
     try:
         conn.delete_object(bucket, oops_id)
     except swiftclient.ClientException:
-        get_metrics().increment('swift_delete_error')
+        get_metrics().meter('swift_delete_error')
 
 def write_to_swift(environ, fileobj, oops_id, provider_data):
     '''Write the core file to OpenStack Swift.'''
@@ -83,11 +83,11 @@ def write_to_swift(environ, fileobj, oops_id, provider_data):
         if e.message == 'request data read error':
             return False
         else:
-            get_metrics().increment('swift_ioerror')
+            get_metrics().meter('swift_ioerror')
             raise
     except swiftclient.ClientException as e:
         print >>sys.stderr, 'Exception when trying to add to bucket:', str(e)
-        get_metrics().increment('swift_client_exception')
+        get_metrics().meter('swift_client_exception')
         swift_delete_ignoring_error(conn, bucket, oops_id)
         return False
     return True
