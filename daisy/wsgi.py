@@ -46,7 +46,7 @@ def handle_core_dump(_pool, environ, fileobj, components, content_type):
 def app(environ, start_response):
     global _pool
     if not _pool:
-        _pool = metrics.failure_wrapped_connection_pool()
+        _pool = metrics.wrapped_connection_pool()
 
     path = environ.get('PATH_INFO', '')
     if path == '/oops-please':

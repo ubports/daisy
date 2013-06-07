@@ -136,7 +136,7 @@ class Retracer:
         self.oops_config['username'] = config.cassandra_username
         self.oops_config['password'] = config.cassandra_password
 
-        self.pool = metrics.failure_wrapped_connection_pool()
+        self.pool = metrics.wrapped_connection_pool('retracer')
         self.oops_fam = ColumnFamily(self.pool, 'OOPS')
         self.indexes_fam = ColumnFamily(self.pool, 'Indexes')
         self.stack_fam = ColumnFamily(self.pool, 'Stacktrace')

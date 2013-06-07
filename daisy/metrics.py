@@ -8,14 +8,15 @@ import pycassa
 from daisy import config
 
 METRICS = None
-def get_metrics():
+def get_metrics(namespace='daisy'):
     global METRICS
     if METRICS is None:
         # Always specify the port. It does not default to a sensible value.
         connection = UdpStatsDClient(host=config.statsd_host,
                                      port=config.statsd_port)
         connection.connect()
-        METRICS = Metrics(connection=connection, namespace='whoopsie-daisy.daisy')
+        namespace = 'whoopsie-daisy.' + namespace
+        METRICS = Metrics(connection=connection, namespace=namespace)
     return METRICS
 
 class VerboseListener(pycassa.pool.PoolListener):
@@ -38,18 +39,29 @@ class VerboseListener(pycassa.pool.PoolListener):
     def server_list_obtained(self, dic):
         print datetime.now(), 'server_list_obtained', dic
 
-class FailureListener(pycassa.pool.PoolListener):
+class MeteredListener(pycassa.pool.PoolListener):
+    def __init__(self, namespace):
+        self.namespace = namespace
+    def connection_created(self, dic):
+        name = 'cassandra_connection_creations'
+        get_metrics(self.namespace).meter(name)
+    def connection_disposed(self, dic):
+        name = 'cassandra_connection_disposals'
+        get_metrics(self.namespace).meter(name)
     def connection_failed(self, dic):
         name = 'cassandra_connection_failures'
-        get_metrics().meter(name)
+        get_metrics(self.namespace).meter(name)
+    def pool_at_max(self, dic):
+        name = 'cassandra_pool_at_max'
+        get_metrics(self.namespace).meter(name)
 
-# TODO: Specifying a separate namespace for the retracers.
-def failure_wrapped_connection_pool():
+def wrapped_connection_pool(namespace='daisy'):
     creds = {'username': config.cassandra_username,
              'password': config.cassandra_password}
     return pycassa.ConnectionPool(config.cassandra_keyspace,
                                   config.cassandra_hosts,
-                                  listeners=[FailureListener()], timeout=30,
+                                  listeners=[MeteredListener(namespace)],
+                                  timeout=30,
                                   # I have no idea why max_retries is
                                   # evaluating as 0 when not set, but here we
                                   # are, brute forcing this.
