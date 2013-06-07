@@ -11,6 +11,7 @@ METRICS = None
 def get_metrics():
     global METRICS
     if METRICS is None:
+        # Always specify the port. It does not default to a sensible value.
         connection = UdpStatsDClient(host=config.statsd_host,
                                      port=config.statsd_port)
         connection.connect()

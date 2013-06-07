@@ -27,7 +27,6 @@ import sys
 import datetime
 from daisy.metrics import get_metrics
 
-_cached_swift = None
 _cached_s3 = None
 
 def write_policy_allow(oops_id, bytes_used, provider_data):
@@ -45,30 +44,27 @@ def write_policy_allow(oops_id, bytes_used, provider_data):
             return False
     return True
 
-def swift_delete_ignoring_error(bucket, oops_id):
-    global _cached_swift
+def swift_delete_ignoring_error(conn, bucket, oops_id):
     import swiftclient
     try:
-        _cached_swift.delete_object(bucket, oops_id)
+        conn.delete_object(bucket, oops_id)
     except swiftclient.ClientException:
-        pass
+        get_metrics().increment('swift_delete_error')
 
 def write_to_swift(environ, fileobj, oops_id, provider_data):
     '''Write the core file to OpenStack Swift.'''
-    global _cached_swift
     import swiftclient
     opts = {'tenant_name': provider_data['os_tenant_name'],
             'region_name': provider_data['os_region_name']}
-    if not _cached_swift:
-        _cached_swift = swiftclient.client.Connection(
-                                         provider_data['os_auth_url'],
-                                         provider_data['os_username'],
-                                         provider_data['os_password'],
-                                         os_options=opts,
-                                         auth_version='2.0')
+    conn = swiftclient.client.Connection(
+                                     provider_data['os_auth_url'],
+                                     provider_data['os_username'],
+                                     provider_data['os_password'],
+                                     os_options=opts,
+                                     auth_version='2.0')
     bucket = provider_data['bucket']
     if (provider_data.get('usage_max_mb')):
-        headers = _cached_swift.head_account()
+        headers = conn.head_account()
         bytes_used = int(headers.get('x-account-bytes-used', 0))
         # Keep a reference to the number of bytes used by swift in a possible
         # future OOPS report. We may find that a series of OOPSes are actually
@@ -77,13 +73,13 @@ def write_to_swift(environ, fileobj, oops_id, provider_data):
         if (not write_policy_allow(oops_id, bytes_used, provider_data)):
             return False
 
-    _cached_swift.put_container(bucket)
+    conn.put_container(bucket)
     try:
         # Don't set a content_length (that we don't have) to force a chunked
         # transfer.
-        _cached_swift.put_object(bucket, oops_id, fileobj)
+        conn.put_object(bucket, oops_id, fileobj)
     except IOError, e:
-        swift_delete_ignoring_error(bucket, oops_id)
+        swift_delete_ignoring_error(conn, bucket, oops_id)
         if e.message == 'request data read error':
             return False
         else:
@@ -92,7 +88,7 @@ def write_to_swift(environ, fileobj, oops_id, provider_data):
     except swiftclient.ClientException as e:
         print >>sys.stderr, 'Exception when trying to add to bucket:', str(e)
         get_metrics().increment('swift_client_exception')
-        swift_delete_ignoring_error(bucket, oops_id)
+        swift_delete_ignoring_error(conn, bucket, oops_id)
         return False
     return True
 
