@@ -1,6 +1,5 @@
 from oopsrepository import oopses
 import apt
-import os
 import uuid
 
 def get_fields_for_bucket_counters(problem_type, release, package, version):
@@ -77,7 +76,7 @@ def bucket(oops_config, oops_id, crash_signature, report_dict):
 
     fields = get_fields_for_bucket_counters(problem_type, release, package, version)
 
-    if version and version != '':
+    if version:
         oopses.update_bucket_systems(oops_config, crash_signature, version,
             system_uuid)
 

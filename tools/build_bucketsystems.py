@@ -16,7 +16,7 @@ pool = pycassa.ConnectionPool(config.cassandra_keyspace,
 
 oops_cf = pycassa.ColumnFamily(pool, 'OOPS')
 bucket_cf = pycassa.ColumnFamily(pool, 'Bucket')
-bucketsystems_cf = pycassa.ColumnFamily(pool, 'BucketSystems')
+bucketversionsystems_cf = pycassa.ColumnFamily(pool, 'BucketVersionSystems')
 
 cols = ['SystemIdentifier', 'Package']
 counts = 0
@@ -74,5 +74,5 @@ for bucket, instances in bucket_cf.get_range(include_timestamp=True,
             key = (to_utf8(bucket), to_utf8(version))
             #print('Would insert %s = {%s, ""}' % (key, to_utf8(system)))
             insertions.append((system, version))
-            bucketsystems_cf.insert({key, system: ''})
+            bucketversionsystems_cf.insert({key, system: ''})
 print_totals(force=True)
