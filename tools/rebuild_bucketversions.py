@@ -158,7 +158,14 @@ def repair_sas(key, o, report):
     preventing the SAS from being generated. There are at least 796,000 reports
     in the database that are missing one. Repair them, if possible.'''
 
-    sas = report.crash_signature_addresses()
+    sas = None
+    try:
+        sas = report.crash_signature_addresses()
+    except:
+        import traceback
+        print('Could not generate crash_signature_addresses for:', key)
+        traceback.print_exc()
+
     if not sas:
         counts['could_not_repair_sas'] += 1
         return False
