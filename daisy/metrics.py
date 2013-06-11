@@ -62,7 +62,6 @@ def wrapped_connection_pool(namespace='daisy'):
                                   config.cassandra_hosts,
                                   listeners=[MeteredListener(namespace)],
                                   timeout=30,
-                                  # I have no idea why max_retries is
-                                  # evaluating as 0 when not set, but here we
-                                  # are, brute forcing this.
-                                  max_retries=5, credentials=creds)
+                                  # Pycassa will sleep for 10.24 seconds before
+                                  # the last retry.
+                                  max_retries=10, credentials=creds)
