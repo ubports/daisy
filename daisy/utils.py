@@ -1,6 +1,5 @@
 from oopsrepository import oopses
 import apt
-import os
 import uuid
 
 def get_fields_for_bucket_counters(problem_type, release, package, version):
@@ -76,17 +75,10 @@ def bucket(oops_config, oops_id, crash_signature, report_dict):
         package, version = split_package_and_version(package)
 
     fields = get_fields_for_bucket_counters(problem_type, release, package, version)
-    bucket_versions = oopses.query_bucket_versions(oops_config,
-                                                   crash_signature)
-    bucket_versions = list(bucket_versions)
-    if bucket_versions:
-        first_version, version_count = sorted(bucket_versions,
-            cmp=apt.apt_pkg.version_compare, key=lambda t: t[0])[0]
-    else:
-        # it doesn't exist in bucketversions so we want to create it
-        first_version = version
-    if version == first_version:
-        oopses.update_bucket_systems(oops_config, crash_signature, system_uuid)
+
+    if version:
+        oopses.update_bucket_systems(oops_config, crash_signature, system_uuid,
+                                     version=version)
 
     oopses.bucket(oops_config, oops_id, crash_signature, fields)
 

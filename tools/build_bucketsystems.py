@@ -5,6 +5,7 @@ import pycassa
 import sys
 
 from daisy import config
+from daisy.utils import split_package_and_version
 from collections import Counter
 
 creds = {'username': config.cassandra_username,
@@ -15,9 +16,9 @@ pool = pycassa.ConnectionPool(config.cassandra_keyspace,
 
 oops_cf = pycassa.ColumnFamily(pool, 'OOPS')
 bucket_cf = pycassa.ColumnFamily(pool, 'Bucket')
-bucketsystems_cf = pycassa.ColumnFamily(pool, 'BucketSystems')
+bucketversionsystems_cf = pycassa.ColumnFamily(pool, 'BucketVersionSystems')
 
-cols = ['SystemIdentifier']
+cols = ['SystemIdentifier', 'Package']
 counts = 0
 
 wait_amount = 30000000
@@ -45,12 +46,15 @@ def to_utf8(string):
         string = string.encode('utf-8')
     return string
 
-for bucket, instances in bucket_cf.get_range(include_timestamp=True, buffer_size=2*1024):
+for bucket, instances in bucket_cf.get_range(include_timestamp=True,
+        buffer_size=2*1024):
     print_totals()
     str_instances = [str(instance) for instance in instances]
     counts += 1
     #if counts > 1000:
     #    break
+    # keep track of (system, version) as we only want to count each system once
+    # per version
     insertions = []
     for instance in chunks(str_instances, 3):
         oopses = oops_cf.multiget(instance, columns=cols)
@@ -59,9 +63,16 @@ for bucket, instances in bucket_cf.get_range(include_timestamp=True, buffer_size
             if Counter(cols) != Counter(data.keys()):
                 continue
             system = data.get('SystemIdentifier')
-            if system in insertions:
+            package = data.get('Package', '')
+            version = None
+            if package:
+                package, version = split_package_and_version(package)
+            if version == '':
                 continue
-            #print('Would insert %s = {%s, ""}' % (to_utf8(bucket), to_utf8(system)))
-            insertions.append(system)
-            bucketsystems_cf.insert({to_utf8(bucket), system: ''})
+            if (system, version) in insertions:
+                continue
+            key = (to_utf8(bucket), to_utf8(version))
+            #print('Would insert %s = {%s, ""}' % (key, to_utf8(system)))
+            insertions.append((system, version))
+            bucketversionsystems_cf.insert({key, system: ''})
 print_totals(force=True)
