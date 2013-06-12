@@ -16,7 +16,7 @@ pool = pycassa.ConnectionPool(config.cassandra_keyspace,
 
 oops_cf = pycassa.ColumnFamily(pool, 'OOPS')
 bucket_cf = pycassa.ColumnFamily(pool, 'Bucket')
-bucketversionsystems_cf = pycassa.ColumnFamily(pool, 'BucketVersionSystems')
+bucketversionsystems_cf = pycassa.ColumnFamily(pool, 'BucketVersionSystems2')
 
 cols = ['SystemIdentifier', 'Package']
 counts = 0
