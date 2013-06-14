@@ -9,6 +9,7 @@ from daisy.metrics import VerboseListener
 from collections import Counter
 import argparse
 import sys
+import time
 
 creds = {'username': config.cassandra_username,
          'password': config.cassandra_password}
@@ -25,18 +26,32 @@ systems = None
 
 columns = ['SystemIdentifier', 'DistroRelease']
 kwargs = {
-    'buffer_size': 1024 * 10,
+    # 10k is too much. jumbee ran out of memory trying to handle too many runs
+    # of this.
+    'buffer_size': 1024 * 5,
     'include_timestamp': True,
     'columns': columns,
 }
 
 def main(verbose=False):
+    started = time.time()
+    r = ['Ubuntu 12.04', 'Ubuntu 12.10', 'Ubuntu 13.04', 'Ubuntu 13.10']
+    stored = {}
+    for release in r:
+        stored[release] = {k:v for k,v in firsterror.xget(release)}
+    for release in r:
+        print release, len(stored[release])
+        sys.stdout.flush()
+    print 'generating FirstError took', time.time() - started, 'seconds.'
+
+    started = time.time()
     count = 0
     for key, oops in oops_cf.get_range(**kwargs):
         if verbose:
             count += 1
-            if count % 100000 == 0:
+            if count % 10000 == 0:
                 print 'processed', count
+                print float(count) / (time.time() - started), '/ s'
                 sys.stdout.flush()
 
         if Counter(columns) != Counter(oops.keys()):
@@ -51,7 +66,7 @@ def main(verbose=False):
             continue
         system_token = oops['SystemIdentifier'][0]
 
-        if not release.startswith('Ubuntu '):
+        if release not in r:
             continue
 
         occurred = oops['DistroRelease'][1] / 1000000
@@ -60,13 +75,18 @@ def main(verbose=False):
 
         first_error_date = None
         try:
-            first_error_date = firsterror.get(release, columns=[system_token])
-            first_error_date = first_error_date[system_token]
-        except NotFoundException:
+            first_error_date = stored[release][system_token]
+        except KeyError:
             pass
+        #try:
+        #    first_error_date = firsterror.get(release, columns=[system_token])
+        #    first_error_date = first_error_date[system_token]
+        #except NotFoundException:
+        #    pass
 
         if not first_error_date or first_error_date > occurred:
             firsterror.insert(release, {system_token: occurred})
+            stored[release][system_token] = occurred
             first_error_date = occurred
 
         oops_id = uuid.UUID(key)
