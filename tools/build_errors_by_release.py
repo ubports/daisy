@@ -28,7 +28,8 @@ columns = ['SystemIdentifier', 'DistroRelease']
 kwargs = {
     # 10k is too much. jumbee ran out of memory trying to handle too many runs
     # of this.
-    'buffer_size': 1024 * 5,
+    # Knocking down to 1K from 5 to give the cluster a bit more breathing room.
+    'buffer_size': 1024,
     'include_timestamp': True,
     'columns': columns,
 }
