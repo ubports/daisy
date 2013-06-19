@@ -52,10 +52,14 @@ def try_to_repair_sas(data):
 
     if 'StacktraceTop' in data and 'Signal' in data:
         if not 'StacktraceAddressSignature' in data:
+            get_metrics().meter('repair.tried_sas')
             report = create_report_from_bson(data)
             sas = report.crash_signature_addresses()
             if sas:
                 data['StacktraceAddressSignature'] = sas
+                get_metrics().meter('repair.succeeded_sas')
+            else:
+                get_metrics().meter('repair.failed_sas')
 
 def submit(_pool, environ, system_token):
     counters_fam = pycassa.ColumnFamily(_pool, 'Counters',
@@ -66,12 +70,14 @@ def submit(_pool, environ, system_token):
     except IOError as e:
         if e.message == 'request data read error':
             # The client disconnected while sending the report.
+            get_metrics().meter('invalid.connection_dropped')
             return (False, 'Connection dropped.')
         else:
             raise
     try:
         data = bson.BSON(data).decode()
     except bson.errors.InvalidBSON:
+        get_metrics().meter('invalid.invalid_bson')
         return (False, 'Invalid BSON.')
 
     # Keep a reference to the decoded report data. If we crash, we'll
@@ -84,8 +90,12 @@ def submit(_pool, environ, system_token):
     if 'KernelCrash' in data or 'VmCore' in data:
         # We do not process these yet, but we keep track of how many reports
         # we're receiving to determine when it's worth solving.
-        counters_fam.add('KernelCrash', day_key)
+        get_metrics().meter('unsupported.kernel_crash')
         return (False, 'Kernel crashes are not handled yet.')
+
+    if len(data) == 0:
+        get_metrics().meter('invalid.empty_report')
+        return (False, 'Empty report.')
 
     # Write the SHA512 hash of the system UUID in with the report.
     if system_token:
@@ -136,7 +146,7 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
         if not addr_sig:
             counters_fam = pycassa.ColumnFamily(_pool, 'Counters',
                                                 retry_counter_mutations=True)
-            counters_fam.add('MissingSAS', day_key)
+            get_metrics().meter('missing.missing_sas')
             # We received BSON data with unexpected keys.
             return (False, 'No StacktraceAddressSignature found in report.')
 

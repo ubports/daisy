@@ -41,6 +41,7 @@ def write_policy_allow(oops_id, bytes_used, provider_data):
                   st_type = provider_data['type'],
                   bytes_used = bytes_used,
                   usage_max = usage_max))
+            get_metrics().meter('submit_core.random_early_drop')
             return False
     return True
 
@@ -199,6 +200,7 @@ def submit(_pool, environ, fileobj, uuid, arch):
         # nodes. This is acceptable, as we'll just ask the next user
         # for a core dump.
         msg = 'No matching address signature for this core dump.'
+        get_metrics().meter('submit_core.no_matching_sas')
         return (False, msg)
 
 
