@@ -18,6 +18,6 @@ def import_user_binary_packages(user):
 if __name__ == '__main__':
     teams = ['ubuntu-x-swat', 'desktop-packages', 'ubuntu-server',
         'foundations-bugs', 'dx-packages', 'edubuntu-bugs', 'kubuntu-bugs',
-        'lubuntu-packaging', 'xubuntu-bugs', 'ubuntu-security']
+        'lubuntu-packaging', 'xubuntu-bugs', 'ubuntu-security', 'laney']
     for team in teams:
         import_user_binary_packages(team)
