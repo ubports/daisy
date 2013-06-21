@@ -474,6 +474,17 @@ class Retracer:
                 # back on the queue and hope that eventual consistency works its
                 # magic by then.
                 log('Unable to find in OOPS CF.')
+                # RabbitMQ versions from 2.7.0 push basic_reject'ed messages
+                # back onto the front of the queue:
+                # http://www.rabbitmq.com/semantics.html
+                # Build a new message from the old one, publish the new and bin
+                # the old.
+                body = amqp.Message(msg.body,
+                                    timestamp=msg.properties['timestamp'])
+                body.properties['delivery_mode'] = 2
+                msg.channel.basic_publish(body, exchange='',
+                                          routing_key=msg.delivery_info['routing_key'])
+                msg.channel.basic_reject(msg.delivery_tag, False)
                 return
 
             for k in col:
