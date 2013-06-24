@@ -123,6 +123,7 @@ def submit(_pool, environ, system_token):
 
     try_to_repair_sas(data)
     oopses.insert_dict(oops_config, oops_id, data, system_token, fields)
+    get_metrics().meter('success.oopses')
 
     success, output = bucket(_pool, oops_config, oops_id, data, day_key)
     return (success, output)
@@ -142,6 +143,7 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
     crash_signature = utils.format_crash_signature(crash_signature)
     if crash_signature:
         utils.bucket(oops_config, oops_id, crash_signature, data)
+        get_metrics().meter('success.python_bucketed')
         return (True, '')
 
     # Binary
@@ -166,6 +168,7 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
             # We have already retraced for this address signature, so this crash
             # can be immediately bucketed.
             utils.bucket(oops_config, oops_id, crash_sig, data)
+            get_metrics().meter('success.ready_binary_bucketed')
         else:
             # Are we already waiting for this stacktrace address signature to be
             # retraced?
@@ -187,9 +190,11 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
                 # configuration data in a directory named by the DistroRelease, so
                 # these would always fail regardless.
                 output = '%s CORE' % oops_id
+                get_metrics().meter('success.asked_for_core')
 
             awaiting_retrace_fam = pycassa.ColumnFamily(_pool, 'AwaitingRetrace')
             awaiting_retrace_fam.insert(addr_sig, {oops_id : ''})
+            get_metrics().meter('success.awaiting_binary_bucket')
         return (True, output)
 
     # Could not bucket
