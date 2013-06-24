@@ -30,6 +30,7 @@ from daisy import utils
 from daisy.metrics import get_metrics
 import time
 import os
+import socket
 
 os.environ['OOPS_KEYSPACE'] = config.cassandra_keyspace
 oops_config = oopsconfig.get_config()
@@ -37,7 +38,7 @@ oops_config['host'] = config.cassandra_hosts
 oops_config['username'] = config.cassandra_username
 oops_config['password'] = config.cassandra_password
 
-metrics = get_metrics()
+metrics = get_metrics('daisy.%s' % socket.gethostname())
 
 
 def update_release_pkg_counter(counters_fam, release, src_package, date):
