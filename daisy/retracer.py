@@ -221,14 +221,16 @@ class Retracer:
         retracing_time: the amount of time it took to retrace.
         success: whether crash was retraceable.
         """
+        # This is kept around for legacy reasons. The integration tests
+        # currently depend on this being exposed in the API.
         if crashed:
-            status = ':crashed'
+            status = 'crashed'
         elif not success:
-            status = ':failed'
+            status = 'failed'
         else:
-            status = ':success'
+            status = 'success'
         # We can't mix counters and other data types
-        self.retrace_stats_fam.add(day_key, release + status)
+        self.retrace_stats_fam.add(day_key, '%s:%s' % (release, status))
 
         # Compute the cumulative moving average
         mean_key = '%s:%s:%s' % (day_key, release, self.architecture)
@@ -246,6 +248,18 @@ class Retracer:
         mean[mean_key] = new_mean
         mean[count_key] += 1
         self.indexes_fam.insert('mean_retracing_time', mean)
+
+        # Report this into statsd as well.
+        prefix = 'timings.retracing'
+        if release:
+            m = '%s.%s.all_architectures.%s' % (prefix, release, status)
+            metrics.timing(m, retracing_time)
+            m = '%s.%s.%s.%s' % (prefix, release, self.architecture, status)
+            metrics.timing(m, retracing_time)
+        m = '%s.all.all_architectures.%s' % (prefix, status)
+        metrics.timing(m, retracing_time)
+        m = '%s.%s.all.%s' % (prefix, self.architecture, status)
+        metrics.timing(m, retracing_time)
 
     def setup_cache(self, sandbox_dir, release):
         if release in self._sandboxes:
@@ -679,7 +693,7 @@ class Retracer:
         # This needs to be at a global level since it's dealing with the time
         # items have been sitting on a queue shared by all retracers.
         m = get_metrics('retracer.all')
-        m.timing('time_to_retrace', time_taken)
+        m.timing('timings.submission_to_retrace', time_taken)
 
     def rebucket(self, crash_signature):
         '''Rebucket any failed retraces into the bucket just created for the
