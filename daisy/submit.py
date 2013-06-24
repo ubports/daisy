@@ -109,6 +109,11 @@ def submit(_pool, environ, system_token):
     if '[origin:' in package:
         third_party = True
 
+    if not release:
+        get_metrics().meter('missing.missing_release')
+    if not package:
+        get_metrics().meter('missing.missing_package')
+
     package, version = utils.split_package_and_version(package)
     src_package, src_version = utils.split_package_and_version(src_package)
     fields = utils.get_fields_for_bucket_counters(problem_type, release, package, version)
