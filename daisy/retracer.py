@@ -64,6 +64,7 @@ def rm_eff(path):
 @atexit.register
 def shutdown():
     log('Shutting down.')
+    metrics.meter('shutdown')
 
 def prefix_log_with_amqp_message(func):
     def wrapped(obj, msg):
@@ -200,6 +201,7 @@ class Retracer:
                     if is_amqplib_conn_error or is_amqplib_ioerror:
                         self._lost_connection = time.time()
                         log('lost connection to Rabbit')
+                        metrics.meter('lost_rabbit_connection')
                         # Don't probe immediately, give the network/process
                         # time to come back.
                         time.sleep(0.1)
@@ -322,6 +324,7 @@ class Retracer:
                     fp.write(chunk)
             return path
         except swiftclient.client.ClientException:
+            metrics.meter('swift_client_exception')
             log('Could not retrieve %s (swift):' % key)
             log(traceback.format_exc())
             # This will still exist if we were partway through a write.
@@ -346,6 +349,7 @@ class Retracer:
         except swiftclient.client.ClientException:
             log('Could not remove %s (swift):' % key)
             log(traceback.format_exc())
+            metrics.meter('swift_delete_error')
 
     def write_s3_bucket_to_disk(self, key, provider_data):
         global _cached_s3
@@ -482,12 +486,15 @@ class Retracer:
                 # http://www.rabbitmq.com/semantics.html
                 # Build a new message from the old one, publish the new and bin
                 # the old.
-                body = amqp.Message(msg.body,
-                                    timestamp=msg.properties['timestamp'])
+                ts = msg.properties['timestamp']
+                key = msg.delivery_info['routing_key']
+
+                body = amqp.Message(msg.body, timestamp=ts)
                 body.properties['delivery_mode'] = 2
-                msg.channel.basic_publish(body, exchange='',
-                                          routing_key=msg.delivery_info['routing_key'])
+                msg.channel.basic_publish(body, exchange='', routing_key=key)
                 msg.channel.basic_reject(msg.delivery_tag, False)
+
+                metrics.meter('could_not_find_oops')
                 return
 
             for k in col:
