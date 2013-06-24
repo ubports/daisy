@@ -636,19 +636,19 @@ class Retracer:
 
             self.indexes_fam.remove('retracing', [stacktrace_addr_sig])
 
-            oops_ids = [oops_id]
-            try:
-                # This will contain the OOPS ID we're currently processing as
-                # well.
-                gen = self.awaiting_retrace_fam.xget(stacktrace_addr_sig)
-                ids = [k for k,v in gen]
-                oops_ids = ids
-            except NotFoundException:
+            # This will contain the OOPS ID we're currently processing as
+            # well.
+            gen = self.awaiting_retrace_fam.xget(stacktrace_addr_sig)
+            ids = [k for k,v in gen]
+            oops_ids = ids
+
+            if len(ids) == 0:
                 # Handle eventual consistency. If the writes to AwaitingRetrace
                 # haven't hit this node yet, that's okay. We'll clean up
                 # unprocessed OOPS IDs from that CF at regular intervals later,
                 # so just process this OOPS ID now.
-                pass
+                oops_ids = [oops_id]
+                metrics.meter('missing.cannot_find_oopses_awaiting_retrace')
 
             self.bucket(oops_ids, crash_signature)
 
