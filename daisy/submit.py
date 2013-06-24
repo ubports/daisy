@@ -27,6 +27,7 @@ from pycassa.cassandra.ttypes import NotFoundException
 from daisy import config
 import apport
 from daisy import utils
+from daisy.metrics import get_metrics
 import time
 import os
 
@@ -35,6 +36,8 @@ oops_config = oopsconfig.get_config()
 oops_config['host'] = config.cassandra_hosts
 oops_config['username'] = config.cassandra_username
 oops_config['password'] = config.cassandra_password
+
+metrics = get_metrics()
 
 
 def update_release_pkg_counter(counters_fam, release, src_package, date):
@@ -52,14 +55,14 @@ def try_to_repair_sas(data):
 
     if 'StacktraceTop' in data and 'Signal' in data:
         if not 'StacktraceAddressSignature' in data:
-            get_metrics().meter('repair.tried_sas')
+            metrics.meter('repair.tried_sas')
             report = create_report_from_bson(data)
             sas = report.crash_signature_addresses()
             if sas:
                 data['StacktraceAddressSignature'] = sas
-                get_metrics().meter('repair.succeeded_sas')
+                metrics.meter('repair.succeeded_sas')
             else:
-                get_metrics().meter('repair.failed_sas')
+                metrics.meter('repair.failed_sas')
 
 def submit(_pool, environ, system_token):
     counters_fam = pycassa.ColumnFamily(_pool, 'Counters',
@@ -70,14 +73,14 @@ def submit(_pool, environ, system_token):
     except IOError as e:
         if e.message == 'request data read error':
             # The client disconnected while sending the report.
-            get_metrics().meter('invalid.connection_dropped')
+            metrics.meter('invalid.connection_dropped')
             return (False, 'Connection dropped.')
         else:
             raise
     try:
         data = bson.BSON(data).decode()
     except bson.errors.InvalidBSON:
-        get_metrics().meter('invalid.invalid_bson')
+        metrics.meter('invalid.invalid_bson')
         return (False, 'Invalid BSON.')
 
     # Keep a reference to the decoded report data. If we crash, we'll
@@ -90,11 +93,11 @@ def submit(_pool, environ, system_token):
     if 'KernelCrash' in data or 'VmCore' in data:
         # We do not process these yet, but we keep track of how many reports
         # we're receiving to determine when it's worth solving.
-        get_metrics().meter('unsupported.kernel_crash')
+        metrics.meter('unsupported.kernel_crash')
         return (False, 'Kernel crashes are not handled yet.')
 
     if len(data) == 0:
-        get_metrics().meter('invalid.empty_report')
+        metrics.meter('invalid.empty_report')
         return (False, 'Empty report.')
 
     # Write the SHA512 hash of the system UUID in with the report.
@@ -110,9 +113,9 @@ def submit(_pool, environ, system_token):
         third_party = True
 
     if not release:
-        get_metrics().meter('missing.missing_release')
+        metrics.meter('missing.missing_release')
     if not package:
-        get_metrics().meter('missing.missing_package')
+        metrics.meter('missing.missing_package')
 
     package, version = utils.split_package_and_version(package)
     src_package, src_version = utils.split_package_and_version(src_package)
@@ -123,7 +126,7 @@ def submit(_pool, environ, system_token):
 
     try_to_repair_sas(data)
     oopses.insert_dict(oops_config, oops_id, data, system_token, fields)
-    get_metrics().meter('success.oopses')
+    metrics.meter('success.oopses')
 
     success, output = bucket(_pool, oops_config, oops_id, data, day_key)
     return (success, output)
@@ -143,7 +146,7 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
     crash_signature = utils.format_crash_signature(crash_signature)
     if crash_signature:
         utils.bucket(oops_config, oops_id, crash_signature, data)
-        get_metrics().meter('success.python_bucketed')
+        metrics.meter('success.python_bucketed')
         return (True, '')
 
     # Binary
@@ -153,7 +156,7 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
         if not addr_sig:
             counters_fam = pycassa.ColumnFamily(_pool, 'Counters',
                                                 retry_counter_mutations=True)
-            get_metrics().meter('missing.missing_sas')
+            metrics.meter('missing.missing_sas')
             # We received BSON data with unexpected keys.
             return (False, 'No StacktraceAddressSignature found in report.')
 
@@ -168,7 +171,7 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
             # We have already retraced for this address signature, so this crash
             # can be immediately bucketed.
             utils.bucket(oops_config, oops_id, crash_sig, data)
-            get_metrics().meter('success.ready_binary_bucketed')
+            metrics.meter('success.ready_binary_bucketed')
         else:
             # Are we already waiting for this stacktrace address signature to be
             # retraced?
@@ -190,11 +193,11 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
                 # configuration data in a directory named by the DistroRelease, so
                 # these would always fail regardless.
                 output = '%s CORE' % oops_id
-                get_metrics().meter('success.asked_for_core')
+                metrics.meter('success.asked_for_core')
 
             awaiting_retrace_fam = pycassa.ColumnFamily(_pool, 'AwaitingRetrace')
             awaiting_retrace_fam.insert(addr_sig, {oops_id : ''})
-            get_metrics().meter('success.awaiting_binary_bucket')
+            metrics.meter('success.awaiting_binary_bucket')
         return (True, output)
 
     # Could not bucket
