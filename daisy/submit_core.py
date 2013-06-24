@@ -26,6 +26,9 @@ from daisy import config
 import sys
 import datetime
 from daisy.metrics import get_metrics
+import socket
+
+metrics = get_metrics('daisy.%s' % socket.gethostname())
 
 _cached_swift = None
 _cached_s3 = None
@@ -42,6 +45,7 @@ def write_policy_allow(oops_id, bytes_used, provider_data):
                   st_type = provider_data['type'],
                   bytes_used = bytes_used,
                   usage_max = usage_max))
+            metrics.meter('submit_core.random_early_drop')
             return False
     return True
 
@@ -51,7 +55,7 @@ def swift_delete_ignoring_error(conn, bucket, oops_id):
     try:
         conn.delete_object(bucket, oops_id)
     except swiftclient.ClientException:
-        get_metrics().meter('swift_delete_error')
+        metrics.meter('swift_delete_error')
 
 def write_to_swift(environ, fileobj, oops_id, provider_data):
     '''Write the core file to OpenStack Swift.'''
@@ -88,12 +92,12 @@ def write_to_swift(environ, fileobj, oops_id, provider_data):
         if e.message == 'request data read error':
             return False
         else:
-            get_metrics().meter('swift_ioerror')
+            metrics.meter('swift_ioerror')
             raise
     except swiftclient.ClientException as e:
         print >>sys.stderr, 'Exception when trying to add to bucket:', str(e)
-        get_metrics().meter('swift_client_exception')
-        swift_delete_ignoring_error(_cached, swift, bucket, oops_id)
+        metrics.meter('swift_client_exception')
+        swift_delete_ignoring_error(_cached_swift, bucket, oops_id)
         return False
     return True
 
@@ -204,6 +208,7 @@ def submit(_pool, environ, fileobj, uuid, arch):
         # nodes. This is acceptable, as we'll just ask the next user
         # for a core dump.
         msg = 'No matching address signature for this core dump.'
+        metrics.meter('submit_core.no_matching_sas')
         return (False, msg)
 
 
