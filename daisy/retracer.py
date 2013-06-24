@@ -308,8 +308,6 @@ class Retracer:
                         provider_data['os_password'],
                         os_options=opts,
                         auth_version='2.0')
-            # Generate a token so we can log it.
-            _cached_swift.head_account()
         log('swift token: %s' % str( _cached_swift.token))
         fmt = '-{}.{}.oopsid'.format(provider_data['type'], key)
         fd, path = tempfile.mkstemp(fmt)
@@ -341,8 +339,6 @@ class Retracer:
                             provider_data['os_username'],
                             provider_data['os_password'], os_options=opts,
                             auth_version='2.0')
-                # Generate a token so we can log it.
-                _cached_swift.head_account()
             log('swift token: %s' % str( _cached_swift.token))
             bucket = provider_data['bucket']
             _cached_swift.delete_object(bucket, key)

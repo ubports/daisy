@@ -70,6 +70,7 @@ def write_to_swift(environ, fileobj, oops_id, provider_data):
                                      provider_data['os_password'],
                                      os_options=opts,
                                      auth_version='2.0')
+    print >>sys.stderr, 'swift token:', _cached_swift.token
     bucket = provider_data['bucket']
     if (provider_data.get('usage_max_mb')):
         headers = _cached_swift.head_account()
@@ -80,8 +81,6 @@ def write_to_swift(environ, fileobj, oops_id, provider_data):
         environ['swift.bytes_used'] = bytes_used
         if (not write_policy_allow(oops_id, bytes_used, provider_data)):
             return False
-
-    print >>sys.stderr, 'swift token:', _cached_swift.token
 
     _cached_swift.put_container(bucket)
     try:
