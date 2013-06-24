@@ -308,6 +308,7 @@ class Retracer:
                         provider_data['os_password'],
                         os_options=opts,
                         auth_version='2.0')
+        log('swift token: %s' % str( _cached_swift.token))
         fmt = '-{}.{}.oopsid'.format(provider_data['type'], key)
         fd, path = tempfile.mkstemp(fmt)
         os.close(fd)
@@ -338,6 +339,7 @@ class Retracer:
                             provider_data['os_username'],
                             provider_data['os_password'], os_options=opts,
                             auth_version='2.0')
+            log('swift token: %s' % str( _cached_swift.token))
             bucket = provider_data['bucket']
             _cached_swift.delete_object(bucket, key)
         except swiftclient.client.ClientException:
@@ -474,6 +476,17 @@ class Retracer:
                 # back on the queue and hope that eventual consistency works its
                 # magic by then.
                 log('Unable to find in OOPS CF.')
+                # RabbitMQ versions from 2.7.0 push basic_reject'ed messages
+                # back onto the front of the queue:
+                # http://www.rabbitmq.com/semantics.html
+                # Build a new message from the old one, publish the new and bin
+                # the old.
+                body = amqp.Message(msg.body,
+                                    timestamp=msg.properties['timestamp'])
+                body.properties['delivery_mode'] = 2
+                msg.channel.basic_publish(body, exchange='',
+                                          routing_key=msg.delivery_info['routing_key'])
+                msg.channel.basic_reject(msg.delivery_tag, False)
                 return
 
             for k in col:
