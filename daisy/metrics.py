@@ -64,3 +64,10 @@ def wrapped_connection_pool(namespace='daisy'):
                                   # Pycassa will sleep for 10.24 seconds before
                                   # the last retry.
                                   max_retries=10, credentials=creds)
+
+def revno(namespace='daisy'):
+    from daisy.version import version_info
+    import socket
+    if 'revno' in version_info:
+        m = '%s.version.daisy' % socket.gethostname()
+        get_metrics(namespace).gauge(m, version_info['revno'])

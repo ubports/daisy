@@ -762,6 +762,7 @@ def main():
         path, oops_id = retracer.write_bucket_to_disk(parts[0], parts[1])
         log('Wrote %s to %s. Exiting.' % (path, oops_id))
     else:
+        metrics.revno('retracer')
         retracer.listen()
 
 if __name__ == '__main__':
