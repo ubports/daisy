@@ -149,7 +149,6 @@ class Retracer:
         self.retrace_stats_fam = ColumnFamily(self.pool, 'RetraceStats',
                                               retry_counter_mutations=True)
         self.bucket_fam = ColumnFamily(self.pool, 'Bucket')
-        self.time_to_retrace_fam = ColumnFamily(self.pool, 'TimeToRetrace')
 
         # We didn't set a default_validation_class for these in the schema.
         # Whoops.
@@ -657,11 +656,9 @@ class Retracer:
 
         # We've processed this. Delete it off the MQ.
         msg.channel.basic_ack(msg.delivery_tag)
+        self.update_time_to_retrace(msg)
 
-        if oops_id:
-            self.update_time_to_retrace(oops_id, msg)
-
-    def update_time_to_retrace(self, oops_id, msg):
+    def update_time_to_retrace(self, msg):
         '''Record how long it took to retrace this crash, from the time we got
            a core file to the point that we got a either a successful or failed
            retrace out of it.
@@ -672,8 +669,10 @@ class Retracer:
 
         time_taken = datetime.datetime.utcnow() - timestamp
         time_taken = time_taken.total_seconds()
-        day_key = time.strftime('%Y%m%d', time.gmtime())
-        self.time_to_retrace_fam.insert(day_key, {oops_id: time_taken})
+        # This needs to be at a global level since it's dealing with the time
+        # items have been sitting on a queue shared by all retracers.
+        m = get_metrics('retracer.all')
+        m.timing('time_to_retrace', time_taken)
 
     def rebucket(self, crash_signature):
         '''Rebucket any failed retraces into the bucket just created for the
