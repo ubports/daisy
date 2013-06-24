@@ -33,7 +33,7 @@ import argparse
 import time
 import socket
 import re
-from daisy import metrics
+from daisy.metrics import wrapped_connection_pool, get_metrics, revno
 from daisy import utils
 from daisy.version import version_info
 import logging
@@ -47,6 +47,8 @@ LOGGING_FORMAT = ('%(asctime)s:%(process)d:%(thread)d'
 
 _cached_swift = None
 _cached_s3 = None
+
+metrics = get_metrics('retracer.%s' % socket.gethostname())
 
 def log(message, level=logging.INFO):
     logging.log(level, message)
@@ -136,7 +138,7 @@ class Retracer:
         self.oops_config['username'] = config.cassandra_username
         self.oops_config['password'] = config.cassandra_password
 
-        self.pool = metrics.wrapped_connection_pool('retracer')
+        self.pool = wrapped_connection_pool('retracer')
         self.oops_fam = ColumnFamily(self.pool, 'OOPS')
         self.indexes_fam = ColumnFamily(self.pool, 'Indexes')
         self.stack_fam = ColumnFamily(self.pool, 'Stacktrace')
@@ -710,6 +712,7 @@ class Retracer:
                 log('Could not find %s for %s.' % (oops_id, crash_signature))
                 o = {}
             utils.bucket(self.oops_config, oops_id, crash_signature, o)
+            metrics.meter('success.binary_bucketed')
 
 def parse_options():
     parser = argparse.ArgumentParser(description='Process core dumps.')
@@ -762,7 +765,7 @@ def main():
         path, oops_id = retracer.write_bucket_to_disk(parts[0], parts[1])
         log('Wrote %s to %s. Exiting.' % (path, oops_id))
     else:
-        metrics.revno('retracer')
+        revno('retracer')
         retracer.listen()
 
 if __name__ == '__main__':
