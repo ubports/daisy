@@ -252,6 +252,8 @@ class Retracer:
         # Report this into statsd as well.
         prefix = 'timings.retracing'
         if release:
+            m = '%s.all_releases.%s.%s' % (prefix, self.architecture, status)
+            metrics.timing(m, retracing_time)
             m = '%s.%s.all_architectures.%s' % (prefix, release, status)
             metrics.timing(m, retracing_time)
             m = '%s.%s.%s.%s' % (prefix, release, self.architecture, status)
