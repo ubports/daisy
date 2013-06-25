@@ -117,6 +117,10 @@ def submit(_pool, environ, system_token):
         metrics.meter('missing.missing_release')
     if not package:
         metrics.meter('missing.missing_package')
+    if not problem_type:
+        metrics.meter('missing.missing_problem_type')
+    else:
+        metrics.meter('success.problem_type.%s' % problem_type)
 
     package, version = utils.split_package_and_version(package)
     src_package, src_version = utils.split_package_and_version(src_package)
@@ -155,8 +159,6 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
         output = ''
         addr_sig = data.get('StacktraceAddressSignature', None)
         if not addr_sig:
-            counters_fam = pycassa.ColumnFamily(_pool, 'Counters',
-                                                retry_counter_mutations=True)
             metrics.meter('missing.missing_sas')
             # We received BSON data with unexpected keys.
             return (False, 'No StacktraceAddressSignature found in report.')
