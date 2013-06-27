@@ -33,7 +33,7 @@ import argparse
 import time
 import socket
 import re
-from daisy import metrics
+from daisy.metrics import wrapped_connection_pool, get_metrics, revno
 from daisy import utils
 from daisy.version import version_info
 import logging
@@ -47,6 +47,8 @@ LOGGING_FORMAT = ('%(asctime)s:%(process)d:%(thread)d'
 
 _cached_swift = None
 _cached_s3 = None
+
+metrics = get_metrics('retracer.%s' % socket.gethostname())
 
 def log(message, level=logging.INFO):
     logging.log(level, message)
@@ -62,6 +64,7 @@ def rm_eff(path):
 @atexit.register
 def shutdown():
     log('Shutting down.')
+    metrics.meter('shutdown')
 
 def prefix_log_with_amqp_message(func):
     def wrapped(obj, msg):
@@ -136,7 +139,7 @@ class Retracer:
         self.oops_config['username'] = config.cassandra_username
         self.oops_config['password'] = config.cassandra_password
 
-        self.pool = metrics.wrapped_connection_pool('retracer')
+        self.pool = wrapped_connection_pool('retracer')
         self.oops_fam = ColumnFamily(self.pool, 'OOPS')
         self.indexes_fam = ColumnFamily(self.pool, 'Indexes')
         self.stack_fam = ColumnFamily(self.pool, 'Stacktrace')
@@ -147,7 +150,6 @@ class Retracer:
         self.retrace_stats_fam = ColumnFamily(self.pool, 'RetraceStats',
                                               retry_counter_mutations=True)
         self.bucket_fam = ColumnFamily(self.pool, 'Bucket')
-        self.time_to_retrace_fam = ColumnFamily(self.pool, 'TimeToRetrace')
 
         # We didn't set a default_validation_class for these in the schema.
         # Whoops.
@@ -199,6 +201,7 @@ class Retracer:
                     if is_amqplib_conn_error or is_amqplib_ioerror:
                         self._lost_connection = time.time()
                         log('lost connection to Rabbit')
+                        metrics.meter('lost_rabbit_connection')
                         # Don't probe immediately, give the network/process
                         # time to come back.
                         time.sleep(0.1)
@@ -218,14 +221,16 @@ class Retracer:
         retracing_time: the amount of time it took to retrace.
         success: whether crash was retraceable.
         """
+        # This is kept around for legacy reasons. The integration tests
+        # currently depend on this being exposed in the API.
         if crashed:
-            status = ':crashed'
+            status = 'crashed'
         elif not success:
-            status = ':failed'
+            status = 'failed'
         else:
-            status = ':success'
+            status = 'success'
         # We can't mix counters and other data types
-        self.retrace_stats_fam.add(day_key, release + status)
+        self.retrace_stats_fam.add(day_key, '%s:%s' % (release, status))
 
         # Compute the cumulative moving average
         mean_key = '%s:%s:%s' % (day_key, release, self.architecture)
@@ -243,6 +248,20 @@ class Retracer:
         mean[mean_key] = new_mean
         mean[count_key] += 1
         self.indexes_fam.insert('mean_retracing_time', mean)
+
+        # Report this into statsd as well.
+        prefix = 'timings.retracing'
+        if release:
+            m = '%s.all_releases.%s.%s' % (prefix, self.architecture, status)
+            metrics.timing(m, retracing_time)
+            m = '%s.%s.all_architectures.%s' % (prefix, release, status)
+            metrics.timing(m, retracing_time)
+            m = '%s.%s.%s.%s' % (prefix, release, self.architecture, status)
+            metrics.timing(m, retracing_time)
+        m = '%s.all.all_architectures.%s' % (prefix, status)
+        metrics.timing(m, retracing_time)
+        m = '%s.%s.all.%s' % (prefix, self.architecture, status)
+        metrics.timing(m, retracing_time)
 
     def setup_cache(self, sandbox_dir, release):
         if release in self._sandboxes:
@@ -321,6 +340,7 @@ class Retracer:
                     fp.write(chunk)
             return path
         except swiftclient.client.ClientException:
+            metrics.meter('swift_client_exception')
             log('Could not retrieve %s (swift):' % key)
             log(traceback.format_exc())
             # This will still exist if we were partway through a write.
@@ -345,6 +365,7 @@ class Retracer:
         except swiftclient.client.ClientException:
             log('Could not remove %s (swift):' % key)
             log(traceback.format_exc())
+            metrics.meter('swift_delete_error')
 
     def write_s3_bucket_to_disk(self, key, provider_data):
         global _cached_s3
@@ -481,12 +502,15 @@ class Retracer:
                 # http://www.rabbitmq.com/semantics.html
                 # Build a new message from the old one, publish the new and bin
                 # the old.
-                body = amqp.Message(msg.body,
-                                    timestamp=msg.properties['timestamp'])
+                ts = msg.properties['timestamp']
+                key = msg.delivery_info['routing_key']
+
+                body = amqp.Message(msg.body, timestamp=ts)
                 body.properties['delivery_mode'] = 2
-                msg.channel.basic_publish(body, exchange='',
-                                          routing_key=msg.delivery_info['routing_key'])
+                msg.channel.basic_publish(body, exchange='', routing_key=key)
                 msg.channel.basic_reject(msg.delivery_tag, False)
+
+                metrics.meter('could_not_find_oops')
                 return
 
             for k in col:
@@ -614,19 +638,19 @@ class Retracer:
 
             self.indexes_fam.remove('retracing', [stacktrace_addr_sig])
 
-            oops_ids = [oops_id]
-            try:
-                # This will contain the OOPS ID we're currently processing as
-                # well.
-                gen = self.awaiting_retrace_fam.xget(stacktrace_addr_sig)
-                ids = [k for k,v in gen]
-                oops_ids = ids
-            except NotFoundException:
+            # This will contain the OOPS ID we're currently processing as
+            # well.
+            gen = self.awaiting_retrace_fam.xget(stacktrace_addr_sig)
+            ids = [k for k,v in gen]
+            oops_ids = ids
+
+            if len(ids) == 0:
                 # Handle eventual consistency. If the writes to AwaitingRetrace
                 # haven't hit this node yet, that's okay. We'll clean up
                 # unprocessed OOPS IDs from that CF at regular intervals later,
                 # so just process this OOPS ID now.
-                pass
+                oops_ids = [oops_id]
+                metrics.meter('missing.cannot_find_oopses_awaiting_retrace')
 
             self.bucket(oops_ids, crash_signature)
 
@@ -655,11 +679,9 @@ class Retracer:
 
         # We've processed this. Delete it off the MQ.
         msg.channel.basic_ack(msg.delivery_tag)
+        self.update_time_to_retrace(msg)
 
-        if oops_id:
-            self.update_time_to_retrace(oops_id, msg)
-
-    def update_time_to_retrace(self, oops_id, msg):
+    def update_time_to_retrace(self, msg):
         '''Record how long it took to retrace this crash, from the time we got
            a core file to the point that we got a either a successful or failed
            retrace out of it.
@@ -670,8 +692,10 @@ class Retracer:
 
         time_taken = datetime.datetime.utcnow() - timestamp
         time_taken = time_taken.total_seconds()
-        day_key = time.strftime('%Y%m%d', time.gmtime())
-        self.time_to_retrace_fam.insert(day_key, {oops_id: time_taken})
+        # This needs to be at a global level since it's dealing with the time
+        # items have been sitting on a queue shared by all retracers.
+        m = get_metrics('retracer.all')
+        m.timing('timings.submission_to_retrace', time_taken)
 
     def rebucket(self, crash_signature):
         '''Rebucket any failed retraces into the bucket just created for the
@@ -710,6 +734,7 @@ class Retracer:
                 log('Could not find %s for %s.' % (oops_id, crash_signature))
                 o = {}
             utils.bucket(self.oops_config, oops_id, crash_signature, o)
+            metrics.meter('success.binary_bucketed')
 
 def parse_options():
     parser = argparse.ArgumentParser(description='Process core dumps.')
@@ -762,6 +787,7 @@ def main():
         path, oops_id = retracer.write_bucket_to_disk(parts[0], parts[1])
         log('Wrote %s to %s. Exiting.' % (path, oops_id))
     else:
+        revno('retracer')
         retracer.listen()
 
 if __name__ == '__main__':
