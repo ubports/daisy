@@ -305,7 +305,10 @@ def is_valid_source_version(src_package, version):
 # Bug creation.
 
 
-def _generate_operation(title, description, target=_ubuntu_target, tags=''):
+def _generate_operation(title, description, target=_ubuntu_target, tags=['']):
+    # tags need to be a list with each tag double quoted because LP checks for
+    # invalid characters like single quotes in tags
+    tags = str(tags).replace("'", '"')
     operation = { 'ws.op' : 'createBug',
                   'description' : description,
                   'target' : target,
@@ -345,10 +348,8 @@ def create_bug(signature, source='', releases=[], hashed=None, lastseen=''):
         description = "The Ubuntu Error Tracker has been receiving reports about a problem, more details are available at %s" % (href)
     release_codenames = []
     for release in releases:
-        release_codenames.append('%s' % get_codename_for_version(release))
-    #tags = ' '.join(release_codenames)
-    # We can only create a bug with one tag due to LP bug LP: # #1199183
-    tags = release_codenames[0]
+        release_codenames.append('%s' % str(get_codename_for_version(release)))
+    tags = release_codenames
     if source:
         target = _source_target + source
         operation = _generate_operation(title, description, target, tags)
