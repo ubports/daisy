@@ -305,11 +305,15 @@ def is_valid_source_version(src_package, version):
 # Bug creation.
 
 
-def _generate_operation(title, description, target=_ubuntu_target):
+def _generate_operation(title, description, target=_ubuntu_target, tags=['']):
+    # tags need to be a list with each tag double quoted because LP checks for
+    # invalid characters like single quotes in tags
+    tags = str(tags).replace("'", '"')
     operation = { 'ws.op' : 'createBug',
                   'description' : description,
                   'target' : target,
-                  'title' : title }
+                  'title' : title,
+                  'tags' : tags}
     return urllib.urlencode(operation)
 
 
@@ -330,16 +334,27 @@ def _generate_headers(oauth_token, oauth_secret):
     return headers
 
 
-def create_bug(signature, source=''):
+def create_bug(signature, source='', releases=[], hashed=None, lastseen=''):
     '''Returns a tuple of (bug number, url)'''
 
     title = '%s' % signature
-    description = 'https://errors.ubuntu.com/bucket/?id=%s' % signature
+    if not hashed:
+        href = 'https://errors.ubuntu.com/bucket/?id=%s' % urllib.quote(signature)
+    else:
+        href = 'https://errors.ubuntu.com/problem/%s' % hashed
+    if source and lastseen:
+        description = "The Ubuntu Error Tracker has been receiving reports about a problem regarding %s.  This problem was most recently seen with version %s, the problem page at %s contains more details." % (source, lastseen, href)
+    else:
+        description = "The Ubuntu Error Tracker has been receiving reports about a problem, more details are available at %s" % (href)
+    release_codenames = []
+    for release in releases:
+        release_codenames.append('%s' % str(get_codename_for_version(release)))
+    tags = release_codenames
     if source:
         target = _source_target + source
-        operation = _generate_operation(title, description, target)
+        operation = _generate_operation(title, description, target, tags)
     else:
-        operation = _generate_operation(title, description)
+        operation = _generate_operation(title, description, tags)
     headers = _generate_headers(config.lp_oauth_token,
                                 config.lp_oauth_secret)
 
