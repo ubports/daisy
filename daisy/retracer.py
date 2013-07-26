@@ -489,7 +489,7 @@ class Retracer:
 
             report = apport.Report()
             try:
-                quorum = ConsistencyLevel.LOCAL_QUORUM
+                quorum = ConsistencyLevel.QUORUM
                 col = self.oops_fam.get(oops_id, read_consistency_level=quorum)
             except NotFoundException:
                 # We do not have enough information at this point to be able to
