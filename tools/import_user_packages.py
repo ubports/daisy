@@ -19,6 +19,8 @@ if __name__ == '__main__':
     teams = ['ubuntu-x-swat', 'desktop-packages', 'ubuntu-server',
         'foundations-bugs', 'dx-packages', 'edubuntu-bugs', 'kubuntu-bugs',
         'lubuntu-packaging', 'xubuntu-bugs', 'ubuntu-security', 'laney',
-        'kernel-packages']
+        'kernel-packages', 'ubuntu-apps-bugs', 'ubuntu-phonedations-bugs',
+        'ubuntu-sdk-bugs', 'ubuntuone-hackers', 'unity-api-bugs',
+        'unity-ui-bugs']
     for team in teams:
         import_user_binary_packages(team)
