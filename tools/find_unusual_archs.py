@@ -48,6 +48,21 @@ def map_oopses(l):
     g = lambda x: get(x, **kwargs)
     return [x['Architecture'] for x in p.map(g, l)]
 
+def map_oopses_and_systems(l):
+    kwargs = {'columns': ['Architecture', 'SystemIdentifier']}
+    p = ThreadPool(THREADS)
+    # TODO speed this up by using multiget with chunks
+    oopses = defaultdict(int)
+    systems = defaultdict(set)
+    g = lambda x: get(x, **kwargs)
+    for x in p.map(g, l):
+        if 'Architecture' not in x or 'SystemIdentifier' not in x:
+            continue
+        arch = x['Architecture']
+        oopses[arch] += 1
+        systems[arch].add(x['SystemIdentifier'])
+    return (oopses, systems)
+
 def hash_for_bucket(bucket):
     cf = pycassa.ColumnFamily(pool, 'Hashes')
     h = sha1(bucket).hexdigest()
@@ -72,6 +87,15 @@ def go(bucket, all_oopses):
             print '%s:' % hash_for_bucket(bucket)
             for k, v in m:
                 print '%s: %d, %.2f' % (k, v, v / total)
+
+            oopses, systems = map_oopses_and_systems(all_oopses)
+            oopses_count = sum(oopses.values())
+            systems_count = sum(len(x) for x in systems)
+            all_rate = oopses_count / float(systems_count)
+            print 'all rate:', all_rate
+            for arch in oopses:
+                rate = oopses[arch] / float(len(systems[arch]))
+                print arch, 'rate:', rate, rate - all_rate
             return True
 
 def most_common_today():
