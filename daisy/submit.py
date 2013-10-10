@@ -144,12 +144,20 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
     '''
 
     indexes_fam = pycassa.ColumnFamily(_pool, 'Indexes')
-
-    # General bucketing
     report = create_report_from_bson(data)
-    crash_signature = report.crash_signature()
-    crash_signature = utils.format_crash_signature(crash_signature)
+
+    # Recoverable Problem
+    crash_signature = report.get('DuplicateSignature')
     if crash_signature:
+        crash_signature = utils.format_crash_signature(crash_signature)
+        utils.bucket(oops_config, oops_id, crash_signature, data)
+        metrics.meter('success.duplicate_signature')
+        return (True, '')
+
+    # Python
+    crash_signature = report.crash_signature()
+    if crash_signature:
+        crash_signature = utils.format_crash_signature(crash_signature)
         utils.bucket(oops_config, oops_id, crash_signature, data)
         metrics.meter('success.python_bucketed')
         return (True, '')
