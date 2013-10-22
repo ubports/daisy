@@ -1,0 +1,15 @@
+deb http://ports.ubuntu.com/ trusty main restricted universe multiverse
+# Needed otherwise apt complains that no deb-src lines are defined.
+deb-src http://archive.ubuntu.com/ubuntu/ trusty main restricted universe multiverse
+deb http://ports.ubuntu.com/ trusty-updates main restricted universe multiverse
+deb http://ports.ubuntu.com/ trusty-security main restricted universe multiverse
+#deb http://ports.ubuntu.com/ trusty-proposed main restricted universe multiverse
+
+deb http://ddebs.ubuntu.com saucy main restricted universe multiverse
+deb http://ddebs.ubuntu.com saucy-updates main restricted universe multiverse
+deb http://ddebs.ubuntu.com saucy-proposed main restricted universe multiverse
+deb http://ddebs.ubuntu.com saucy-security main restricted universe multiverse
+deb http://ddebs.ubuntu.com trusty main restricted universe multiverse
+deb http://ddebs.ubuntu.com trusty-updates main restricted universe multiverse
+deb http://ddebs.ubuntu.com trusty-security main restricted universe multiverse
+#deb http://ddebs.ubuntu.com trusty-proposed main restricted universe multiverse
