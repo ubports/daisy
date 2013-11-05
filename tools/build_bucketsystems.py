@@ -74,5 +74,5 @@ for bucket, instances in bucket_cf.get_range(include_timestamp=True,
             key = (to_utf8(bucket), to_utf8(version))
             #print('Would insert %s = {%s, ""}' % (key, to_utf8(system)))
             insertions.append((system, version))
-            bucketversionsystems_cf.insert({key, system: ''})
+            bucketversionsystems_cf.insert(key, {system: ''})
 print_totals(force=True)
