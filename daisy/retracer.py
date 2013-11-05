@@ -502,7 +502,7 @@ class Retracer:
                 # http://www.rabbitmq.com/semantics.html
                 # Build a new message from the old one, publish the new and bin
                 # the old.
-                ts = msg.properties['timestamp']
+                ts = msg.properties.get('timestamp')
                 key = msg.delivery_info['routing_key']
 
                 body = amqp.Message(msg.body, timestamp=ts)
