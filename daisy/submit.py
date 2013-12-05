@@ -131,10 +131,10 @@ def submit(_pool, environ, system_token):
 
     if not third_party and problem_type == 'Crash':
         update_release_pkg_counter(counters_fam, release, src_package, day_key)
-        if src_version == '':
-            metrics.meter('missing.missing_srcpackage_version')
+        if version == '':
+            metrics.meter('missing.missing_package_version')
         else:
-            update_release_pkg_version_counter(counters_fam, release, src_package, src_version, day_key)
+            update_release_pkg_version_counter(counters_fam, release, src_package, version, day_key)
 
     try_to_repair_sas(data)
     oopses.insert_dict(oops_config, oops_id, data, system_token, fields)
