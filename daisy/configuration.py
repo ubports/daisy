@@ -153,7 +153,7 @@ storage_write_weights = {}
 openid_trust_root = 'https://errors.ubuntu.com/'
 
 # The base URL for static content for https://errors.ubuntu.com
-errors_static_url = 'https://assets.ubuntu.com/sites/errors/398'
+errors_static_url = 'https://assets.ubuntu.com/sites/errors/398/'
 
 # Configuration for OOPS reports.
 oops_config = {
