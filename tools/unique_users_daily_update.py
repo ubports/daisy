@@ -29,6 +29,7 @@ def _date_range_iterator(start, finish):
 if __name__ == '__main__':
     if '--dry-run' in sys.argv:
         dry_run = True
+        sys.argv.remove('--dry-run')
     else:
         dry_run = False
     if len(sys.argv) > 2:
