@@ -95,7 +95,7 @@ def submit(_pool, environ, system_token):
     day_key = time.strftime('%Y%m%d', time.gmtime())
 
     if 'DistroRelease: Ubuntu 13.04' in data:
-        metrics.meter('unsupported.end_of_life')
+        metrics.meter('unsupported.eol_raring')
         return (False, 'Ubuntu 13.04 is End of Life')
 
     if 'KernelCrash' in data or 'VmCore' in data:

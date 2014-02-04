@@ -17,12 +17,7 @@ def ok_response(start_response, data=''):
     return [data]
 
 def bad_request_response(start_response, text=''):
-    if 'end of life' in text.lower():
-        start_response('410 Gone', [])
-    elif 'kernel crashes' in text.lower():
-        start_response('501 Not Implemented', [])
-    else:
-        start_response('400 Bad Request', [])
+    start_response('400 Bad Request', [])
     return [text]
 
 def handle_core_dump(_pool, environ, fileobj, components, content_type):
