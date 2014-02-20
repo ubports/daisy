@@ -1,5 +1,6 @@
 from oopsrepository import oopses
 import apt
+import re
 import uuid
 
 def get_fields_for_bucket_counters(problem_type, release, package, version):
@@ -122,7 +123,8 @@ def wrap_in_oops_wsgi(wsgi_handler):
     return make_app(wsgi_handler, cfg, oops_on_status=['500'])
 
 def retraceable_release(release):
-    if release.startswith('Ubuntu '):
+    release_re = re.compile('^Ubuntu \d\d.\d\d$')
+    if release_re.match(release):
         return True
     else:
         return False

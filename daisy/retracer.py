@@ -515,7 +515,7 @@ class Retracer:
 
             for k in col:
                 report[k.encode('UTF-8')] = col[k].encode('UTF-8')
-            
+
             stacktrace_addr_sig = report['StacktraceAddressSignature']
             if type(stacktrace_addr_sig) == unicode:
                 stacktrace_addr_sig = stacktrace_addr_sig.encode('utf-8')
