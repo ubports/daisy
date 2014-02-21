@@ -233,6 +233,9 @@ def is_source_package(package_name):
 
 
 def get_binaries_in_source_package(package_name, release=None):
+    # FIXME: in the event that a package does not exist in the devel release
+    # an empty set will be returned and binary packages from previous releases
+    # will be missed e.g. synaptiks in trusty
     if not release:
         dev_series = get_devel_series_codename()
     else:
