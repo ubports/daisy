@@ -252,8 +252,28 @@ def get_binaries_in_source_package(package_name, release=None):
     except IndexError:
         return ''
     pb_url = ps + '/?ws.op=getPublishedBinaries'
-    pbs = set(pb['binary_package_name'] for pb in json_request_entries(pb_url))
-    return pbs
+    pbs = []
+    json_data = urllib2_request_json(pb_url, config.lp_oauth_token,
+        config.lp_oauth_secret)
+    try:
+        tsl = json.loads(json_data)['total_size_link']
+        total_size = int(urllib2_request_json(tsl, config.lp_oauth_token,
+            config.lp_oauth_secret))
+        while len(pbs) < total_size:
+            entries = json.loads(json_data)['entries']
+            for entry in entries:
+                pbs.append(entry['binary_package_name'])
+            try:
+                ncl = json.loads(json_data)['next_collection_link']
+            except KeyError:
+                break
+            json_data = urllib2_request_json(ncl, config.lp_oauth_token,
+                config.lp_oauth_secret)
+    except KeyError:
+        entries = json.loads(json_data)['entries']
+        for entry in entries:
+            pbs.append(entry['binary_package_name'])
+    return set(pbs)
 
 def urllib2_request_json(url, token, secret):
     headers = _generate_headers(token, secret)
