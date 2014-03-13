@@ -25,9 +25,9 @@ if __name__ == '__main__':
     if len(sys.argv) == 4:
         core_file = sys.argv[3]
     oops = oops_cf.get(sys.argv[1])
-    r = report.Report()
+    report = report.Report()
     for k in oops:
-        r[k] = oops[k]
+        report[k] = oops[k]
     if core_file:
         with open(core_file.replace('core', 'coredump'), 'wb') as fp:
         #r['CoreDump'] = (core,)
@@ -38,7 +38,7 @@ if __name__ == '__main__':
             #p2 = Popen(['zcat'], stdin=p1.stdout, stdout=fp, stderr=PIPE)
             p2 = Popen(['zcat', core_file], stdout=fp, stderr=PIPE)
             ret = p2.communicate()
-        r['CoreDump'] = (core_file.replace('core', 'coredump'),)
+        report['CoreDump'] = (core_file.replace('core', 'coredump'),)
     fp = open(sys.argv[2], 'wb')
-    r.write(fp)
+    report.write(fp)
     os.remove(core_file.replace('core', 'coredump'))

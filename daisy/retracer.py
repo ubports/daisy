@@ -559,6 +559,8 @@ class Retracer:
             out, err = proc.communicate()
         except:
             rm_eff('%s.new' % report_path)
+            log('Failure in retrace set up for {}'.format(msg.body))
+            log(traceback.format_exc())
             raise
         finally:
             rm_eff(report_path)
