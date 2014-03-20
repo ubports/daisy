@@ -31,26 +31,26 @@ def print_stacktrace(signature):
     try:
         idx = 'crash_signature_for_stacktrace_address_signature'
         crash_sig = indexes.get(idx, [signature])
-        print('Found crash signature for SAS: %s' %
+        print("Found crash signature for SAS: %s" %
               crash_sig[signature])
-        print('https://errors.ubuntu.com/bucket/?id=%s' %
+        print("https://errors.ubuntu.com/bucket/?id=%s" %
               crash_sig[signature])
         return
     except NotFoundException:
         pass
     try:
         awaiting = awaiting_retrace.get(signature)
-        print("Waiting to retrace SAS: %s" % signature)
+        print("Waiting to retrace SAS")
     except NotFoundException:
         pass
     try:
         idx = 'retracing'
         crash_signature = indexes.get(idx, [signature])
-        print('Retracing SAS: %s' % signature)
+        print("Retracing SAS")
     except NotFoundException:
         pass
     try:
-        print('%s:\n%s' % (signature, stack.get(signature)))
+        print("%s:\n%s" % (signature, stack.get(signature)))
     except NotFoundException:
         pass
 
