@@ -112,6 +112,10 @@ def submit(_pool, environ, system_token):
     if release == 'Ubuntu 13.04':
         metrics.meter('unsupported.eol_raring')
         return (False, 'Ubuntu 13.04 is End of Life')
+    arch = data.get('Architecture', '')
+    if arch == 'armel':
+        metrics.meter('unsupported.armel')
+        return (False, 'armel architecture is obsoleted')
     package = data.get('Package', '')
     src_package = data.get('SourcePackage', '')
     problem_type = data.get('ProblemType', '')
