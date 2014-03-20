@@ -14,6 +14,7 @@ bucket = pycassa.ColumnFamily(pool, 'Bucket')
 hashes = pycassa.ColumnFamily(pool, 'Hashes')
 stack = pycassa.ColumnFamily(pool, 'Stacktrace')
 indexes = pycassa.ColumnFamily(pool, 'Indexes')
+awaiting_retrace = pycassa.ColumnFamily(pool, 'AwaitingRetrace')
 
 
 def main(hashed):
@@ -38,13 +39,18 @@ def print_stacktrace(signature):
     except NotFoundException:
         pass
     try:
-        idx = 'retracing'
-        crash_signature = indexes.get(idx, [signature])
-        print 'Waiting to retrace SAS: %s' % crash_signature
+        awaiting = awaiting_retrace.get(signature)
+        print("Waiting to retrace SAS: %s" % signature)
     except NotFoundException:
         pass
     try:
-        print '%s:\n%s' % (signature, stack.get(signature))
+        idx = 'retracing'
+        crash_signature = indexes.get(idx, [signature])
+        print('Retracing SAS: %s' % signature)
+    except NotFoundException:
+        pass
+    try:
+        print('%s:\n%s' % (signature, stack.get(signature)))
     except NotFoundException:
         pass
 
