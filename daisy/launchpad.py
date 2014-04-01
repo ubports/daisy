@@ -85,9 +85,11 @@ def get_codename_for_version(version):
 
 
 def get_devel_series_codename():
-    url = _launchpad_base + '/ubuntu/current_series'
-    current_series = json_request(url)
-    return current_series['name']
+    import distro_info
+    from datetime import datetime
+    di = distro_info.UbuntuDistroInfo()
+    today = datetime.today().date()
+    return di.devel(today)
 
 
 def get_version_for_codename(codename):
