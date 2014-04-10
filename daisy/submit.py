@@ -144,6 +144,14 @@ def submit(_pool, environ, system_token):
             update_release_pkg_version_counter(counters_fam, release, src_package, version, day_key)
 
     try_to_repair_sas(data)
+    # ProcMaps is useful for creating a crash sig, not after that
+    if 'Traceback' in data and 'ProcMaps' in data:
+        data.pop('ProcMaps')
+    # we only want this data after retracing with debug symbols
+    if 'Stacktrace' in data:
+        data.pop('Stacktrace')
+    if 'ThreadStacktrace' in data:
+        data.pop('ThreadStacktrace')
     oopses.insert_dict(oops_config, oops_id, data, system_token, fields)
     metrics.meter('success.oopses')
 
@@ -193,6 +201,13 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
         except (NotFoundException, KeyError):
             pass
         if crash_sig:
+            # the crash is a duplicate so we don't need this data
+            # Stacktrace, and ThreadStacktrace were already not accepted
+            if 'ProcMaps' in report:
+                unneeded_columns = ['Disassembly', 'ProcMaps', 'ProcStatus',
+                                    'Registers', 'StacktraceTop']
+                oops_cf = pycassa.ColumnFamily(_pool, 'OOPS')
+                oops_cf.remove(oops_id, columns=unneeded_columns)
             # We have already retraced for this address signature, so this crash
             # can be immediately bucketed.
             utils.bucket(oops_config, oops_id, crash_sig, data)
