@@ -740,7 +740,7 @@ class Retracer:
             if not crash_signature.startswith('failed:') and o:
                 self.cleanup_oops(oops_id)
 
-    def cleanup_oops(oops_id):
+    def cleanup_oops(self, oops_id):
         '''Remove no longer needed columns from the OOPS column family for a
            specific OOPS id.'''
         unneeded_columns = ['Disassembly', 'ProcMaps', 'ProcStatus',
