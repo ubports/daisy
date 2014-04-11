@@ -737,6 +737,15 @@ class Retracer:
                 o = {}
             utils.bucket(self.oops_config, oops_id, crash_signature, o)
             metrics.meter('success.binary_bucketed')
+            if not crash_signature.startswith('failed:') and o:
+                self.cleanup_oops(oops_id)
+
+    def cleanup_oops(oops_id):
+        '''Remove no longer needed columns from the OOPS column family for a
+           specific OOPS id.'''
+        unneeded_columns = ['Disassembly', 'ProcMaps', 'ProcStatus',
+                            'Registers', 'StacktraceTop']
+        self.oops_fam.remove(oops_id, columns=unneeded_columns)
 
 def parse_options():
     parser = argparse.ArgumentParser(description='Process core dumps.')
