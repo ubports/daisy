@@ -89,7 +89,13 @@ def get_devel_series_codename():
     from datetime import datetime
     di = distro_info.UbuntuDistroInfo()
     today = datetime.today().date()
-    return di.devel(today)
+    try:
+        codename = di.devel(today)
+    # this can happen on release and before
+    # distro-info-data is SRU'ed
+    except distro_info.DistroDataOutdated:
+        codename = di.stable()
+    return codename
 
 
 def get_version_for_codename(codename):
