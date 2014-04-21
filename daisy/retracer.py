@@ -569,8 +569,10 @@ class Retracer:
             if proc.returncode != 0:
                 if proc.returncode == 99:
                     # Transient apt error, like "failed to fetch ... size
-                    # mismatch" Throw back onto the queue by not ack'ing it.
+                    # mismatch"
                     log('Transient apport error.')
+                    # Throw back onto the queue
+                    msg.channel.basic_reject(msg.delivery_tag, True)
                     return
                 # apport-retrace will exit 0 even on a failed retrace unless
                 # something has gone wrong at a lower level, as was the case
