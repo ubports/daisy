@@ -1,0 +1,17 @@
+deb http://ports.ubuntu.com/ utopic main restricted universe multiverse
+# Needed otherwise apt complains that no deb-src lines are defined.
+deb-src http://archive.ubuntu.com/ubuntu/ utopic main restricted universe multiverse
+deb http://ports.ubuntu.com/ utopic-updates main restricted universe multiverse
+deb-src http://archive.ubuntu.com/ubuntu/ utopic-updates main restricted universe multiverse
+deb http://ports.ubuntu.com/ utopic-security main restricted universe multiverse
+deb-src http://archive.ubuntu.com/ubuntu/ utopic-security main restricted universe multiverse
+#deb http://ports.ubuntu.com/ utopic-proposed main restricted universe multiverse
+
+deb http://ddebs.ubuntu.com trusty main restricted universe multiverse
+deb http://ddebs.ubuntu.com trusty-updates main restricted universe multiverse
+deb http://ddebs.ubuntu.com trusty-proposed main restricted universe multiverse
+deb http://ddebs.ubuntu.com trusty-security main restricted universe multiverse
+deb http://ddebs.ubuntu.com utopic main restricted universe multiverse
+deb http://ddebs.ubuntu.com utopic-updates main restricted universe multiverse
+deb http://ddebs.ubuntu.com utopic-security main restricted universe multiverse
+#deb http://ddebs.ubuntu.com utopic-proposed main restricted universe multiverse
