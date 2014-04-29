@@ -42,6 +42,9 @@ for oops_id, data in oops_cf.get_range(columns=['StacktraceAddressSignature'],
     signature = data['StacktraceAddressSignature']
     print_totals()
     counts += 1
+    if not signature:
+        print("%s has no signature" % oops_id)
+        continue
     if signature.startswith('failed:'):
         print("%s failed to retrace" % oops_id)
         continue
