@@ -38,7 +38,7 @@ def print_totals(force=False):
         print
         sys.stdout.flush()
 
-for oops in oops_cf.get_range(finish='f852276e-8456-11e3-913e-e4115b0f8a4a',
+for oops in oops_cf.get_range(start='f852276e-8456-11e3-913e-e4115b0f8a4a',
         columns=['StacktraceAddressSignature','DistroRelease'],
         buffer_size=2*1024):
     eol = False
