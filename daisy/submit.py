@@ -156,6 +156,13 @@ def submit(_pool, environ, system_token):
         data.pop('Stacktrace')
     if 'ThreadStacktrace' in data:
         data.pop('ThreadStacktrace')
+    # Ensure Binary crashes have a StacktraceAddressSignature
+    if 'StacktraceTop' in data and 'Signal' in data:
+        addr_sig = data.get('StacktraceAddressSignature', None)
+        if not addr_sig:
+            metrics.meter('missing.missing_sas')
+            # We received BSON data with unexpected keys.
+            return (False, 'No StacktraceAddressSignature found in report.')
     oopses.insert_dict(oops_config, oops_id, data, system_token, fields)
     metrics.meter('success.oopses')
 
@@ -191,12 +198,8 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
     # Binary
     if 'StacktraceTop' in data and 'Signal' in data:
         output = ''
+        # we check for addr_sig before bucketing and inserting into oopses
         addr_sig = data.get('StacktraceAddressSignature', None)
-        if not addr_sig:
-            metrics.meter('missing.missing_sas')
-            # We received BSON data with unexpected keys.
-            return (False, 'No StacktraceAddressSignature found in report.')
-
         crash_sig = None
         try:
             crash_sig = indexes_fam.get(
