@@ -109,9 +109,13 @@ def submit(_pool, environ, system_token):
         data['SystemIdentifier'] = system_token
 
     release = data.get('DistroRelease', '')
-    if release == 'Ubuntu 13.04':
-        metrics.meter('unsupported.eol_raring')
-        return (False, 'Ubuntu 13.04 is End of Life')
+    eol_releases = {'Ubuntu 11.04': 'natty',
+        'Ubuntu 11.10': 'oneiric',
+        #'Ubuntu 12.10': 'quantal',
+        'Ubuntu 13.04': 'raring'}
+    if release in eol_releases:
+        metrics.meter('unsupported.eol_%s' % eol_releases[release])
+        return (False, '%s is End of Life' % release)
     arch = data.get('Architecture', '')
     if arch == 'armel':
         metrics.meter('unsupported.armel')
