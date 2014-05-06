@@ -123,6 +123,7 @@ def submit(_pool, environ, system_token):
     package = data.get('Package', '')
     src_package = data.get('SourcePackage', '')
     problem_type = data.get('ProblemType', '')
+    exec_path = data.get('ExecutablePath', '')
     third_party = False
     if '[origin:' in package:
         third_party = True
@@ -133,6 +134,8 @@ def submit(_pool, environ, system_token):
         metrics.meter('missing.missing_package')
     if not problem_type:
         metrics.meter('missing.missing_problem_type')
+    if not exec_path:
+        metrics.meter('missing.missing_executable_path')
     else:
         metrics.meter('success.problem_type.%s' % problem_type)
 
