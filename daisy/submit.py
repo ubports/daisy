@@ -210,7 +210,8 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
             crash_sig = crash_sig.values()[0]
         except (NotFoundException, KeyError):
             pass
-        if crash_sig:
+        # retry retracing some failures
+        if crash_sig and not crash_sig.startswith('failed:'):
             # the crash is a duplicate so we don't need this data
             # Stacktrace, and ThreadStacktrace were already not accepted
             if 'ProcMaps' in report:
@@ -223,6 +224,9 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
             utils.bucket(oops_config, oops_id, crash_sig, data)
             metrics.meter('success.ready_binary_bucketed')
         else:
+            if crash_sig.startswith('failed:'):
+                metrics.meter('success.retry_failure')
+                print >>sys.stderr, 'will retry:', oops_id
             # Are we already waiting for this stacktrace address signature to be
             # retraced?
             waiting = True
