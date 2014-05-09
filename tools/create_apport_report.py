@@ -28,6 +28,7 @@ if __name__ == '__main__':
     report = report.Report()
     for k in oops:
         report[k] = oops[k]
+    from ipdb import set_trace; set_trace()
     if core_file:
         with open(core_file.replace('core', 'coredump'), 'wb') as fp:
         #r['CoreDump'] = (core,)

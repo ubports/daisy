@@ -603,6 +603,11 @@ class Retracer:
                 report.load(fp)
 
             crash_signature = report.crash_signature()
+            if not crash_signature:
+                log('Apport did not return a crash_signature.')
+                log('StacktraceTop:')
+                for line in report['StacktraceTop'].splitlines():
+                    log(line)
             crash_signature = utils.format_crash_signature(crash_signature)
             if crash_signature:
                 try:
