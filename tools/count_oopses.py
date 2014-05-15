@@ -5,7 +5,8 @@ from daisy import config
 
 creds = {'username': config.cassandra_username,
          'password': config.cassandra_password}
-pool = pycassa.ConnectionPool('crashdb', ['localhost'], timeout=10,
+pool = pycassa.ConnectionPool(config.cassandra_keyspace,
+                              config.cassandra_hosts,  timeout=10,
                               credentials=creds)
 dayoops = pycassa.ColumnFamily(pool, 'DayOOPS')
 

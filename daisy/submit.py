@@ -183,7 +183,7 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
     indexes_fam = pycassa.ColumnFamily(_pool, 'Indexes')
     report = create_report_from_bson(data)
 
-    # Recoverable Problem
+    # Recoverable Problem, Package Install Failure, Suspend Resume
     crash_signature = report.get('DuplicateSignature')
     if crash_signature:
         crash_signature = utils.format_crash_signature(crash_signature)

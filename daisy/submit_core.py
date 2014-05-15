@@ -70,6 +70,7 @@ def write_to_swift(environ, fileobj, oops_id, provider_data):
                                      provider_data['os_password'],
                                      os_options=opts,
                                      auth_version='2.0')
+    # it seems to still be None sometimes
     print >>sys.stderr, 'swift token:', _cached_swift.token
     bucket = provider_data['bucket']
     if (provider_data.get('usage_max_mb')):
