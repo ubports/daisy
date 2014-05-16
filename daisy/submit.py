@@ -112,7 +112,7 @@ def submit(_pool, environ, system_token):
     release = data.get('DistroRelease', '')
     eol_releases = {'Ubuntu 11.04': 'natty',
         'Ubuntu 11.10': 'oneiric',
-        #'Ubuntu 12.10': 'quantal',
+        'Ubuntu 12.10': 'quantal',
         'Ubuntu 13.04': 'raring'}
     if release in eol_releases:
         metrics.meter('unsupported.eol_%s' % eol_releases[release])
