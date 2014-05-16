@@ -137,6 +137,9 @@ def submit(_pool, environ, system_token):
         metrics.meter('missing.missing_problem_type')
     if not exec_path:
         metrics.meter('missing.missing_executable_path')
+    if exec_path.endswith('apportcheckresume'):
+        metrics.meter('missing.missing_suspend_resume_data')
+        return (False, 'Incomplete suspend resume data found in report.')
     else:
         metrics.meter('success.problem_type.%s' % problem_type)
 
