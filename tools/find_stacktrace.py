@@ -22,6 +22,7 @@ def main(hashed):
         oops_details = oops.get(hashed, ['StacktraceAddressSignature'])
     except NotFoundException:
         print("OOPS instance %s not found" % hashed)
+        sys.exit(1)
     signature = oops_details['StacktraceAddressSignature']
     print("SAS: %s" % signature)
     print_stacktrace(signature)
