@@ -125,6 +125,7 @@ def submit(_pool, environ, system_token):
     src_package = data.get('SourcePackage', '')
     problem_type = data.get('ProblemType', '')
     exec_path = data.get('ExecutablePath', '')
+    apport_version = data.get('ApportVersion', '')
     third_party = False
     if '[origin:' in package:
         third_party = True
@@ -138,8 +139,11 @@ def submit(_pool, environ, system_token):
     if not exec_path:
         metrics.meter('missing.missing_executable_path')
     if exec_path.endswith('apportcheckresume'):
-        metrics.meter('missing.missing_suspend_resume_data')
-        return (False, 'Incomplete suspend resume data found in report.')
+        # LP: #1316841 bad duplicate signatures
+        if release == 'Ubuntu 14.04' and \
+                apport_version == '2.14.1-0ubuntu3.1':
+            metrics.meter('missing.missing_suspend_resume_data')
+            return (False, 'Incomplete suspend resume data found in report.')
     else:
         metrics.meter('success.problem_type.%s' % problem_type)
 
