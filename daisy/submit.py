@@ -236,7 +236,7 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
             if crash_sig:
                 if crash_sig.startswith('failed:'):
                     metrics.meter('success.retry_failure')
-                    now = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
+                    now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
                     msg = '%s will retry: %s' % (now, oops_id)
                     print >>sys.stderr, msg
             # Are we already waiting for this stacktrace address signature to be

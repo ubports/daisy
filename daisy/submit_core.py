@@ -71,7 +71,7 @@ def write_to_swift(environ, fileobj, oops_id, provider_data):
                                      os_options=opts,
                                      auth_version='2.0')
     # it seems to still be None sometimes
-    now = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
+    now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
     msg = '%s swift_token: %s' % (now, _cached_swift.token)
     print >>sys.stderr, msg
     bucket = provider_data['bucket']
@@ -98,7 +98,7 @@ def write_to_swift(environ, fileobj, oops_id, provider_data):
             metrics.meter('swift_ioerror')
             raise
     except swiftclient.ClientException as e:
-        now = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
+        now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
         msg = '%s Exception when trying to add to bucket %s' % (now, str(e))
         print >>sys.stderr, msg
         metrics.meter('swift_client_exception')
