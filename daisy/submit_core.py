@@ -24,7 +24,7 @@ import os
 import random
 from daisy import config
 import sys
-import datetime
+from datetime import datetime
 from daisy.metrics import get_metrics
 import socket
 
@@ -71,7 +71,9 @@ def write_to_swift(environ, fileobj, oops_id, provider_data):
                                      os_options=opts,
                                      auth_version='2.0')
     # it seems to still be None sometimes
-    print >>sys.stderr, 'swift token:', _cached_swift.token
+    now = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
+    msg = '%s swift_token: %s' % (now, _cached_swift.token)
+    print >>sys.stderr, msg
     bucket = provider_data['bucket']
     if (provider_data.get('usage_max_mb')):
         headers = _cached_swift.head_account()
@@ -96,7 +98,9 @@ def write_to_swift(environ, fileobj, oops_id, provider_data):
             metrics.meter('swift_ioerror')
             raise
     except swiftclient.ClientException as e:
-        print >>sys.stderr, 'Exception when trying to add to bucket:', str(e)
+        now = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
+        msg = '%s Exception when trying to add to bucket %s' % (now, str(e))
+        print >>sys.stderr, msg
         metrics.meter('swift_client_exception')
         swift_delete_ignoring_error(_cached_swift, bucket, oops_id)
         return False
@@ -231,7 +235,7 @@ def submit(_pool, environ, fileobj, uuid, arch):
         # We'll use this timestamp to measure how long it takes to process a
         # retrace, from receiving the core file to writing the data back to
         # Cassandra.
-        body = amqp.Message(message, timestamp=datetime.datetime.utcnow())
+        body = amqp.Message(message, timestamp=datetime.utcnow())
         # Persistent
         body.properties['delivery_mode'] = 2
         channel.basic_publish(body, exchange='', routing_key=queue)

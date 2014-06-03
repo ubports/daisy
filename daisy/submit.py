@@ -28,10 +28,11 @@ from daisy import config
 import apport
 from daisy import utils
 from daisy.metrics import get_metrics
-import time
+from datetime import datetime
 import os
 import socket
 import sys
+import time
 
 os.environ['OOPS_KEYSPACE'] = config.cassandra_keyspace
 oops_config = oopsconfig.get_config()
@@ -235,7 +236,9 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
             if crash_sig:
                 if crash_sig.startswith('failed:'):
                     metrics.meter('success.retry_failure')
-                    print >>sys.stderr, 'will retry:', oops_id
+                    now = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
+                    msg = '%s will retry: %s' % (now, oops_id)
+                    print >>sys.stderr, msg
             # Are we already waiting for this stacktrace address signature to be
             # retraced?
             waiting = True
