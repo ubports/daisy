@@ -185,7 +185,7 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
     '''Bucket oops_id.
        If the report was malformed, return (False, failure_msg)
        If a core file is to be requested, return (True, 'UUID CORE')
-       If no further action is needed, return (True, '')
+       If no further action is needed, return (True, 'UUID OOPSID')
     '''
 
     indexes_fam = pycassa.ColumnFamily(_pool, 'Indexes')
@@ -197,7 +197,7 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
         crash_signature = utils.format_crash_signature(crash_signature)
         utils.bucket(oops_config, oops_id, crash_signature, data)
         metrics.meter('success.duplicate_signature')
-        return (True, '')
+        return (True, '%s OOPSID' % oops_id)
 
     # Python
     crash_signature = report.crash_signature()
@@ -205,7 +205,7 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
         crash_signature = utils.format_crash_signature(crash_signature)
         utils.bucket(oops_config, oops_id, crash_signature, data)
         metrics.meter('success.python_bucketed')
-        return (True, '')
+        return (True, '%s OOPSID' % oops_id)
 
     # Binary
     if 'StacktraceTop' in data and 'Signal' in data:
@@ -269,4 +269,4 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
     # Could not bucket
     could_not_bucket_fam = pycassa.ColumnFamily(_pool, 'CouldNotBucket')
     could_not_bucket_fam.insert(day_key, {uuid.UUID(oops_id): ''})
-    return (True, '')
+    return (True, '%s OOPSID' % oops_id)
