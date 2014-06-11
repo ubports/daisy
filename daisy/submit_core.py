@@ -70,6 +70,14 @@ def write_to_swift(environ, fileobj, oops_id, provider_data):
                                      provider_data['os_password'],
                                      os_options=opts,
                                      auth_version='2.0')
+    # if there is no token we should recreate the connection
+    if not _cached_swift.token:
+        _cached_swift = swiftclient.client.Connection(
+                                     provider_data['os_auth_url'],
+                                     provider_data['os_username'],
+                                     provider_data['os_password'],
+                                     os_options=opts,
+                                     auth_version='2.0')
     # it seems to still be None sometimes
     now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
     msg = '%s swift_token: %s' % (now, _cached_swift.token)
