@@ -83,6 +83,9 @@ def write_to_swift(environ, fileobj, oops_id, provider_data):
         # related to heavy load on Swift, as has been the case before.
         environ['swift.bytes_used'] = bytes_used
         if (not write_policy_allow(oops_id, bytes_used, provider_data)):
+            now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+            msg = '%s bytes_used issue' % (now, oops_id, str(e))
+            print >>sys.stderr, msg
             return False
 
     _cached_swift.put_container(bucket)
@@ -93,13 +96,19 @@ def write_to_swift(environ, fileobj, oops_id, provider_data):
     except IOError, e:
         swift_delete_ignoring_error(_cached_swift, bucket, oops_id)
         if e.message == 'request data read error':
+            now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+            msg = '%s IOError when trying to add (%s) to bucket: %s' % (now, oops_id, str(e))
+            print >>sys.stderr, msg
             return False
         else:
+            now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+            msg = '%s IOError when trying to add (%s) to bucket: %s' % (now, oops_id, str(e))
+            print >>sys.stderr, msg
             metrics.meter('swift_ioerror')
             raise
     except swiftclient.ClientException as e:
         now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-        msg = '%s Exception when trying to add to bucket %s' % (now, str(e))
+        msg = '%s ClientException when trying to add (%s) to bucket: %s' % (now, oops_id, str(e))
         print >>sys.stderr, msg
         metrics.meter('swift_client_exception')
         swift_delete_ignoring_error(_cached_swift, bucket, oops_id)
