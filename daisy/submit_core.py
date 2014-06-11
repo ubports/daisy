@@ -121,6 +121,9 @@ def write_to_swift(environ, fileobj, oops_id, provider_data):
         metrics.meter('swift_client_exception')
         swift_delete_ignoring_error(_cached_swift, bucket, oops_id)
         return False
+    now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+    msg = '%s CORE for (%s) written to bucket' % (now, oops_id)
+    print >>sys.stderr, msg
     return True
 
 def s3_delete_ignoring_error(bucket, oops_id):

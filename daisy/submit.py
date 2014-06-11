@@ -176,6 +176,9 @@ def submit(_pool, environ, system_token):
             # We received BSON data with unexpected keys.
             return (False, 'No StacktraceAddressSignature found in report.')
     oopses.insert_dict(oops_config, oops_id, data, system_token, fields)
+    now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+    msg = '%s (%s) inserted into OOPS CF' % (now, oops_id)
+    print >>sys.stderr, msg
     metrics.meter('success.oopses')
 
     success, output = bucket(_pool, oops_config, oops_id, data, day_key)
@@ -259,6 +262,9 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
                 # configuration data in a directory named by the DistroRelease, so
                 # these would always fail regardless.
                 output = '%s CORE' % oops_id
+                now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+                msg = '%s (%s) asked for CORE' % (now, oops_id)
+                print >>sys.stderr, msg
                 metrics.meter('success.asked_for_core')
 
             awaiting_retrace_fam = pycassa.ColumnFamily(_pool, 'AwaitingRetrace')
