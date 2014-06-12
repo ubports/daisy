@@ -461,6 +461,30 @@ class Retracer:
         log('Processing.')
         parts = msg.body.split(':', 1)
         oops_id, provider = parts
+        try:
+            quorum = ConsistencyLevel.QUORUM
+            col = self.oops_fam.get(oops_id, read_consistency_level=quorum)
+        except NotFoundException:
+            # We do not have enough information at this point to be able to
+            # remove this from the retracing row in the Indexes CF. Throw it
+            # back on the queue and hope that eventual consistency works its
+            # magic by then.
+            log('Unable to find in OOPS CF.')
+            # RabbitMQ versions from 2.7.0 push basic_reject'ed messages
+            # back onto the front of the queue:
+            # http://www.rabbitmq.com/semantics.html
+            # Build a new message from the old one, publish the new and bin
+            # the old.
+            ts = msg.properties.get('timestamp')
+            key = msg.delivery_info['routing_key']
+
+            body = amqp.Message(msg.body, timestamp=ts)
+            body.properties['delivery_mode'] = 2
+            msg.channel.basic_publish(body, exchange='', routing_key=key)
+            msg.channel.basic_reject(msg.delivery_tag, False)
+
+            metrics.meter('could_not_find_oops')
+            return
         path = self.write_bucket_to_disk(*parts)
 
         if not path or not os.path.exists(path):
@@ -488,30 +512,6 @@ class Retracer:
                 return
 
             report = apport.Report()
-            try:
-                quorum = ConsistencyLevel.QUORUM
-                col = self.oops_fam.get(oops_id, read_consistency_level=quorum)
-            except NotFoundException:
-                # We do not have enough information at this point to be able to
-                # remove this from the retracing row in the Indexes CF. Throw it
-                # back on the queue and hope that eventual consistency works its
-                # magic by then.
-                log('Unable to find in OOPS CF.')
-                # RabbitMQ versions from 2.7.0 push basic_reject'ed messages
-                # back onto the front of the queue:
-                # http://www.rabbitmq.com/semantics.html
-                # Build a new message from the old one, publish the new and bin
-                # the old.
-                ts = msg.properties.get('timestamp')
-                key = msg.delivery_info['routing_key']
-
-                body = amqp.Message(msg.body, timestamp=ts)
-                body.properties['delivery_mode'] = 2
-                msg.channel.basic_publish(body, exchange='', routing_key=key)
-                msg.channel.basic_reject(msg.delivery_tag, False)
-
-                metrics.meter('could_not_find_oops')
-                return
 
             for k in col:
                 report[k.encode('UTF-8')] = col[k].encode('UTF-8')
