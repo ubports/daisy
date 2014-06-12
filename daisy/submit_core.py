@@ -98,9 +98,21 @@ def write_to_swift(environ, fileobj, oops_id, provider_data):
 
     _cached_swift.put_container(bucket)
     try:
-        # Don't set a content_length (that we don't have) to force a chunked
-        # transfer.
-        _cached_swift.put_object(bucket, oops_id, fileobj)
+        import tempfile
+        with tempfile.NamedTemporaryFile() as t:
+            while True:
+                chunk = fileobj.read(1024*1024)
+                if not chunk:
+                    break
+                t.write(chunk)
+            t.flush()
+            t.seek(0)
+            t_size = os.path.getsize(t.name)
+            msg = '%s has a %i byte core file' % (oops_id, t_size)
+            print >>sys.stderr, msg
+            # Don't set a content_length (that we don't have) to force a chunked
+            # transfer.
+            _cached_swift.put_object(bucket, oops_id, t)
     except IOError, e:
         swift_delete_ignoring_error(_cached_swift, bucket, oops_id)
         if e.message == 'request data read error':
