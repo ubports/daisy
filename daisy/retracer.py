@@ -476,6 +476,12 @@ class Retracer:
             # Build a new message from the old one, publish the new and bin
             # the old.
             ts = msg.properties.get('timestamp')
+            # Setting missing old OOPSes (in newcassandra) as failed
+            if ts < datetime.datetime(2014, 6, 11):
+                log('Marked old OOPS (%s) as failed' % oops_id)
+                self.failed_to_process(msg, oops_id)
+                return
+
             key = msg.delivery_info['routing_key']
 
             body = amqp.Message(msg.body, timestamp=ts)
@@ -485,6 +491,7 @@ class Retracer:
 
             metrics.meter('could_not_find_oops')
             return
+
         path = self.write_bucket_to_disk(*parts)
 
         if not path or not os.path.exists(path):
