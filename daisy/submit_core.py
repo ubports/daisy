@@ -112,7 +112,7 @@ def write_to_swift(environ, fileobj, oops_id, provider_data):
             print >>sys.stderr, msg
             # Don't set a content_length (that we don't have) to force a chunked
             # transfer.
-            _cached_swift.put_object(bucket, oops_id, t)
+            _cached_swift.put_object(bucket, oops_id, t, content_length=t_size)
     except IOError, e:
         swift_delete_ignoring_error(_cached_swift, bucket, oops_id)
         if e.message == 'request data read error':

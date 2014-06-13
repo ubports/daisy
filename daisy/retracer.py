@@ -476,7 +476,7 @@ class Retracer:
             # Build a new message from the old one, publish the new and bin
             # the old.
             ts = msg.properties.get('timestamp')
-            # Setting missing old OOPSes (in newcassandra) as failed
+            # 2014-06-12 Set missing old OOPSes (in newcassandra) as failed
             if ts < datetime.datetime(2014, 6, 11):
                 log('Marked old OOPS (%s) as failed' % oops_id)
                 self.failed_to_process(msg, oops_id)
