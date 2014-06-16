@@ -48,6 +48,7 @@ def handle_core_dump(_pool, environ, fileobj, components, content_type):
 
 def app(environ, start_response):
     # clean up core files in directories for which there is no pid
+    # this might be better done by worker_abort (need newer gunicorn)
     for d in os.listdir('/tmp/'):
         if not 'cores-' in d:
             continue
