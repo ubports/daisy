@@ -27,6 +27,7 @@ import sys
 from datetime import datetime
 from daisy.metrics import get_metrics
 import socket
+import time
 
 metrics = get_metrics('daisy.%s' % socket.gethostname())
 
@@ -235,6 +236,39 @@ def write_to_storage_provider(environ, fileobj, uuid):
     else:
         return None
 
+def get_amqp_connection():
+    lost_connection = False
+    while (not lost_connection or
+           time.time() < lost_connection + 120):
+        try:
+            if config.amqp_username and config.amqp_password:
+                connection = amqp.Connection(host=config.amqp_host,
+                                             userid=config.amqp_username,
+                                             password=config.amqp_password)
+            else:
+                connection = amqp.Connection(host=config.amqp_host)
+        except (socket.error, IOError), e:
+            is_amqplib_ioerror = (type(e) is IOError and
+                                  e.args == ('Socket error',))
+            amqplib_conn_errors = (socket.error,
+                                   amqp.AMQPConnectionException)
+            is_amqplib_conn_error = isinstance(e, amqplib_conn_errors)
+            if is_amqplib_conn_error or is_amqplib_ioerror:
+                lost_connection = time.time()
+                msg = 'lost connection to Rabbit.'
+                print >>sys.stderr, msg
+                metrics.meter('lost_rabbit_connection')
+                # Don't probe immediately, give the network/process
+                # time to come back.
+                time.sleep(0.1)
+            else:
+                raise
+    if not connection:
+        msg = 'Rabbit connection not created quickly enough.'
+        print >>sys.stderr, msg
+        return None
+    return connection
+
 def submit(_pool, environ, fileobj, uuid, arch):
     indexes_fam = pycassa.ColumnFamily(_pool, 'Indexes')
     oops_fam = pycassa.ColumnFamily(_pool, 'OOPS')
@@ -255,28 +289,24 @@ def submit(_pool, environ, fileobj, uuid, arch):
     message = write_to_storage_provider(environ, fileobj, uuid)
     if not message:
         return (False, '')
+    connection = get_amqp_connection()
 
-    if config.amqp_username and config.amqp_password:
-        connection = amqp.Connection(host=config.amqp_host,
-                                     userid=config.amqp_username,
-                                     password=config.amqp_password)
-    else:
-        connection = amqp.Connection(host=config.amqp_host)
-    channel = connection.channel()
+    if connection:
+        channel = connection.channel()
 
-    try:
-        queue = 'retrace_%s' % arch
-        channel.queue_declare(queue=queue, durable=True, auto_delete=False)
-        # We'll use this timestamp to measure how long it takes to process a
-        # retrace, from receiving the core file to writing the data back to
-        # Cassandra.
-        body = amqp.Message(message, timestamp=datetime.utcnow())
-        # Persistent
-        body.properties['delivery_mode'] = 2
-        channel.basic_publish(body, exchange='', routing_key=queue)
-    finally:
-        channel.close()
-        connection.close()
+        try:
+            queue = 'retrace_%s' % arch
+            channel.queue_declare(queue=queue, durable=True, auto_delete=False)
+            # We'll use this timestamp to measure how long it takes to process a
+            # retrace, from receiving the core file to writing the data back to
+            # Cassandra.
+            body = amqp.Message(message, timestamp=datetime.utcnow())
+            # Persistent
+            body.properties['delivery_mode'] = 2
+            channel.basic_publish(body, exchange='', routing_key=queue)
+        finally:
+            channel.close()
+            connection.close()
 
     indexes_fam.insert('retracing', {addr_sig : ''})
 
