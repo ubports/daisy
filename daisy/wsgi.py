@@ -4,8 +4,10 @@ from daisy import utils
 from daisy import metrics
 from daisy import config
 from daisy.version_middleware import VersionMiddleware
+import errno
 import os
 import re
+import shutil
 
 _pool = None
 path_filter = re.compile('[^a-zA-Z0-9-_]')
@@ -45,6 +47,24 @@ def handle_core_dump(_pool, environ, fileobj, components, content_type):
     return submit_core.submit(_pool, environ, fileobj, uuid, arch)
 
 def app(environ, start_response):
+    # clean up core files in directories for which there is no pid
+    for d in os.listdir('/tmp/'):
+        if not 'cores-' in d:
+            continue
+        pid = int(d.split('-')[1])
+        try:
+            os.kill(pid, 0)
+        except OSError as error:
+            # that e-t-daisy-app process is no longer running
+            if error.errno == errno.ESRCH:
+                shutil.rmtree('/tmp/cores-%s' % pid, ignore_errors=True)
+                continue
+        # there is process running with this pid but its not e-t-daisy-app
+        with open('/proc/%s/cmdline' % pid, 'r') as cmdline:
+            if 'e-t-daisy-app' not in cmdline:
+                continue
+            shutil.rmtree('/tmp/cores-%s' % pid, ignore_errors=True)
+
     global _pool
     if not _pool:
         _pool = metrics.wrapped_connection_pool()
