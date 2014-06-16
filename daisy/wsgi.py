@@ -45,16 +45,6 @@ def handle_core_dump(_pool, environ, fileobj, components, content_type):
     return submit_core.submit(_pool, environ, fileobj, uuid, arch)
 
 def app(environ, start_response):
-    # clean-up any leftover temporary core files
-    if not os.path.exists('/tmp/cores/'):
-        os.mkdir('/tmp/cores/')
-    for corefile in os.listdir('/tmp/cores/'):
-        if not corefile.closed:
-            continue
-        try:
-            os.remove(corefile)
-        except OSError:
-            pass
     global _pool
     if not _pool:
         _pool = metrics.wrapped_connection_pool()
