@@ -99,7 +99,7 @@ def write_to_swift(environ, fileobj, oops_id, provider_data):
     _cached_swift.put_container(bucket)
     try:
         import tempfile
-        with tempfile.NamedTemporaryFile() as t:
+        with tempfile.NamedTemporaryFile(dir='/tmp/cores/') as t:
             while True:
                 chunk = fileobj.read(1024*1024)
                 if not chunk:
