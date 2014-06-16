@@ -46,6 +46,8 @@ def handle_core_dump(_pool, environ, fileobj, components, content_type):
 
 def app(environ, start_response):
     # clean-up any leftover temporary core files
+    if not os.path.exists('/tmp/cores/'):
+        os.mkdir('/tmp/cores/')
     for corefile in os.listdir('/tmp/cores/'):
         if not corefile.closed:
             continue
