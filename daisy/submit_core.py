@@ -249,7 +249,8 @@ def get_amqp_connection():
                 connection = amqp.Connection(host=config.amqp_host)
         except (socket.error, IOError), e:
             is_amqplib_ioerror = (type(e) is IOError and
-                                  e.args == ('Socket closed',))
+                                  e.args in [('Socket closed',),
+                                             ('Socket error',)])
             amqplib_conn_errors = (socket.error,
                                    amqp.AMQPConnectionException)
             is_amqplib_conn_error = isinstance(e, amqplib_conn_errors)

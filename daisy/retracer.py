@@ -479,6 +479,7 @@ class Retracer:
             # 2014-06-12 Set missing old OOPSes (in newcassandra) as failed
             if ts < datetime.datetime(2014, 6, 11):
                 log('Marked old OOPS (%s) as failed' % oops_id)
+                # failed_to_process calls processed which removes the core
                 self.failed_to_process(msg, oops_id)
                 return
 
