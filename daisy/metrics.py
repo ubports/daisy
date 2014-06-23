@@ -61,6 +61,10 @@ def wrapped_connection_pool(namespace='daisy'):
                                   config.cassandra_hosts,
                                   listeners=[MeteredListener(namespace)],
                                   timeout=30,
+                                  # multiple of cassandra_hosts
+                                  pool_size=9,
+                                  # allow the pool to overflow
+                                  max_overflow=18,
                                   # Pycassa will sleep for 10.24 seconds before
                                   # the last retry.
                                   max_retries=10, credentials=creds)
