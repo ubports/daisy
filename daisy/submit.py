@@ -39,6 +39,8 @@ oops_config = oopsconfig.get_config()
 oops_config['host'] = config.cassandra_hosts
 oops_config['username'] = config.cassandra_username
 oops_config['password'] = config.cassandra_password
+oops_config['pool_size'] = config.cassandra_pool_size
+oops_config['max_overflow'] = config.cassandra_max_overflow
 
 metrics = get_metrics('daisy.%s' % socket.gethostname())
 

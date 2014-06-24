@@ -28,6 +28,12 @@ cassandra_username = ''
 # The password to use.
 cassandra_password = ''
 
+# should be a multiple of cassandra_hosts
+cassandra_pool_size = 9
+
+# allow the pool to overflow
+cassandra_max_overflow = 18
+
 # The AMQP host to receive messages from.
 amqp_host = '127.0.0.1'
 
