@@ -270,7 +270,8 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
                 metrics.meter('success.asked_for_core')
 
             awaiting_retrace_fam = pycassa.ColumnFamily(_pool, 'AwaitingRetrace')
-            awaiting_retrace_fam.insert(addr_sig, {oops_id : ''})
+            if addr_sig:
+                awaiting_retrace_fam.insert(addr_sig, {oops_id : ''})
             metrics.meter('success.awaiting_binary_bucket')
         if not output:
             output = '%s OOPSID' % oops_id
