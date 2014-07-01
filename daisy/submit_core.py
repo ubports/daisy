@@ -18,7 +18,7 @@
 
 import amqplib.client_0_8 as amqp
 import pycassa
-from pycassa.cassandra.ttypes import NotFoundException
+from pycassa.cassandra.ttypes import NotFoundException, InvalidRequestException
 import shutil
 import os
 import random
@@ -277,7 +277,7 @@ def submit(_pool, environ, fileobj, uuid, arch):
     try:
         addr_sig = oops_fam.get(uuid, ['StacktraceAddressSignature'])
         addr_sig = addr_sig.values()[0]
-    except NotFoundException:
+    except (NotFoundException, InvalidRequestException):
         # Due to Cassandra's eventual consistency model, we may receive
         # the core dump before the OOPS has been written to all the
         # nodes. This is acceptable, as we'll just ask the next user

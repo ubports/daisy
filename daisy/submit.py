@@ -22,7 +22,7 @@ import bson
 from oopsrepository import config as oopsconfig
 from oopsrepository import oopses
 import pycassa
-from pycassa.cassandra.ttypes import NotFoundException
+from pycassa.cassandra.ttypes import NotFoundException, InvalidRequestException
 
 from daisy import config
 import apport
