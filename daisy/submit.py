@@ -222,7 +222,7 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
             crash_sig = indexes_fam.get(
                 'crash_signature_for_stacktrace_address_signature', [addr_sig])
             crash_sig = crash_sig.values()[0]
-        except (NotFoundException, KeyError):
+        except (NotFoundException, KeyError, InvalidRequestException):
             pass
         # retry retracing some failures
         if crash_sig and not crash_sig.startswith('failed:'):
@@ -249,7 +249,7 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
             waiting = True
             try:
                 indexes_fam.get('retracing', [addr_sig])
-            except NotFoundException:
+            except (NotFoundException, InvalidRequestException):
                 waiting = False
 
             release = data.get('DistroRelease', '')
