@@ -121,6 +121,9 @@ def submit(_pool, environ, system_token):
         metrics.meter('unsupported.eol_%s' % eol_releases[release])
         return (False, '%s is End of Life' % release)
     arch = data.get('Architecture', '')
+    # We cannot retrace without an architecture to do it on
+    if not arch:
+        metrics.meter('missing.missing_arch')
     if arch == 'armel':
         metrics.meter('unsupported.armel')
         return (False, 'armel architecture is obsoleted')
@@ -170,13 +173,10 @@ def submit(_pool, environ, system_token):
         data.pop('Stacktrace')
     if 'ThreadStacktrace' in data:
         data.pop('ThreadStacktrace')
-    # Ensure Binary crashes have a StacktraceAddressSignature
     if 'StacktraceTop' in data and 'Signal' in data:
         addr_sig = data.get('StacktraceAddressSignature', None)
-        if not addr_sig:
-            metrics.meter('missing.missing_sas')
-            # We received BSON data with unexpected keys.
-            return (False, 'No StacktraceAddressSignature found in report.')
+        if not addr_sig and arch:
+            metrics.meter('missing.missing_sas_%s') % arch
     oopses.insert_dict(oops_config, oops_id, data, system_token, fields)
     now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
     msg = '%s (%s) inserted into OOPS CF' % (now, oops_id)
