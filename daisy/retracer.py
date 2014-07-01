@@ -138,6 +138,8 @@ class Retracer:
         self.oops_config['host'] = config.cassandra_hosts
         self.oops_config['username'] = config.cassandra_username
         self.oops_config['password'] = config.cassandra_password
+        self.oops_config['pool_size'] = config.cassandra_pool_size
+        self.oops_config['max_overflow'] = config.cassandra_max_overflow
 
         self.pool = wrapped_connection_pool('retracer')
         self.oops_fam = ColumnFamily(self.pool, 'OOPS')
