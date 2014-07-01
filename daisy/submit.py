@@ -176,7 +176,7 @@ def submit(_pool, environ, system_token):
     if 'StacktraceTop' in data and 'Signal' in data:
         addr_sig = data.get('StacktraceAddressSignature', None)
         if not addr_sig and arch:
-            metrics.meter('missing.missing_sas_%s') % arch
+            metrics.meter('missing.missing_sas_%s' % arch)
     oopses.insert_dict(oops_config, oops_id, data, system_token, fields)
     now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
     msg = '%s (%s) inserted into OOPS CF' % (now, oops_id)
