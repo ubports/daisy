@@ -3,6 +3,7 @@
 import pycassa
 from pycassa.cassandra.ttypes import NotFoundException
 import datetime
+import sys
 from time import sleep
 from daisy import config
 
@@ -22,6 +23,7 @@ def main():
     # this could happen at the start of the day
     except NotFoundException:
         print('status=retracing')
+        sys.exit(0)
     sleep(180)
     current_stats = retracestats_cf.get(date)
     if previous_stats == current_stats:

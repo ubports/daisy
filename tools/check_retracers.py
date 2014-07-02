@@ -1,9 +1,10 @@
 #!/usr/bin/python
 
+import datetime
+import os
 import sys
 import pycassa
 from pycassa.cassandra.ttypes import NotFoundException
-import datetime
 from daisy import config
 
 creds = {'username': config.cassandra_username,
@@ -18,6 +19,8 @@ ttr = pycassa.ColumnFamily(pool, 'TimeToRetrace')
 
 def main():
     # this file is created by retracer_status.py
+    if not os.path.isfile('/tmp/retracer-status.txt'):
+        sys.exit(1)
     with open('/tmp/retracer-status.txt', 'r') as f:
         for line in f.readlines():
             if line.strip() == 'status=stopped':
