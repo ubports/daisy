@@ -20,12 +20,15 @@ ttr = pycassa.ColumnFamily(pool, 'TimeToRetrace')
 def main():
     # this file is created by retracer_status.py
     if not os.path.isfile('/tmp/retracer-status.txt'):
+        print('/tmp/retracer-status.txt not found')
         sys.exit(1)
     with open('/tmp/retracer-status.txt', 'r') as f:
         for line in f.readlines():
-            if line.strip() == 'status=stopped':
+            if line.strip() == 'Nothing retraced in 180 seconds':
+                print('%s' % line.strip())
                 sys.exit(2)
-            elif line.strip() == 'status=retracing':
+            elif line.strip() == 'Retracing ongoing':
+                print('%s' % line.strip())
                 sys.exit(0)
 
     #l = [v for k, v in ttr.xget(date)]
