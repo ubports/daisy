@@ -526,10 +526,6 @@ class Retracer:
             for k in col:
                 report[k.encode('UTF-8')] = col[k].encode('UTF-8')
 
-            stacktrace_addr_sig = report['StacktraceAddressSignature']
-            if type(stacktrace_addr_sig) == unicode:
-                stacktrace_addr_sig = stacktrace_addr_sig.encode('utf-8')
-
             release = report.get('DistroRelease', '')
             bad = '[^-a-zA-Z0-9_.() ]+'
             retraceable = utils.retraceable_release(release)
@@ -618,6 +614,16 @@ class Retracer:
                 log('StacktraceTop:')
                 for line in report['StacktraceTop'].splitlines():
                     log(line)
+
+            stacktrace_addr_sig = report['StacktraceAddressSignature']
+            if type(stacktrace_addr_sig) == unicode:
+                stacktrace_addr_sig = stacktrace_addr_sig.encode('utf-8')
+            # if the OOPS doesn't already have a SAS add one
+            try:
+                self.oops_fam.get(oops_id, ['StacktraceAddressSignature'])
+            except NotFoundException:
+                self.oops_fam.insert(oops_id, {'StacktraceAddressSignature': stacktrace_addr_sig})
+
             crash_signature = utils.format_crash_signature(crash_signature)
             # if there are any outdated packages don't write to the
             # Stacktrace column family LP: #1321386
@@ -678,8 +684,8 @@ class Retracer:
             try:
                 self.awaiting_retrace_fam.remove(stacktrace_addr_sig, oops_ids)
             except NotFoundException:
-                # I'm not sure why this would happen, but we could safely
-                # continue on were it to.
+                # An oops may not exist in awaiting_retrace if the initial
+                # report didn't have a SAS
                 pass
 
             if crash_signature:

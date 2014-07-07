@@ -275,15 +275,17 @@ def submit(_pool, environ, fileobj, uuid, arch):
     oops_fam = pycassa.ColumnFamily(_pool, 'OOPS')
 
     try:
-        addr_sig = oops_fam.get(uuid, ['StacktraceAddressSignature'])
-        addr_sig = addr_sig.values()[0]
+        # every OOPS will have a SystemIdentifier
+        oops_details = oops_fam.get(uuid, ['StacktraceAddressSignature', 'SystemIdentifier'])
+        addr_sig = oops_details.get('StacktraceAddressSignature', '')
     except (NotFoundException, InvalidRequestException):
         # Due to Cassandra's eventual consistency model, we may receive
         # the core dump before the OOPS has been written to all the
         # nodes. This is acceptable, as we'll just ask the next user
         # for a core dump.
-        msg = 'No matching address signature for this core dump.'
-        metrics.meter('submit_core.no_matching_sas')
+        msg = 'No OOPS found for this core dump.'
+        metrics.meter('submit_core.no_matching_oops')
+        print >>sys.stderr, msg
         return (False, msg)
 
 
@@ -294,7 +296,6 @@ def submit(_pool, environ, fileobj, uuid, arch):
 
     if connection:
         channel = connection.channel()
-
         try:
             queue = 'retrace_%s' % arch
             channel.queue_declare(queue=queue, durable=True, auto_delete=False)
@@ -309,6 +310,7 @@ def submit(_pool, environ, fileobj, uuid, arch):
             channel.close()
             connection.close()
 
-    indexes_fam.insert('retracing', {addr_sig : ''})
+    if addr_sig:
+        indexes_fam.insert('retracing', {addr_sig : ''})
 
     return (True, uuid)
