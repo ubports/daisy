@@ -614,6 +614,7 @@ class Retracer:
                 log('StacktraceTop:')
                 for line in report['StacktraceTop'].splitlines():
                     log(line)
+            original_sas = ''
             if stacktrace_addr_sig:
                 if type(stacktrace_addr_sig) == unicode:
                     stacktrace_addr_sig = stacktrace_addr_sig.encode('utf-8')
@@ -621,7 +622,6 @@ class Retracer:
                 try:
                     original_sas = self.oops_fam.get(oops_id, ['StacktraceAddressSignature'])['StacktraceAddressSignature']
                 except NotFoundException:
-                    original_sas = ''
                     self.oops_fam.insert(oops_id, {'StacktraceAddressSignature': stacktrace_addr_sig})
 
             crash_signature = utils.format_crash_signature(crash_signature)
