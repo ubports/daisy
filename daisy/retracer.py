@@ -619,8 +619,9 @@ class Retracer:
                     stacktrace_addr_sig = stacktrace_addr_sig.encode('utf-8')
                 # if the OOPS doesn't already have a SAS add one
                 try:
-                    original_sas = self.oops_fam.get(oops_id, ['StacktraceAddressSignature'])
+                    original_sas = self.oops_fam.get(oops_id, ['StacktraceAddressSignature'])['StacktraceAddressSignature']
                 except NotFoundException:
+                    original_sas = ''
                     self.oops_fam.insert(oops_id, {'StacktraceAddressSignature': stacktrace_addr_sig})
 
             crash_signature = utils.format_crash_signature(crash_signature)
