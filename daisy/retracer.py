@@ -608,20 +608,20 @@ class Retracer:
                 report.load(fp)
 
             crash_signature = report.crash_signature()
+            stacktrace_addr_sig = report.get('StacktraceAddressSignature', '')
             if not crash_signature:
                 log('Apport did not return a crash_signature.')
                 log('StacktraceTop:')
                 for line in report['StacktraceTop'].splitlines():
                     log(line)
-
-            stacktrace_addr_sig = report['StacktraceAddressSignature']
-            if type(stacktrace_addr_sig) == unicode:
-                stacktrace_addr_sig = stacktrace_addr_sig.encode('utf-8')
-            # if the OOPS doesn't already have a SAS add one
-            try:
-                self.oops_fam.get(oops_id, ['StacktraceAddressSignature'])
-            except NotFoundException:
-                self.oops_fam.insert(oops_id, {'StacktraceAddressSignature': stacktrace_addr_sig})
+            if stacktrace_addr_sig:
+                if type(stacktrace_addr_sig) == unicode:
+                    stacktrace_addr_sig = stacktrace_addr_sig.encode('utf-8')
+                # if the OOPS doesn't already have a SAS add one
+                try:
+                    original_sas = self.oops_fam.get(oops_id, ['StacktraceAddressSignature'])
+                except NotFoundException:
+                    self.oops_fam.insert(oops_id, {'StacktraceAddressSignature': stacktrace_addr_sig})
 
             crash_signature = utils.format_crash_signature(crash_signature)
             # if there are any outdated packages don't write to the
@@ -644,8 +644,11 @@ class Retracer:
                 # symbols for every package version, we can reprocess these
                 # with a map/reduce job.
 
-                s = report['StacktraceAddressSignature']
-                crash_signature = 'failed:%s' % utils.format_crash_signature(s)
+                if stacktrace_addr_sig:
+                    crash_signature = 'failed:%s' % \
+                        utils.format_crash_signature(stracktrace_addr_sig)
+                else:
+                    crash_signature = ''
 
                 log('Could not retrace.')
                 if 'RetraceOutdatedPackages' in report:
@@ -655,20 +658,30 @@ class Retracer:
                 args = (release, day_key, retracing_time, False)
                 self.update_retrace_stats(*args)
 
+            # Use the unretraced report's SAS for the index, otherwise use the
+            # one from the retraced report as apport / gdb may improve
+            if original_sas:
+                stacktrace_addr_sig = original_sas
             # We want really quick lookups of whether we have a stacktrace for
             # this signature, so that we can quickly tell the client whether we
             # need a core dump from it.
-            self.indexes_fam.insert(
-                'crash_signature_for_stacktrace_address_signature',
-                {stacktrace_addr_sig : crash_signature})
-
-            self.indexes_fam.remove('retracing', [stacktrace_addr_sig])
-
-            # This will contain the OOPS ID we're currently processing as
-            # well.
-            gen = self.awaiting_retrace_fam.xget(stacktrace_addr_sig)
-            ids = [k for k,v in gen]
-            oops_ids = ids
+            if stacktrace_addr_sig and crash_signature:
+                self.indexes_fam.insert(
+                    'crash_signature_for_stacktrace_address_signature',
+                    {stacktrace_addr_sig : crash_signature})
+            # Use the unretraced report's SAS for the index as these were
+            # created with that version of the report
+            if original_sas:
+                self.indexes_fam.remove('retracing', [original_sas])
+                # This will contain the OOPS ID we're currently processing as
+                # well.
+                gen = self.awaiting_retrace_fam.xget(original_sas)
+                ids = [k for k,v in gen]
+                oops_ids = ids
+            else:
+                # The initial report didn't have a SAS so don't check
+                # awaiting_retrace
+                ids = []
 
             if len(ids) == 0:
                 # Handle eventual consistency. If the writes to AwaitingRetrace
@@ -678,16 +691,15 @@ class Retracer:
                 oops_ids = [oops_id]
                 metrics.meter('missing.cannot_find_oopses_awaiting_retrace')
 
-            self.bucket(oops_ids, crash_signature)
-
             try:
-                self.awaiting_retrace_fam.remove(stacktrace_addr_sig, oops_ids)
+                self.awaiting_retrace_fam.remove(original_sas, oops_ids)
             except NotFoundException:
                 # An oops may not exist in awaiting_retrace if the initial
                 # report didn't have a SAS
                 pass
 
             if crash_signature:
+                self.bucket(oops_ids, crash_signature)
                 if self.rebucket(crash_signature):
                     log('Recounting %s' % crash_signature)
                     self.recount(crash_signature, msg.channel)
