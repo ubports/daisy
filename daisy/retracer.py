@@ -647,7 +647,7 @@ class Retracer:
 
                 if stacktrace_addr_sig:
                     crash_signature = 'failed:%s' % \
-                        utils.format_crash_signature(stracktrace_addr_sig)
+                        utils.format_crash_signature(stacktrace_addr_sig)
                 else:
                     crash_signature = ''
 
@@ -692,12 +692,13 @@ class Retracer:
                 oops_ids = [oops_id]
                 metrics.meter('missing.cannot_find_oopses_awaiting_retrace')
 
-            try:
-                self.awaiting_retrace_fam.remove(original_sas, oops_ids)
-            except NotFoundException:
-                # An oops may not exist in awaiting_retrace if the initial
-                # report didn't have a SAS
-                pass
+            if original_sas:
+                try:
+                    self.awaiting_retrace_fam.remove(original_sas, oops_ids)
+                except NotFoundException:
+                    # An oops may not exist in awaiting_retrace if the initial
+                    # report didn't have a SAS
+                    pass
 
             if crash_signature:
                 self.bucket(oops_ids, crash_signature)
