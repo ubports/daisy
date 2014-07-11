@@ -306,9 +306,14 @@ def submit(_pool, environ, fileobj, uuid, arch):
             # Persistent
             body.properties['delivery_mode'] = 2
             channel.basic_publish(body, exchange='', routing_key=queue)
+            msg = '%s added to %s queue' % (uuid, queue)
+            print >>sys.stderr, msg
         finally:
             channel.close()
             connection.close()
+    else:
+        msg = 'No connection to rabbit.'
+        print >>sys.stderr, msg
 
     if addr_sig:
         indexes_fam.insert('retracing', {addr_sig : ''})
