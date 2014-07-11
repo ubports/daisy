@@ -256,7 +256,8 @@ def get_amqp_connection():
             is_amqplib_conn_error = isinstance(e, amqplib_conn_errors)
             if is_amqplib_conn_error or is_amqplib_ioerror:
                 lost_connection = time.time()
-                msg = 'lost connection to Rabbit.'
+                now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+                msg = '%s lost connection to Rabbit.' % now
                 print >>sys.stderr, msg
                 metrics.meter('lost_rabbit_connection')
                 # Don't probe immediately, give the network/process
@@ -265,7 +266,8 @@ def get_amqp_connection():
             else:
                 raise
     if not connection:
-        msg = 'Rabbit connection not created quickly enough.'
+        now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+        msg = '%s Rabbit connection not created quickly enough.' % now
         print >>sys.stderr, msg
         return None
     return connection
@@ -283,7 +285,8 @@ def submit(_pool, environ, fileobj, uuid, arch):
         # the core dump before the OOPS has been written to all the
         # nodes. This is acceptable, as we'll just ask the next user
         # for a core dump.
-        msg = 'No OOPS found for this core dump.'
+        now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+        msg = '%s No OOPS found for this core dump.' % now
         metrics.meter('submit_core.no_matching_oops')
         print >>sys.stderr, msg
         return (False, msg)
@@ -306,13 +309,15 @@ def submit(_pool, environ, fileobj, uuid, arch):
             # Persistent
             body.properties['delivery_mode'] = 2
             channel.basic_publish(body, exchange='', routing_key=queue)
-            msg = '%s added to %s queue' % (uuid, queue)
+            now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+            msg = '%s %s added to %s queue' % (now, uuid, queue)
             print >>sys.stderr, msg
         finally:
             channel.close()
             connection.close()
     else:
-        msg = 'No connection to rabbit.'
+        now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+        msg = '%s No connection to rabbit.' % now
         print >>sys.stderr, msg
 
     if addr_sig:
