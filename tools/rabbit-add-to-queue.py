@@ -20,9 +20,7 @@ else:
 channel = connection.channel()
 
 arch = sys.argv[1]
-message = sys.argv[2] # uuid
-
-message = '%s:swift' % message
+message = sys.argv[2] # uuid:storage_provider
 
 try:
     queue = 'retrace_%s' % arch

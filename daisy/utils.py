@@ -1,7 +1,20 @@
+from amqplib.client_0_8.exceptions import AMQPConnectionException
 from oopsrepository import oopses
 import apt
 import re
+import socket
 import uuid
+
+# From oops-amqp
+# These exception types always indicate an AMQP connection error/closure.
+# However you should catch amqplib_error_types and post-filter with
+# is_amqplib_connection_error.
+amqplib_connection_errors = (socket.error, AMQPConnectionException)
+# A tuple to reduce duplication in different code paths. Lists the types of
+# exceptions legitimately raised by amqplib when the AMQP server goes down.
+# Not all exceptions *will* be such errors - use is_amqplib_connection_error to
+# do a second-stage filter after catching the exception.
+amqplib_error_types = amqplib_connection_errors + (IOError,)
 
 def get_fields_for_bucket_counters(problem_type, release, package, version):
     fields = []
@@ -129,3 +142,13 @@ def retraceable_release(release):
     else:
         return False
 
+# From oops-amqp
+def is_amqplib_ioerror(e):
+    """Returns True if e is an amqplib internal exception."""
+    # Raised by amqplib rather than socket.error on ssl issues and short reads.
+    return type(e) is IOError and e.args == ('Socket error',)
+
+# From oops-amqp
+def is_amqplib_connection_error(e):
+    """Return True if e was (probably) raised due to a connection issue."""
+    return isinstance(e, amqplib_connection_errors) or is_amqplib_ioerror(e)
