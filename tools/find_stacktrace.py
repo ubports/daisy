@@ -18,7 +18,7 @@ awaiting_retrace = pycassa.ColumnFamily(pool, 'AwaitingRetrace')
 
 
 def main(hashed):
-    # TODO this does not work for OOPS's with a traceback for
+    # TODO this does not work for OOPS's with a traceback or
     # duplicatesignature
     try:
         oops_details = oops.get(hashed, ['StacktraceAddressSignature'])

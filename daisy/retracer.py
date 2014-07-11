@@ -144,7 +144,7 @@ class Retracer:
         self.pool = wrapped_connection_pool('retracer')
         self.oops_fam = ColumnFamily(self.pool, 'OOPS')
         self.indexes_fam = ColumnFamily(self.pool, 'Indexes')
-        self.stack_fam = ColumnFamily(self.pool, 'Stacktrace')
+        self.stacktrace_cf = ColumnFamily(self.pool, 'Stacktrace')
         self.awaiting_retrace_fam = ColumnFamily(self.pool, 'AwaitingRetrace')
         # Retry counter increments. This may result in double counting, but
         # we'd end up risking that anyway if failing with a timeout exception
@@ -157,7 +157,7 @@ class Retracer:
         # Whoops.
         self.oops_fam.default_validation_class = UTF8Type()
         self.indexes_fam.default_validation_class = UTF8Type()
-        self.stack_fam.default_validation_class = UTF8Type()
+        self.stacktrace_cf.default_validation_class = UTF8Type()
         self.awaiting_retrace_fam.default_validation_class = UTF8Type()
 
     def listen(self):
@@ -629,12 +629,12 @@ class Retracer:
             # Stacktrace column family LP: #1321386
             if crash_signature and 'RetraceOutdatedPackages' not in report:
                 try:
-                    self.stack_fam.insert(stacktrace_addr_sig, report)
+                    self.stacktrace_cf.insert(stacktrace_addr_sig, report)
                 except MaximumRetryException:
                     total = sum(len(x) for x in report.values())
                     m = 'Could not fit data in a single insert (%s, %d):'
                     log(m % (path, total))
-                    chunked_insert(self.stack_fam, stacktrace_addr_sig, report)
+                    chunked_insert(self.stacktrace_cf, stacktrace_addr_sig, report)
                 args = (release, day_key, retracing_time, True)
                 self.update_retrace_stats(*args)
                 log('Successfully retraced.')
