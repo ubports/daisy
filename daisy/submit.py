@@ -238,12 +238,6 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
             utils.bucket(oops_config, oops_id, crash_sig, data)
             metrics.meter('success.ready_binary_bucketed')
         else:
-            if crash_sig:
-                if crash_sig.startswith('failed:'):
-                    metrics.meter('success.retry_failure')
-                    now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-                    msg = '%s will retry: %s' % (now, oops_id)
-                    print >>sys.stderr, msg
             # Are we already waiting for this stacktrace address signature to be
             # retraced?
             waiting = True
@@ -254,6 +248,14 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
 
             release = data.get('DistroRelease', '')
             if not waiting and utils.retraceable_release(release):
+                # retry SASes that failed to retrace as new dbgsym packages
+                # may be available
+                if crash_sig:
+                    if crash_sig.startswith('failed:'):
+                        metrics.meter('success.retry_failure')
+                        now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+                        msg = '%s will retry: %s' % (now, oops_id)
+                        print >>sys.stderr, msg
                 # We do not have a core file in the queue, so ask for one. Do
                 # not assume we're going to get one, so also add this ID the
                 # the AwaitingRetrace CF queue as well.
