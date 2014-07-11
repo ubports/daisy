@@ -624,6 +624,12 @@ class Retracer:
                 except NotFoundException:
                     self.oops_fam.insert(oops_id, {'StacktraceAddressSignature': stacktrace_addr_sig})
 
+            # Use the unretraced report's SAS for the index and stacktrace_cf,
+            # otherwise use the one from the retraced report as apport / gdb
+            # may improve
+            if original_sas:
+                stacktrace_addr_sig = original_sas
+
             crash_signature = utils.format_crash_signature(crash_signature)
             # if there are any outdated packages don't write to the
             # Stacktrace column family LP: #1321386
@@ -659,10 +665,6 @@ class Retracer:
                 args = (release, day_key, retracing_time, False)
                 self.update_retrace_stats(*args)
 
-            # Use the unretraced report's SAS for the index, otherwise use the
-            # one from the retraced report as apport / gdb may improve
-            if original_sas:
-                stacktrace_addr_sig = original_sas
             # We want really quick lookups of whether we have a stacktrace for
             # this signature, so that we can quickly tell the client whether we
             # need a core dump from it.
