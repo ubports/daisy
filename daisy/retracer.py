@@ -633,7 +633,8 @@ class Retracer:
             crash_signature = utils.format_crash_signature(crash_signature)
             # if there are any outdated packages don't write to the
             # Stacktrace column family LP: #1321386
-            if crash_signature and 'RetraceOutdatedPackages' not in report:
+            if crash_signature and stacktrace_addr_sig and \
+                    'RetraceOutdatedPackages' not in report:
                 try:
                     self.stacktrace_cf.insert(stacktrace_addr_sig, report)
                 except MaximumRetryException:
