@@ -146,7 +146,11 @@ def retraceable_release(release):
 def is_amqplib_ioerror(e):
     """Returns True if e is an amqplib internal exception."""
     # Raised by amqplib rather than socket.error on ssl issues and short reads.
-    return type(e) is IOError and e.args == ('Socket error',)
+    if not type(e) is IOError:
+        return False
+    if e.args == ('Socket error',) or e.args == ('Socket closed',):
+        return True
+    return False
 
 # From oops-amqp
 def is_amqplib_connection_error(e):
