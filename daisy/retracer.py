@@ -635,6 +635,8 @@ class Retracer:
             # Stacktrace column family LP: #1321386
             if crash_signature and stacktrace_addr_sig and \
                     'RetraceOutdatedPackages' not in report:
+                if 'Stacktrace' not in report:
+                    log('Stacktrace not in retraced report with a crash_sig.')
                 try:
                     self.stacktrace_cf.insert(stacktrace_addr_sig, report)
                 except MaximumRetryException:
