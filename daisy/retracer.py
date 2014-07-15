@@ -142,7 +142,7 @@ class Retracer:
         self.oops_config['max_overflow'] = config.cassandra_max_overflow
 
         self.pool = wrapped_connection_pool('retracer')
-        self.oops_fam = ColumnFamily(self.pool, 'OOPS')
+        self.oops_cf = ColumnFamily(self.pool, 'OOPS')
         self.indexes_fam = ColumnFamily(self.pool, 'Indexes')
         self.stacktrace_cf = ColumnFamily(self.pool, 'Stacktrace')
         self.awaiting_retrace_fam = ColumnFamily(self.pool, 'AwaitingRetrace')
@@ -155,7 +155,7 @@ class Retracer:
 
         # We didn't set a default_validation_class for these in the schema.
         # Whoops.
-        self.oops_fam.default_validation_class = UTF8Type()
+        self.oops_cf.default_validation_class = UTF8Type()
         self.indexes_fam.default_validation_class = UTF8Type()
         self.stacktrace_cf.default_validation_class = UTF8Type()
         self.awaiting_retrace_fam.default_validation_class = UTF8Type()
@@ -309,7 +309,7 @@ class Retracer:
         self.processed(msg)
         # Also remove it from the retracing index, if we haven't already.
         try:
-            addr_sig = self.oops_fam.get(oops_id,
+            addr_sig = self.oops_cf.get(oops_id,
                             ['StacktraceAddressSignature', 'SystemIdentifier'])
             addr_sig = addr_sig.values()[0]
             self.indexes_fam.remove('retracing', [addr_sig])
@@ -464,7 +464,7 @@ class Retracer:
         oops_id, provider = parts
         try:
             quorum = ConsistencyLevel.QUORUM
-            col = self.oops_fam.get(oops_id, read_consistency_level=quorum)
+            col = self.oops_cf.get(oops_id, read_consistency_level=quorum)
         except NotFoundException:
             # We do not have enough information at this point to be able to
             # remove this from the retracing row in the Indexes CF. Throw it
@@ -620,9 +620,9 @@ class Retracer:
                     stacktrace_addr_sig = stacktrace_addr_sig.encode('utf-8')
                 # if the OOPS doesn't already have a SAS add one
                 try:
-                    original_sas = self.oops_fam.get(oops_id, ['StacktraceAddressSignature'])['StacktraceAddressSignature']
+                    original_sas = self.oops_cf.get(oops_id, ['StacktraceAddressSignature'])['StacktraceAddressSignature']
                 except NotFoundException:
-                    self.oops_fam.insert(oops_id, {'StacktraceAddressSignature': stacktrace_addr_sig})
+                    self.oops_cf.insert(oops_id, {'StacktraceAddressSignature': stacktrace_addr_sig})
 
             # Use the unretraced report's SAS for the index and stacktrace_cf,
             # otherwise use the one from the retraced report as apport / gdb
@@ -772,7 +772,7 @@ class Retracer:
 
         for oops_id in ids:
             try:
-                o = self.oops_fam.get(oops_id)
+                o = self.oops_cf.get(oops_id)
             except NotFoundException:
                 log('Could not find %s for %s.' % (oops_id, crash_signature))
                 o = {}
@@ -786,7 +786,7 @@ class Retracer:
            specific OOPS id.'''
         unneeded_columns = ['Disassembly', 'ProcMaps', 'ProcStatus',
                             'Registers', 'StacktraceTop']
-        self.oops_fam.remove(oops_id, columns=unneeded_columns)
+        self.oops_cf.remove(oops_id, columns=unneeded_columns)
 
 def parse_options():
     parser = argparse.ArgumentParser(description='Process core dumps.')
