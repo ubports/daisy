@@ -637,6 +637,9 @@ class Retracer:
                     'RetraceOutdatedPackages' not in report:
                 if 'Stacktrace' not in report:
                     log('Stacktrace not in retraced report with a crash_sig.')
+                    # copy retraced crash file for manual investigation
+                    shutil.copyfile('%s.new' % report_path,
+                                    '/srv/daisy.ubuntu.com/production/var/%s.crash' % oops_id)
                 try:
                     self.stacktrace_cf.insert(stacktrace_addr_sig, report)
                 except MaximumRetryException:
