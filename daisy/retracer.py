@@ -518,6 +518,13 @@ class Retracer:
                         log(line)
                 # We couldn't decompress this, so there's no value in trying again.
                 self.processed(msg)
+                # probably incomplete cores from armhf?
+                metrics.meter('retrace.failed')
+                metrics.meter('retrace.failed.%s' %
+                              self.architecture)
+                metrics.meter('retrace.failure.decompression')
+                metrics.meter('retrace.failure.decompression.%s' %
+                              self.architecture)
                 return
 
             report = apport.Report()

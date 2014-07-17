@@ -17,6 +17,7 @@ amqplib_connection_errors = (socket.error, AMQPConnectionException)
 amqplib_error_types = amqplib_connection_errors + (IOError,)
 
 def get_fields_for_bucket_counters(problem_type, release, package, version):
+    # this needs to change for system images and armhf
     fields = []
     if release:
         if package and version:
