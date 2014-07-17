@@ -525,6 +525,8 @@ class Retracer:
             for k in col:
                 report[k.encode('UTF-8')] = col[k].encode('UTF-8')
 
+            # these will not change after retracing
+            architecture = report.get('Architecture', '')
             release = report.get('DistroRelease', '')
             bad = '[^-a-zA-Z0-9_.() ]+'
             retraceable = utils.retraceable_release(release)
@@ -566,6 +568,11 @@ class Retracer:
             rm_eff('%s.new' % report_path)
             log('Failure in retrace set up for {}'.format(msg.body))
             log(traceback.format_exc())
+            metrics.meter('retrace.failed')
+            metrics.meter('retrace.failed.%s' % release)
+            metrics.meter('retrace.failed.%s' % architecture)
+            metrics.meter('retrace.failed.%s.%s' %
+                          (release, architecture))
             raise
         finally:
             rm_eff(report_path)
@@ -578,6 +585,8 @@ class Retracer:
                     log('Transient apport error.')
                     # Throw back onto the queue
                     msg.channel.basic_reject(msg.delivery_tag, True)
+                    # don't record it as a failure in the metrics as it is
+                    # going to be retried
                     return
                 # apport-retrace will exit 0 even on a failed retrace unless
                 # something has gone wrong at a lower level, as was the case
@@ -593,13 +602,25 @@ class Retracer:
                 retracing_time = time.time() - retracing_start_time
                 self.update_retrace_stats(release, day_key, retracing_time,
                                           crashed=True)
+                metrics.meter('retrace.failed')
+                metrics.meter('retrace.failed.%s' % release)
+                metrics.meter('retrace.failed.%s' % architecture)
+                metrics.meter('retrace.failed.%s.%s' %
+                              (release, architecture))
                 return
 
             retracing_time = time.time() - retracing_start_time
 
             if not os.path.exists('%s.new' % report_path):
                 log('%s.new did not exist.' % report_path)
+                metrics.meter('retrace.missing.retraced_crash_file')
                 self.failed_to_process(msg, oops_id)
+                metrics.meter('retrace.failed')
+                metrics.meter('retrace.failed.%s' % release)
+                metrics.meter('retrace.failed.%s' % architecture)
+                metrics.meter('retrace.failed.%s.%s' %
+                              (release, architecture))
+
                 return
 
             log('Writing back to Cassandra')
@@ -611,6 +632,13 @@ class Retracer:
             stacktrace_addr_sig = report.get('StacktraceAddressSignature', '')
             if not crash_signature:
                 log('Apport did not return a crash_signature.')
+                metrics.meter('retrace.missing.crash_signature')
+                metrics.meter('retrace.missing.%s.crash_signature' %
+                              architecture)
+                metrics.meter('retrace.missing.%s.crash_signature' %
+                              release)
+                metrics.meter('retrace.missing.%s.%s.crash_signature' %
+                              (release, architecture))
                 log('StacktraceTop:')
                 for line in report['StacktraceTop'].splitlines():
                     log(line)
@@ -623,6 +651,14 @@ class Retracer:
                     original_sas = self.oops_cf.get(oops_id, ['StacktraceAddressSignature'])['StacktraceAddressSignature']
                 except NotFoundException:
                     self.oops_cf.insert(oops_id, {'StacktraceAddressSignature': stacktrace_addr_sig})
+            else:
+                metrics.meter('retrace.missing.stacktrace_address_signature')
+                metrics.meter('retrace.missing.%s.stacktrace_address_signature' %
+                              architecture)
+                metrics.meter('retrace.missing.%s.stacktrace_address_signature' %
+                              release)
+                metrics.meter('retrace.missing.%s.%s.stacktrace_address_signature' %
+                              (release, architecture))
 
             # Use the unretraced report's SAS for the index and stacktrace_cf,
             # otherwise use the one from the retraced report as apport / gdb
@@ -637,6 +673,13 @@ class Retracer:
                     'RetraceOutdatedPackages' not in report:
                 if 'Stacktrace' not in report:
                     log('Stacktrace not in retraced report with a crash_sig.')
+                    metrics.meter('retrace.missing.stacktrace')
+                    metrics.meter('retrace.missing.%s.stacktrace' %
+                                  architecture)
+                    metrics.meter('retrace.missing.%s.stacktrace' %
+                                  release)
+                    metrics.meter('retrace.missing.%s.%s.stacktrace' %
+                                  (release, architecture))
                     # copy retraced crash file for manual investigation
                     shutil.copyfile('%s.new' % report_path,
                                     '/srv/daisy.ubuntu.com/production/var/%s.crash' % oops_id)
@@ -650,6 +693,11 @@ class Retracer:
                 args = (release, day_key, retracing_time, True)
                 self.update_retrace_stats(*args)
                 log('Successfully retraced.')
+                metrics.meter('retrace.success')
+                metrics.meter('retrace.success.%s' % release)
+                metrics.meter('retrace.success.%s' % architecture)
+                metrics.meter('retrace.success.%s.%s' %
+                              (release, architecture))
             else:
                 # Given that we do not as yet keep debugging symbols around for
                 # every package version ever released, it's worth knowing the
@@ -668,8 +716,19 @@ class Retracer:
                     log('RetraceOutdatedPackages:')
                     for line in report['RetraceOutdatedPackages'].splitlines():
                         log(line)
+                    metrics.meter('retrace.failure.outdated_packages')
+                    metrics.meter('retrace.failure.%s.outdated_packages' % release)
+                    metrics.meter('retrace.failure.%s.outdated_packages' % \
+                                  architecture)
+                    metrics.meter('retrace.failure.%s.%s.outdated_packages' % \
+                                  (release, architecture))
                 args = (release, day_key, retracing_time, False)
                 self.update_retrace_stats(*args)
+                metrics.meter('retrace.failed')
+                metrics.meter('retrace.failed.%s' % release)
+                metrics.meter('retrace.failed.%s' % architecture)
+                metrics.meter('retrace.failed.%s.%s' %
+                              (release, architecture))
 
             # We want really quick lookups of whether we have a stacktrace for
             # this signature, so that we can quickly tell the client whether we
