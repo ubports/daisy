@@ -129,6 +129,7 @@ def submit(_pool, environ, system_token):
         metrics.meter('unsupported.armel')
         return (False, 'armel architecture is obsoleted')
     package = data.get('Package', '')
+    pkg_arch = utils.get_package_architecture(data)
     src_package = data.get('SourcePackage', '')
     problem_type = data.get('ProblemType', '')
     exec_path = data.get('ExecutablePath', '')
@@ -156,7 +157,8 @@ def submit(_pool, environ, system_token):
 
     package, version = utils.split_package_and_version(package)
     src_package, src_version = utils.split_package_and_version(src_package)
-    fields = utils.get_fields_for_bucket_counters(problem_type, release, package, version)
+    fields = utils.get_fields_for_bucket_counters(problem_type, release,
+                                                  package, version, pkg_arch)
 
     if not third_party and problem_type == 'Crash':
         update_release_pkg_counter(counters_fam, release, src_package, day_key)

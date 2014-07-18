@@ -16,8 +16,8 @@ amqplib_connection_errors = (socket.error, AMQPConnectionException)
 # do a second-stage filter after catching the exception.
 amqplib_error_types = amqplib_connection_errors + (IOError,)
 
-def get_fields_for_bucket_counters(problem_type, release, package, version):
-    # this needs to change for system images and armhf
+def get_fields_for_bucket_counters(problem_type, release, package, version, pkg_arch):
+    # FIXME: add counters for system images too
     fields = []
     if release:
         if package and version:
@@ -26,10 +26,23 @@ def get_fields_for_bucket_counters(problem_type, release, package, version):
             fields.append(release)
             fields.append('%s:%s' % (package, version))
             fields.append(package)
+            if pkg_arch:
+                fields.append('%s:%s:%s:%s' % (release, package, version, pkg_arch))
+                fields.append('%s:%s:%s' % (release, package, pkg_arch))
+                fields.append('%s:%s' % (release, pkg_arch))
+                fields.append('%s:%s:%s' % (package, version, pkg_arch))
+                fields.append('%s:%s' % (package, pkg_arch))
+                fields.append('%s' % pkg_arch)
         else:
             fields.append(release)
-    elif package:
+            if pkg_arch:
+                fields.append('%s:%s' % (release, pkg_arch))
+                fields.append('%s' % pkg_arch)
+    elif package and version:
         fields.append('%s:%s' % (package, version))
+        if pkg_arch:
+            fields.append('%s:%s:%s' % (package, version, pkg_arch))
+            fields.append('%s' % pkg_arch)
 
     if problem_type:
         fields.extend(['%s:%s' % (problem_type, field) for field in fields])
@@ -48,6 +61,16 @@ def split_package_and_version(package):
         # The version is set to '(not installed)'
         version = ''
     return (package, version)
+
+def get_package_architecture(report_dict):
+    # return the system arch if the package is arch all
+    pkg_arch = report_dict.get('PackageArchitecture', '')
+    if pkg_arch == 'all':
+        arch = report_dict.get('Architecture', '')
+        pkg_arch = arch
+    elif pkg_arch == 'unknown':
+        pkg_arch = ''
+    return pkg_arch
 
 def format_crash_signature(crash_signature):
     # https://errors.ubuntu.com/oops-local/2013-03-07/50428.daisy.ubuntu.com3
@@ -88,13 +111,14 @@ def bucket(oops_config, oops_id, crash_signature, report_dict):
     version = None
     if package:
         package, version = split_package_and_version(package)
+    pkg_arch = get_package_architecture(report_dict)
 
-    fields = get_fields_for_bucket_counters(problem_type, release, package, version)
+    fields = get_fields_for_bucket_counters(problem_type, release, package,
+                                            version, pkg_arch)
 
     if version:
         oopses.update_bucket_systems(oops_config, crash_signature, system_uuid,
                                      version=version)
-
     oopses.bucket(oops_config, oops_id, crash_signature, fields)
 
     if hasattr(oopses, 'update_bucket_hashes'):
