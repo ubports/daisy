@@ -195,6 +195,7 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
     '''
 
     indexes_fam = pycassa.ColumnFamily(_pool, 'Indexes')
+    stacktrace_cf = pycassa.ColumnFamily(_pool, 'Stacktrace')
     report = create_report_from_bson(data)
 
     # Recoverable Problem, Package Install Failure, Suspend Resume
@@ -225,8 +226,21 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
             crash_sig = crash_sig.values()[0]
         except (NotFoundException, KeyError, InvalidRequestException):
             pass
+        # for some crashes apport isn't creating a Stacktrace in the
+        # successfully retraced report, we need to retry these even though
+        # there is a crash_sig
+        stacktrace = False
+        try:
+            traces = stacktrace_cf.get(addr_sig,
+                                       columns=['Stacktrace',
+                                                'ThreadStacktrace'])
+            if traces.get('Stacktrace', None) and \
+                    traces.get('ThreadStacktrace', None):
+                stacktrace = True
+        except NotFoundException:
+            pass
         # retry retracing some failures
-        if crash_sig and not crash_sig.startswith('failed:'):
+        if crash_sig and not crash_sig.startswith('failed:') and stacktrace:
             # the crash is a duplicate so we don't need this data
             # Stacktrace, and ThreadStacktrace were already not accepted
             if 'ProcMaps' in report:
@@ -234,13 +248,13 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
                                     'Registers', 'StacktraceTop']
                 oops_cf = pycassa.ColumnFamily(_pool, 'OOPS')
                 oops_cf.remove(oops_id, columns=unneeded_columns)
-            # We have already retraced for this address signature, so this crash
-            # can be immediately bucketed.
+            # We have already retraced for this address signature, so this
+            # crash can be immediately bucketed.
             utils.bucket(oops_config, oops_id, crash_sig, data)
             metrics.meter('success.ready_binary_bucketed')
         else:
-            # Are we already waiting for this stacktrace address signature to be
-            # retraced?
+            # Are we already waiting for this stacktrace address signature to
+            # be retraced?
             waiting = True
             try:
                 indexes_fam.get('retracing', [addr_sig])
