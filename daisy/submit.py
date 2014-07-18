@@ -230,15 +230,16 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
         # successfully retraced report, we need to retry these even though
         # there is a crash_sig
         stacktrace = False
-        try:
-            traces = stacktrace_cf.get(addr_sig,
-                                       columns=['Stacktrace',
-                                                'ThreadStacktrace'])
-            if traces.get('Stacktrace', None) and \
-                    traces.get('ThreadStacktrace', None):
-                stacktrace = True
-        except NotFoundException:
-            pass
+        if addr_sig:
+            try:
+                traces = stacktrace_cf.get(addr_sig,
+                                           columns=['Stacktrace',
+                                                    'ThreadStacktrace'])
+                if traces.get('Stacktrace', None) and \
+                        traces.get('ThreadStacktrace', None):
+                    stacktrace = True
+            except NotFoundException:
+                pass
         # retry retracing some failures
         if crash_sig and not crash_sig.startswith('failed:') and stacktrace:
             # the crash is a duplicate so we don't need this data
