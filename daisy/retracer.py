@@ -892,9 +892,11 @@ def main():
 
     options = parse_options()
     if options.output:
-        path = '%s.%s' % (options.output, options.architecture)
-        if 'revno' in version_info:
-            path = '%s.%s' % (path, version_info['revno'])
+        path = '%s' % (options.output)
+        # FIXME: this would change the extension of the log file
+        #  instead the revno should be put in the log file itself
+        #if 'revno' in version_info:
+        #    path = '%s.%s' % (path, version_info['revno'])
         sys.stdout.close()
         sys.stdout = open(path, 'a')
         sys.stderr.close()
