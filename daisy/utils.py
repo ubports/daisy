@@ -42,7 +42,7 @@ def get_fields_for_bucket_counters(problem_type, release, package, version, pkg_
         fields.append('%s:%s' % (package, version))
         if pkg_arch:
             fields.append('%s:%s:%s' % (package, version, pkg_arch))
-            fields.append('%s:%s:%s' % (package, pkg_arch))
+            fields.append('%s:%s' % (package, pkg_arch))
             fields.append('%s' % pkg_arch)
 
     if problem_type:
