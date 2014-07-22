@@ -687,9 +687,10 @@ class Retracer:
                                   release)
                     metrics.meter('retrace.missing.%s.%s.stacktrace' %
                                   (release, architecture))
+                    # This doesn't inculde the CoreDump so isn't useful
                     # copy retraced crash file for manual investigation
-                    shutil.copyfile('%s.new' % report_path,
-                                    '/srv/daisy.ubuntu.com/production/var/%s.crash' % oops_id)
+                    #shutil.copyfile('%s.new' % report_path,
+                    #                '/srv/daisy.ubuntu.com/production/var/%s.crash' % oops_id)
                 try:
                     self.stacktrace_cf.insert(stacktrace_addr_sig, report)
                 except MaximumRetryException:
