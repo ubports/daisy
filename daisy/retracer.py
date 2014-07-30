@@ -555,7 +555,7 @@ class Retracer:
             day_key = time.strftime('%Y%m%d', time.gmtime())
 
             retracing_start_time = time.time()
-            cmd = ['python3', self.apport_retrace_path, report_path, '-c',
+            cmd = ['python3', self.apport_retrace_path, report_path,
                    '-S', self.config_dir, '--sandbox-dir', sandbox,
                    '-o', '%s.new' % report_path]
             if cache:
@@ -649,6 +649,11 @@ class Retracer:
                 log('StacktraceTop:')
                 for line in report['StacktraceTop'].splitlines():
                     log(line)
+                if architecture == 'armhf' and \
+                        'RetraceOutdatedPackages' not in report:
+                    # copy retraced crash file for manual investigation
+                    shutil.copyfile('%s.new' % report_path,
+                                    '/srv/daisy.ubuntu.com/production/var/%s.crash' % oops_id)
             original_sas = ''
             if stacktrace_addr_sig:
                 if type(stacktrace_addr_sig) == unicode:
@@ -687,10 +692,9 @@ class Retracer:
                                   release)
                     metrics.meter('retrace.missing.%s.%s.stacktrace' %
                                   (release, architecture))
-                    # This doesn't inculde the CoreDump so isn't useful
                     # copy retraced crash file for manual investigation
-                    #shutil.copyfile('%s.new' % report_path,
-                    #                '/srv/daisy.ubuntu.com/production/var/%s.crash' % oops_id)
+                    shutil.copyfile('%s.new' % report_path,
+                                    '/srv/daisy.ubuntu.com/production/var/%s.crash' % oops_id)
                 try:
                     self.stacktrace_cf.insert(stacktrace_addr_sig, report)
                 except MaximumRetryException:
