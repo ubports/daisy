@@ -13,6 +13,7 @@ userbinpkgs_cf = pycassa.ColumnFamily(pool, 'UserBinaryPackages')
 def import_user_binary_packages(user):
     binary_packages = launchpad.get_subscribed_packages(user)
     for binary_package in binary_packages:
+        #print("%s: %s" % (user, binary_package))
         userbinpkgs_cf.insert(user, {binary_package: ''})
 
 if __name__ == '__main__':
@@ -21,6 +22,6 @@ if __name__ == '__main__':
         'lubuntu-packaging', 'xubuntu-bugs', 'ubuntu-security-bugs', 'laney',
         'kernel-packages', 'ubuntu-apps-bugs', 'ubuntu-phonedations-bugs',
         'ubuntu-sdk-bugs', 'ubuntu-webapps-bugs', 'ubuntuone-hackers',
-        'unity-api-bugs', 'unity-ui-bugs', 'kubuntu-bugs']
+        'unity-api-bugs', 'unity-ui-bugs']
     for team in teams:
         import_user_binary_packages(team)
