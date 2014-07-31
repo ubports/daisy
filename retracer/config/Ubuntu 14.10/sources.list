@@ -3,8 +3,8 @@ deb http://archive.ubuntu.com/ubuntu/ utopic main restricted universe multiverse
 deb-src http://archive.ubuntu.com/ubuntu/ utopic main restricted universe multiverse
 deb http://archive.ubuntu.com/ubuntu/ utopic-updates main restricted universe multiverse
 deb-src http://archive.ubuntu.com/ubuntu/ utopic-updates main restricted universe multiverse
-#deb http://archive.ubuntu.com/ubuntu/ utopic-proposed main restricted universe multiverse
-#deb-src http://archive.ubuntu.com/ubuntu/ utopic-proposed main restricted universe multiverse
+deb http://archive.ubuntu.com/ubuntu/ utopic-proposed main restricted universe multiverse
+deb-src http://archive.ubuntu.com/ubuntu/ utopic-proposed main restricted universe multiverse
 deb http://security.ubuntu.com/ubuntu/ utopic-security main restricted universe multiverse
 deb-src http://security.ubuntu.com/ubuntu/ utopic-security main restricted universe multiverse
 
