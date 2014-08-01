@@ -16,8 +16,8 @@ amqplib_connection_errors = (socket.error, AMQPConnectionException)
 # do a second-stage filter after catching the exception.
 amqplib_error_types = amqplib_connection_errors + (IOError,)
 
-def get_fields_for_bucket_counters(problem_type, release, package, version, pkg_arch):
-    # FIXME: add counters for system images too
+def get_fields_for_bucket_counters(problem_type, release, package, version,
+        pkg_arch, rootfs_build, device_image):
     fields = []
     if release:
         if package and version:
@@ -33,17 +33,70 @@ def get_fields_for_bucket_counters(problem_type, release, package, version, pkg_
                 fields.append('%s:%s:%s' % (package, version, pkg_arch))
                 fields.append('%s:%s' % (package, pkg_arch))
                 fields.append('%s' % pkg_arch)
+                if rootfs_build:
+                    fields.append('%s:%s:%s:%s:%s' % (release, rootfs_build, package, version, pkg_arch))
+                    fields.append('%s:%s:%s:%s' % (release, rootfs_build, package, pkg_arch))
+                    fields.append('%s:%s:%s' % (release, rootfs_build, pkg_arch))
+                    fields.append('%s:%s:%s:%s' % (rootfs_build, package, version, pkg_arch))
+                    fields.append('%s:%s:%s' % (rootfs_build, package, pkg_arch))
+                    fields.append('%s:%s' % (rootfs_build, pkg_arch))
+                if device_image:
+                    fields.append('%s:%s:%s:%s:%s' % (release, device_image, package, version, pkg_arch))
+                    fields.append('%s:%s:%s:%s' % (release, device_image, package, pkg_arch))
+                    fields.append('%s:%s:%s' % (release, device_image, pkg_arch))
+                    fields.append('%s:%s:%s:%s' % (device_image, package, version, pkg_arch))
+                    fields.append('%s:%s:%s' % (device_image, package, pkg_arch))
+                    fields.append('%s:%s' % (device_image, pkg_arch))
+            if rootfs_build:
+                fields.append('%s:%s:%s:%s' % (release, rootfs_build, package, version))
+                fields.append('%s:%s:%s' % (release, rootfs_build, package))
+                fields.append('%s:%s' % (release, rootfs_build))
+                fields.append('%s:%s:%s' % (rootfs_build, package, version))
+                fields.append('%s:%s' % (rootfs_build, package))
+                fields.append('%s' % (rootfs_build))
+            if device_image:
+                fields.append('%s:%s:%s:%s' % (release, device_image, package, version))
+                fields.append('%s:%s:%s' % (release, device_image, package))
+                fields.append('%s:%s' % (release, device_image))
+                fields.append('%s:%s:%s' % (device_image, package, version))
+                fields.append('%s:%s' % (device_image, package))
+                fields.append('%s' % (device_image))
         else:
             fields.append(release)
             if pkg_arch:
                 fields.append('%s:%s' % (release, pkg_arch))
                 fields.append('%s' % pkg_arch)
+            if rootfs_build:
+                fields.append('%s:%s:%s' % (release, rootfs_build, pkg_arch))
+                fields.append('%s:%s' % (rootfs_build, pkg_arch))
+                fields.append('%s' % (rootfs_build))
+            if device_image:
+                fields.append('%s:%s:%s' % (release, device_image, pkg_arch))
+                fields.append('%s:%s' % (device_image, pkg_arch))
+                fields.append('%s' % (device_image))
     elif package and version:
         fields.append('%s:%s' % (package, version))
         if pkg_arch:
             fields.append('%s:%s:%s' % (package, version, pkg_arch))
             fields.append('%s:%s' % (package, pkg_arch))
             fields.append('%s' % pkg_arch)
+            if rootfs_build:
+                fields.append('%s:%s:%s:%s' % (rootfs_build, package, version, pkg_arch))
+                fields.append('%s:%s:%s' % (rootfs_build, package, pkg_arch))
+                fields.append('%s:%s' % (rootfs_build, pkg_arch))
+            if device_image:
+                fields.append('%s:%s:%s:%s' % (device_image, package, version, pkg_arch))
+                fields.append('%s:%s:%s' % (device_image, package, pkg_arch))
+                fields.append('%s:%s' % (device_image, pkg_arch))
+        if rootfs_build:
+            fields.append('%s:%s:%s' % (rootfs_build, package, version))
+            fields.append('%s:%s' % (rootfs_build, package))
+            fields.append('%s' % (rootfs_build))
+        if device_image:
+            fields.append('%s:%s:%s' % (device_image, package, version))
+            fields.append('%s:%s' % (device_image, package))
+            fields.append('%s' % (device_image))
+
 
     if problem_type:
         fields.extend(['%s:%s' % (problem_type, field) for field in fields])
@@ -72,6 +125,23 @@ def get_package_architecture(report_dict):
     elif pkg_arch == 'unknown':
         pkg_arch = ''
     return pkg_arch
+
+def get_image_info(report_dict):
+    sysimage_info = report_dict.get('SystemImageInfo', '')
+    if not sysimage_info:
+        return (None, None)
+    sii_dict = {}
+    for line in sysimage_info.splitlines():
+        sii_dict[line.split(':')[0]] = ':'.join(line.split(':')[1:]).strip()
+    rootfs_build = sii_dict.get('version ubuntu', '')
+    channel = sii_dict.get('channel', '')
+    version = sii_dict.get('version version', '')
+    device_name = sii_dict.get('device name', '')
+    if channel and version and device_name:
+        device_image = '%s %s %s' % (channel, version, device_name)
+    else:
+        device_image = None
+    return (rootfs_build, device_image)
 
 def format_crash_signature(crash_signature):
     # https://errors.ubuntu.com/oops-local/2013-03-07/50428.daisy.ubuntu.com3
@@ -113,9 +183,11 @@ def bucket(oops_config, oops_id, crash_signature, report_dict):
     if package:
         package, version = split_package_and_version(package)
     pkg_arch = get_package_architecture(report_dict)
+    rootfs_build, device_image = get_image_info(report_dict)
 
     fields = get_fields_for_bucket_counters(problem_type, release, package,
-                                            version, pkg_arch)
+                                            version, pkg_arch, rootfs_build,
+                                            device_image)
 
     if version:
         oopses.update_bucket_systems(oops_config, crash_signature, system_uuid,
