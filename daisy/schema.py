@@ -89,6 +89,10 @@ def create():
                             'UniqueSystemsForErrorsByRelease',
                             comparator_type=DateType(),
                             default_validation_class=LONG_TYPE)
+        if 'SystemImages' not in cfs:
+            workaround_1779(mgr.create_column_family, keyspace, 'SystemImages',
+                key_validation_class=UTF8_TYPE,
+                comparator_type=UTF8_TYPE)
     finally:
         mgr.close()
 

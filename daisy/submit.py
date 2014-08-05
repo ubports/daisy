@@ -200,7 +200,21 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
 
     indexes_fam = pycassa.ColumnFamily(_pool, 'Indexes')
     stacktrace_cf = pycassa.ColumnFamily(_pool, 'Stacktrace')
+    images_cf = pycassa.ColumnFamily(_pool, 'SystemImages')
     report = create_report_from_bson(data)
+
+    # gather image information for using in the Image Column Family
+    rootfs_build, device_image = utils.get_image_info(report)
+    if rootfs_build:
+        try:
+            images_cf.get('rootfs_build', [rootfs_build])
+        except NotFoundException:
+            images_cf.insert('rootfs_build', {rootfs_build : ''})
+    if device_image:
+        try:
+            images_cf.get('device_image', [device_image])
+        except NotFoundException:
+            images_cf.insert('device_image', {device_image : ''})
 
     # Recoverable Problem, Package Install Failure, Suspend Resume
     crash_signature = report.get('DuplicateSignature')
