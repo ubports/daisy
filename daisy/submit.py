@@ -203,13 +203,22 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
     images_cf = pycassa.ColumnFamily(_pool, 'SystemImages')
     report = create_report_from_bson(data)
 
-    # gather image information for using in the Image Column Family
+    # gather and insert image information in the SystemImages CF
     rootfs_build, device_image = utils.get_image_info(report)
-    if rootfs_build:
+    release = report.get('DistroRelease', '')
+    if rootfs_build and release:
+        # we include DistroRelease here but not in BucketVersionsCount, as it
+        # is redundant in the counters
+        rootfs_build = '%s:%s' % (release, rootfs_build)
         try:
             images_cf.get('rootfs_build', [rootfs_build])
         except NotFoundException:
             images_cf.insert('rootfs_build', {rootfs_build : ''})
+    elif rootfs_build and not release:
+        metrics.meter('missing.missing_release_has_rootfs_build')
+        now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+        msg = '%s (%s) rootfs_build without DistroRelease' % (now, oops_id)
+        print >>sys.stderr, msg
     if device_image:
         try:
             images_cf.get('device_image', [device_image])
