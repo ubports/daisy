@@ -244,8 +244,14 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
                     stacktrace = True
             except NotFoundException:
                 pass
-        # retry retracing some failures
-        if crash_sig and not crash_sig.startswith('failed:') and stacktrace:
+        # only retry retracing failures that don't have third party packages
+        # as those are likely to fail retracing
+        retry = False
+        if crash_sig.startswith('failed:'):
+            retry = True
+        if 'third-party-packages' in data.get('Tags', ''):
+            retry = False
+        if crash_sig and not retry and stacktrace:
             # the crash is a duplicate so we don't need this data
             # Stacktrace, and ThreadStacktrace were already not accepted
             if 'ProcMaps' in report:
@@ -270,12 +276,11 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
             if not waiting and utils.retraceable_release(release):
                 # retry SASes that failed to retrace as new dbgsym packages
                 # may be available
-                if crash_sig:
-                    if crash_sig.startswith('failed:'):
-                        metrics.meter('success.retry_failure')
-                        now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-                        msg = '%s will retry: %s' % (now, oops_id)
-                        print >>sys.stderr, msg
+                if crash_sig and retry:
+                    metrics.meter('success.retry_failure')
+                    now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+                    msg = '%s will retry: %s' % (now, oops_id)
+                    print >>sys.stderr, msg
                 # We do not have a core file in the queue, so ask for one. Do
                 # not assume we're going to get one, so also add this ID the
                 # the AwaitingRetrace CF queue as well.
