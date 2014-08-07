@@ -6,4 +6,4 @@ deb http://security.ubuntu.com/ubuntu/ oneiric-security main restricted universe
 deb http://ddebs.ubuntu.com oneiric main restricted
 deb http://ddebs.ubuntu.com oneiric-updates main restricted
 deb http://ddebs.ubuntu.com oneiric-proposed main restricted
-deb http://ddebs.ubuntu.com oneiric-security main restricted
+

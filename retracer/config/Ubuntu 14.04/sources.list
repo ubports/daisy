@@ -11,8 +11,8 @@ deb-src http://security.ubuntu.com/ubuntu/ trusty-security main restricted unive
 deb http://ddebs.ubuntu.com saucy main restricted universe multiverse
 deb http://ddebs.ubuntu.com saucy-updates main restricted universe multiverse
 deb http://ddebs.ubuntu.com saucy-proposed main restricted universe multiverse
-deb http://ddebs.ubuntu.com saucy-security main restricted universe multiverse
+
 deb http://ddebs.ubuntu.com trusty main restricted universe multiverse
 deb http://ddebs.ubuntu.com trusty-updates main restricted universe multiverse
-deb http://ddebs.ubuntu.com trusty-security main restricted universe multiverse
+
 deb http://ddebs.ubuntu.com trusty-proposed main restricted universe multiverse

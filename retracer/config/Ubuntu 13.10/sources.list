@@ -10,5 +10,5 @@ deb-src http://security.ubuntu.com/ubuntu/ saucy-security main restricted univer
 
 deb http://ddebs.ubuntu.com saucy main restricted universe multiverse
 deb http://ddebs.ubuntu.com saucy-updates main restricted universe multiverse
-deb http://ddebs.ubuntu.com saucy-security main restricted universe multiverse
+
 deb http://ddebs.ubuntu.com saucy-proposed main restricted universe multiverse

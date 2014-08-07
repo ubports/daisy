@@ -9,5 +9,5 @@ deb-src http://archive.ubuntu.com/ubuntu/ raring-proposed main restricted univer
 
 deb http://ddebs.ubuntu.com raring main restricted universe multiverse
 deb http://ddebs.ubuntu.com raring-updates main restricted universe multiverse
-deb http://ddebs.ubuntu.com raring-security main restricted universe multiverse
+
 deb http://ddebs.ubuntu.com raring-proposed main restricted universe multiverse

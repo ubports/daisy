@@ -10,8 +10,8 @@ deb-src http://archive.ubuntu.com/ubuntu/ quantal-proposed main restricted unive
 deb http://ddebs.ubuntu.com precise main restricted universe multiverse
 deb http://ddebs.ubuntu.com precise-updates main restricted universe multiverse
 deb http://ddebs.ubuntu.com precise-proposed main restricted universe multiverse
-deb http://ddebs.ubuntu.com precise-security main restricted universe multiverse
+
 deb http://ddebs.ubuntu.com quantal main restricted universe multiverse
 deb http://ddebs.ubuntu.com quantal-updates main restricted universe multiverse
-deb http://ddebs.ubuntu.com quantal-security main restricted universe multiverse
+
 deb http://ddebs.ubuntu.com quantal-proposed main restricted universe multiverse

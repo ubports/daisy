@@ -6,5 +6,5 @@ deb http://security.ubuntu.com/ubuntu/ lucid-security main restricted universe m
 deb http://ddebs.ubuntu.com lucid main restricted
 deb http://ddebs.ubuntu.com lucid-updates main restricted
 deb http://ddebs.ubuntu.com lucid-proposed main restricted
-deb http://ddebs.ubuntu.com lucid-security main restricted
+
 
