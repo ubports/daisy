@@ -590,6 +590,10 @@ class Retracer:
                     # Transient apt error, like "failed to fetch ... size
                     # mismatch"
                     log('Transient apport error.')
+                    # Log the error from apport
+                    for std in (out, err):
+                        for line in std.splitlines():
+                            log(line)
                     # Throw back onto the queue
                     msg.channel.basic_reject(msg.delivery_tag, True)
                     # don't record it as a failure in the metrics as it is
