@@ -801,6 +801,7 @@ class Retracer:
                     log('Recounting %s' % crash_signature)
                     self.recount(crash_signature, msg.channel)
         finally:
+            rm_eff('%s' % report_path)
             rm_eff('%s.new' % report_path)
 
         log('Done processing %s' % path)
