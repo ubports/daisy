@@ -711,7 +711,8 @@ class Retracer:
                     # copy retraced crash file for manual investigation
                     shutil.copyfile('%s.new' % report_path,
                                     '/srv/daisy.ubuntu.com/production/var/%s.crash' % oops_id)
-                report.pop('CoreDump')
+                if 'CoreDump' in report:
+                    report.pop('CoreDump')
                 try:
                     self.stacktrace_cf.insert(stacktrace_addr_sig, report)
                 except MaximumRetryException:
