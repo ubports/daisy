@@ -555,7 +555,7 @@ class Retracer:
             day_key = time.strftime('%Y%m%d', time.gmtime())
 
             retracing_start_time = time.time()
-            cmd = ['python3', self.apport_retrace_path, report_path,
+            cmd = ['python3', self.apport_retrace_path, report_path, '-c',
                    '-S', self.config_dir, '--sandbox-dir', sandbox,
                    '-o', '%s.new' % report_path]
             if cache:
@@ -647,6 +647,7 @@ class Retracer:
 
             log('Writing back to Cassandra')
             report = apport.Report()
+            # ran into MemoryError loading retraced report with CoreDump
             with open('%s.new' % report_path, 'rb') as fp:
                 report.load(fp)
 
