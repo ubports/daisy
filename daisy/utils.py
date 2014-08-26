@@ -185,13 +185,21 @@ def bucket(oops_config, oops_id, crash_signature, report_dict):
     pkg_arch = get_package_architecture(report_dict)
     rootfs_build, device_image = get_image_info(report_dict)
 
-    fields = get_fields_for_bucket_counters(problem_type, release, package,
-                                            version, pkg_arch, rootfs_build,
-                                            device_image)
+    automated_testing = False
+    if system_uuid.startswith('deadbeef'):
+        automated_testing = True
 
+    if automated_testing:
+        fields = None
+    else:
+        fields = get_fields_for_bucket_counters(problem_type, release, package,
+                                                version, pkg_arch, rootfs_build,
+                                                device_image)
     if version:
         oopses.update_bucket_systems(oops_config, crash_signature, system_uuid,
                                      version=version)
+    # DayBucketsCount is only added to if fields is not None, so set fields to
+    # None for crashes from systems running automated tests.
     oopses.bucket(oops_config, oops_id, crash_signature, fields)
 
     if hasattr(oopses, 'update_bucket_hashes'):
