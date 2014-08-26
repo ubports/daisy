@@ -270,9 +270,10 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
         # only retry retracing failures that don't have third party packages
         # as those are likely to fail retracing
         retry = False
-        if crash_sig:
-            if crash_sig.startswith('failed:'):
-                retry = True
+        # 2014-08-26 - given the retracer backlog don't retry anything
+        #if crash_sig:
+        #    if crash_sig.startswith('failed:'):
+        #        retry = True
         if 'third-party-packages' in data.get('Tags', ''):
             retry = False
         if crash_sig and not retry and stacktrace:
