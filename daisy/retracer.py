@@ -493,7 +493,6 @@ class Retracer:
 
             metrics.meter('could_not_find_oops')
             return
-
         path = self.write_bucket_to_disk(*parts)
 
         if not path or not os.path.exists(path):
@@ -609,6 +608,7 @@ class Retracer:
                     msg.channel.basic_reject(msg.delivery_tag, False)
                     # don't record it as a failure in the metrics as it is
                     # going to be retried
+                    rm_eff('%s.new' % report_path)
                     return
                 # apport-retrace will exit 0 even on a failed retrace unless
                 # something has gone wrong at a lower level, as was the case
@@ -629,6 +629,7 @@ class Retracer:
                 metrics.meter('retrace.failed.%s' % architecture)
                 metrics.meter('retrace.failed.%s.%s' %
                               (release, architecture))
+                rm_eff('%s.new' % report_path)
                 return
 
             retracing_time = time.time() - retracing_start_time
