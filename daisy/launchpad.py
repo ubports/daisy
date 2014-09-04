@@ -379,7 +379,15 @@ def create_bug(signature, source='', releases=[], hashed=None, lastseen=''):
         description = "The Ubuntu Error Tracker has been receiving reports about a problem, more details are available at %s" % (href)
     release_codenames = []
     for release in releases:
-        release_codenames.append('%s' % str(get_codename_for_version(release)))
+        # release_codenames need to be strings not unicode
+        codename = get_codename_for_version(release)
+        if codename:
+            release_codenames.append('%s' % str(codename))
+        else:
+            # can't use capital letters or spaces in a tag e.g. 'RTM 14.09'
+            release = release.lower()
+            release_codenames.append('%s' % str(release).replace(' ', '-'))
+    #print >>sys.stderr, 'code names:', release_codenames
     tags = release_codenames
     if source:
         target = _source_target + source
@@ -392,6 +400,7 @@ def create_bug(signature, source='', releases=[], hashed=None, lastseen=''):
     # TODO Record the source packages and Ubuntu releases this crash has been
     # seen in, so we can add tasks for each relevant release.
     request = urllib2.Request(_create_bug_url, operation, headers)
+    #print >>sys.stderr, 'operation:', str(operation)
     try:
         response = urllib2.urlopen(request)
     except urllib2.HTTPError as e:
