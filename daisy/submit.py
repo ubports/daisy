@@ -153,6 +153,10 @@ def submit(_pool, environ, system_token):
                 apport_version == '2.14.1-0ubuntu3.1':
             metrics.meter('missing.missing_suspend_resume_data')
             return (False, 'Incomplete suspend resume data found in report.')
+        failure = data.get('Failure', '')
+        if failure == 'suspend/resume' and 'ProcMaps' in data:
+            # this is not useful as it is from the resuming system
+            data.pop('ProcMaps')
     else:
         metrics.meter('success.problem_type.%s' % problem_type)
 
