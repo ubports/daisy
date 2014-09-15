@@ -271,15 +271,16 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
                     stacktrace = True
             except NotFoundException:
                 pass
+        retry = False
+        # 2014-09-15 - given the retracer backlog only retry armhf
+        arch = data.get('Architecture', '')
+        if arch == 'armhf' and crash_sig:
+            if crash_sig.startswith('failed:'):
+                retry = True
         # only retry retracing failures that don't have third party packages
         # as those are likely to fail retracing
-        retry = False
-        # 2014-08-26 - given the retracer backlog don't retry anything
-        #if crash_sig:
-        #    if crash_sig.startswith('failed:'):
-        #        retry = True
-        if 'third-party-packages' in data.get('Tags', ''):
-            retry = False
+            if 'third-party-packages' in data.get('Tags', ''):
+                retry = False
         if crash_sig and not retry and stacktrace:
             # the crash is a duplicate so we don't need this data
             # Stacktrace, and ThreadStacktrace were already not accepted
