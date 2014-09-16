@@ -615,13 +615,13 @@ class Retracer:
                 # when python-apt bailed out on invalid sources.list files.
                 # Fail hard so we do not incorrectly write a lot of retraces to
                 # the database as failures.
+                retracing_time = time.time() - retracing_start_time
                 m = 'Retrace failed (%i), moving to failed queue:'
                 log(m % proc.returncode)
                 for std in (out, err):
                     for line in std.splitlines():
                         log(line)
                 self.move_to_failed_queue(msg)
-                retracing_time = time.time() - retracing_start_time
                 self.update_retrace_stats(release, day_key, retracing_time,
                                           crashed=True)
                 metrics.meter('retrace.failed')
