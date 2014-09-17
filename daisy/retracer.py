@@ -536,7 +536,17 @@ class Retracer:
             release = report.get('DistroRelease', '')
             bad = '[^-a-zA-Z0-9_.() ]+'
             retraceable = utils.retraceable_release(release)
+            if not retraceable:
+                metrics.meter('retrace.failed.notretraceable')
+            package = report.get('Package', '')
+            # there will not be a debug symbol version of the package
+            if "[origin: " in package:
+                log('Not retraced due to foreign origin.')
+                metrics.meter('retrace.failed.foreign')
+                retraceable = False
             invalid = re.search(bad, release) or len(release) > 1024
+            if invalid:
+                metrics.meter('retrace.failed.invalid')
             if not release or invalid or not retraceable:
                 self.processed(msg)
                 return
