@@ -54,7 +54,17 @@ def update_release_pkg_version_counter(counters_fam, release, src_package, src_v
 def create_report_from_bson(data):
     report = apport.Report()
     for key in data:
-        report[key.encode('UTF-8')] = data[key].encode('UTF-8')
+        try:
+            report[key.encode('UTF-8')] = data[key].encode('UTF-8')
+        except AssertionError:
+            # apport raises an AssertionError if a key is invalid, given that
+            # the crash has already been written to the OOPS CF, skip the key
+            # and continue bucketing
+            metrics.meter('invalid.invalid_key')
+            now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+            msg = '%s Invalid key (%s) in report' % (now, key)
+            print >>sys.stderr, msg
+            continue
     return report
 
 def try_to_repair_sas(data):
