@@ -1,8 +1,9 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 # 
-# Copyright © 2011-2013 Canonical Ltd.
-# Author: Evan Dandrea <evan.dandrea@canonical.com>
+# Copyright © 2011-2014 Canonical Ltd.
+# Authors: Evan Dandrea <evan.dandrea@canonical.com>
+#          Brian Murray <brian.murray@canonical.com>
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero Public License as published by
@@ -540,7 +541,8 @@ class Retracer:
                 metrics.meter('retrace.failed.notretraceable')
             package = report.get('Package', '')
             # there will not be a debug symbol version of the package
-            if "[origin: " in package:
+            if "[origin: " in package and \
+                    not "[origin: Ubuntu RTM]" in package:
                 log('Not retraced due to foreign origin.')
                 metrics.meter('retrace.failed.foreign')
                 retraceable = False
@@ -928,16 +930,16 @@ def main():
     options = parse_options()
     if options.output:
         path = '%s' % (options.output)
-        # FIXME: this would change the extension of the log file
-        #  instead the revno should be put in the log file itself
-        #if 'revno' in version_info:
-        #    path = '%s.%s' % (path, version_info['revno'])
         sys.stdout.close()
         sys.stdout = open(path, 'a')
         sys.stderr.close()
         sys.stderr = sys.stdout
 
     logging.basicConfig(format=LOGGING_FORMAT, level=logging.INFO)
+
+    if 'revno' in version_info:
+        revno = version_info['revno']
+    log('Running revision number: %s.' % revno)
 
     retracer = Retracer(options.config_dir, options.sandbox_dir,
                         options.architecture, options.verbose,
