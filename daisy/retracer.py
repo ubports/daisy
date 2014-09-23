@@ -939,7 +939,7 @@ def main():
 
     if 'revno' in version_info:
         revno = version_info['revno']
-    log('Running revision number: %s.' % revno)
+        log('Running revision number: %s.' % revno)
 
     retracer = Retracer(options.config_dir, options.sandbox_dir,
                         options.architecture, options.verbose,
