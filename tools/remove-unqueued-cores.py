@@ -64,6 +64,6 @@ with open('unqueued-cores.txt', 'r') as unqueued:
             print("OOPS %s not found in OOPS CF." % oopsid)
         remove_from_retracing(oopsid)
         remove_from_swift(oopsid, provider_data)
-        count += 1
-        if count > 10:
-            break
+        #count += 1
+        #if count > 10:
+        #    break
