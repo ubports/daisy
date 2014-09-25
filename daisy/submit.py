@@ -3,6 +3,7 @@
 # 
 # Copyright © 2011-2013 Canonical Ltd.
 # Author: Evan Dandrea <evan.dandrea@canonical.com>
+#         Brian Murray <brian.murray@canonical.com>
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero Public License as published by
@@ -314,6 +315,13 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
 
             release = data.get('DistroRelease', '')
             if not waiting and utils.retraceable_release(release):
+                package = report.get('Package', '')
+                # there will not be a debug symbol version of the package so
+                # don't ask for a CORE
+                if "[origin: " in package and \
+                        "[origin: Ubuntu RTM]" not in package:
+                    metrics.meter('missing.retraceable_origin')
+                    return (True, '%s OOPSID' % oops_id)
                 # retry SASes that failed to retrace as new dbgsym packages
                 # may be available
                 if crash_sig and retry:
