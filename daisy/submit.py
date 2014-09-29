@@ -138,7 +138,7 @@ def submit(_pool, environ, system_token):
         metrics.meter('missing.missing_arch')
     if arch == 'armel':
         metrics.meter('unsupported.armel')
-        return (False, 'armel architecture is obsoleted')
+        return (False, 'armel architecture is obsoleted.')
     package = data.get('Package', '')
     pkg_arch = utils.get_package_architecture(data)
     src_package = data.get('SourcePackage', '')
@@ -258,6 +258,16 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
 
     # Binary
     if 'StacktraceTop' in data and 'Signal' in data:
+        # apport requires the following fields to be able to retrace a crash
+        # so do not ask for a CORE file if they don't exist
+        if not release:
+            return (False, 'report is missing DistroRelease field.')
+        package = report.get('Package', '')
+        if not package:
+            return (False, 'report is missing Package field.')
+        exec_path = report.get('ExecutablePath', '')
+        if not exec_path:
+            return (False, 'report is missing ExecutablePath field.')
         output = ''
         # we check for addr_sig before bucketing and inserting into oopses
         addr_sig = data.get('StacktraceAddressSignature', None)
