@@ -281,6 +281,7 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
                         traces.get('ThreadStacktrace', None):
                     stacktrace = True
             except NotFoundException:
+                metrics.meter('missing.missing_retraced_stacktrace')
                 pass
         retry = False
         # 2014-09-15 - given the retracer backlog only retry armhf
