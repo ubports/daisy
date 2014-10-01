@@ -197,6 +197,7 @@ def submit(_pool, environ, system_token):
         addr_sig = data.get('StacktraceAddressSignature', None)
         if not addr_sig and arch:
             metrics.meter('missing.missing_sas_%s' % arch)
+        metrics.meter('missing.missing_sas')
     oopses.insert_dict(oops_config, oops_id, data, system_token, fields)
     now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
     msg = '%s (%s) inserted into OOPS CF' % (now, oops_id)
@@ -324,7 +325,6 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
             except (NotFoundException, InvalidRequestException):
                 waiting = False
 
-            release = data.get('DistroRelease', '')
             if not waiting and utils.retraceable_release(release):
                 package = report.get('Package', '')
                 # there will not be a debug symbol version of the package so
