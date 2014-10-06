@@ -530,7 +530,14 @@ class Retracer:
             report = apport.Report()
 
             for k in col:
-                report[k.encode('UTF-8')] = col[k].encode('UTF-8')
+                try:
+                    report[k.encode('UTF-8')] = col[k].encode('UTF-8')
+                except AssertionError:
+                    # apport raises an AssertionError if a key is invalid
+                    # e.g. /usr/bin/media-hub-server became a key somehow,
+                    # and this doesn't need to be part of the report used
+                    # for retracing
+                    continue
 
             # these will not change after retracing
             architecture = report.get('Architecture', '')
