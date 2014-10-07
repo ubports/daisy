@@ -1,24 +1,29 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-# 
+#
 # Copyright © 2011-2013 Canonical Ltd.
 # Author: Evan Dandrea <evan.dandrea@canonical.com>
 #         Brian Murray <brian.murray@canonical.com>
-# 
+#
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero Public License as published by
 # the Free Software Foundation; version 3 of the License.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU Affero Public License for more details.
-# 
+#
 # You should have received a copy of the GNU Affero Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import uuid
 import bson
+import hashlib
+import os
+import socket
+import sys
+import time
+import uuid
 
 from oopsrepository import config as oopsconfig
 from oopsrepository import oopses
@@ -30,10 +35,6 @@ import apport
 from daisy import utils
 from daisy.metrics import get_metrics
 from datetime import datetime
-import os
-import socket
-import sys
-import time
 
 os.environ['OOPS_KEYSPACE'] = config.cassandra_keyspace
 oops_config = oopsconfig.get_config()
@@ -86,7 +87,7 @@ def try_to_repair_sas(data):
 def submit(_pool, environ, system_token):
     counters_fam = pycassa.ColumnFamily(_pool, 'Counters',
                                         retry_counter_mutations=True)
-
+    systemoopshashes_cf = pycassa.ColumnFamily(_pool, 'SystemOOPSHashes')
     try:
         data = environ['wsgi.input'].read()
     except IOError as e:
@@ -139,11 +140,23 @@ def submit(_pool, environ, system_token):
     if arch == 'armel':
         metrics.meter('unsupported.armel')
         return (False, 'armel architecture is obsoleted.')
+    # Check to see if the crash has already been reported
+    date = data.get('Date', '')
+    exec_path = data.get('ExecutablePath', '')
+    proc_status = data.get('ProcStatus', '')
+    if date and exec_path and proc_status:
+        try:
+            reported_crash_ids = systemoopshashes_cf.get(system_token)
+            crash_id = '%s:%s:%s' % (date, exec_path, proc_status)
+            crash_id = hashlib.md5(crash_id).hexdigest()
+            if crash_id in reported_crash_ids:
+                return (False, 'Crash already reported.')
+        except NotFoundException:
+            pass
     package = data.get('Package', '')
     pkg_arch = utils.get_package_architecture(data)
     src_package = data.get('SourcePackage', '')
     problem_type = data.get('ProblemType', '')
-    exec_path = data.get('ExecutablePath', '')
     apport_version = data.get('ApportVersion', '')
     rootfs_build, device_image = utils.get_image_info(data)
     third_party = False
