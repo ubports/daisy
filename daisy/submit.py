@@ -102,6 +102,9 @@ def submit(_pool, environ, system_token):
     except bson.errors.InvalidBSON:
         metrics.meter('invalid.invalid_bson')
         return (False, 'Invalid BSON.')
+    except MemoryError:
+        metrics.meter('invalid.memory_error_bson')
+        return (False, 'Invalid BSON.')
 
     # Keep a reference to the decoded report data. If we crash, we'll
     # potentially attach it to the OOPS report.
