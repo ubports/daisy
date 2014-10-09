@@ -127,7 +127,10 @@ def submit(_pool, environ, system_token):
     if system_token:
         data['SystemIdentifier'] = system_token
     else:
+        whoopsie_version = environ['HTTP_X_WHOOPSIE_VERSION']
         metrics.meter('missing.missing_system_token')
+        metrics.meter('missing.missing_system_token_%s' % \
+            whoopsie_version.replace('.', '_'))
 
     release = data.get('DistroRelease', '')
     eol_releases = {'Ubuntu 11.04': 'natty',
