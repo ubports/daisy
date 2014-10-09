@@ -126,6 +126,8 @@ def submit(_pool, environ, system_token):
     # Write the SHA512 hash of the system UUID in with the report.
     if system_token:
         data['SystemIdentifier'] = system_token
+    else:
+        metrics.meter('missing.missing_system_token')
 
     release = data.get('DistroRelease', '')
     eol_releases = {'Ubuntu 11.04': 'natty',
@@ -147,7 +149,7 @@ def submit(_pool, environ, system_token):
     date = data.get('Date', '')
     exec_path = data.get('ExecutablePath', '')
     proc_status = data.get('ProcStatus', '')
-    if date and exec_path and proc_status:
+    if date and exec_path and proc_status and system_token:
         try:
             reported_crash_ids = systemoopshashes_cf.get(system_token)
             crash_id = '%s:%s:%s' % (date, exec_path, proc_status)
