@@ -162,6 +162,13 @@ def submit(_pool, environ, system_token):
             crash_id = hashlib.md5(crash_id).hexdigest()
             if crash_id in reported_crash_ids:
                 return (False, 'Crash already reported.')
+            try:
+                whoopsie_version = environ['HTTP_X_WHOOPSIE_VERSION']
+                metrics.meter('invalid.duplicate_report.whoopise_%s' % \
+                    whoopsie_version.replace('.', '_'))
+            except KeyError:
+                pass
+            metrics.meter('invalid.duplicate_report')
         except NotFoundException:
             pass
     package = data.get('Package', '')
