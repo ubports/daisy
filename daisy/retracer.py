@@ -763,11 +763,23 @@ class Retracer:
 
                 log('Could not retrace.')
                 if 'RetraceOutdatedPackages' in report:
+                    # this counter will overlap with outdated_packages but
+                    # that is okay
+                    if 'no debug symbol package' in \
+                            report['RetraceOutdatedPackages']:
+                        metrics.meter('retrace.failure.missing_dbgsym')
+                        metrics.meter('retrace.failure.%s.missing_dbgsym' % \
+                                      release)
+                        metrics.meter('retrace.failure.%s.missing_dbgsym' % \
+                                      architecture)
+                        metrics.meter('retrace.failure.%s.%s.missing_dbgsym' % \
+                                      (release, architecture))
                     log('RetraceOutdatedPackages:')
                     for line in report['RetraceOutdatedPackages'].splitlines():
-                        log(line)
+                        log('%s (%s)' % (line, release))
                     metrics.meter('retrace.failure.outdated_packages')
-                    metrics.meter('retrace.failure.%s.outdated_packages' % release)
+                    metrics.meter('retrace.failure.%s.outdated_packages' % \
+                                  release)
                     metrics.meter('retrace.failure.%s.outdated_packages' % \
                                   architecture)
                     metrics.meter('retrace.failure.%s.%s.outdated_packages' % \
