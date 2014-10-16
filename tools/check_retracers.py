@@ -24,12 +24,11 @@ def main():
         sys.exit(1)
     with open('/tmp/retracer-status.txt', 'r') as f:
         for line in f.readlines():
-            if line.strip() == 'Nothing retraced in 180 seconds':
-                print('%s' % line.strip())
-                sys.exit(2)
-            elif line.strip() == 'Retracing ongoing':
-                print('%s' % line.strip())
+            if line.strip() == "status=retracing":
                 sys.exit(0)
+            elif line.strip() == "status=stopped":
+                sys.exit(2)
+    sys.exit(2)
 
     #l = [v for k, v in ttr.xget(date)]
     #count = len(l)

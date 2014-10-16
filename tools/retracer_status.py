@@ -22,10 +22,17 @@ def main():
         previous_stats = retracestats_cf.get(date)
     # this could happen at the start of the day
     except NotFoundException:
-        print('status=retracing')
-        sys.exit(0)
+        previous_stats = ''
+        pass
     sleep(180)
-    current_stats = retracestats_cf.get(date)
+    try:
+        current_stats = retracestats_cf.get(date)
+    # if we can't find any current stats after waiting then the retracers must
+    # not be working
+    except NotFoundException:
+        print("status=stopped")
+        sys.exit(0)
+    # if the stats are the same then the retracers must not be working
     if previous_stats == current_stats:
         print('status=stopped')
     else:
