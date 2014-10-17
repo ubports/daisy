@@ -598,6 +598,11 @@ class Retracer:
             metrics.meter('retrace.failed.%s' % architecture)
             metrics.meter('retrace.failed.%s.%s' %
                           (release, architecture))
+            metrics.meter('retrace.failed.to_setup')
+            metrics.meter('retrace.failed.to_setup.%s' % release)
+            metrics.meter('retrace.failed.to_setup.%s' % architecture)
+            metrics.meter('retrace.failed.to_setup.%s.%s' %
+                          (release, architecture))
             raise
         finally:
             rm_eff(report_path)
