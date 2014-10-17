@@ -655,7 +655,7 @@ class Retracer:
                                   (release, architecture))
                     if apport_vers:
                         metrics.meter('retrace.failed.invalid_core.%s.%s'
-                                      % (release, apport_vers))
+                            % (release, apport_vers.replace('.', '_')))
                 self.move_to_failed_queue(msg)
                 self.update_retrace_stats(release, day_key, retracing_time,
                                           crashed=True)
