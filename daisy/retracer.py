@@ -637,9 +637,19 @@ class Retracer:
                 retracing_time = time.time() - retracing_start_time
                 m = 'Retrace failed (%i), moving to failed queue:'
                 log(m % proc.returncode)
+                invalid_core = False
                 for std in (out, err):
                     for line in std.splitlines():
                         log(line)
+                        if "Invalid core dump" in line:
+                            invalid_core = True
+                if invalid_core:
+                    metrics.meter('retrace.failed.invalid_core')
+                    metrics.meter('retrace.failed.invalid_core.%s' % release)
+                    metrics.meter('retrace.failed.invalid_core.%s' %
+                                  architecture)
+                    metrics.meter('retrace.failed.invalid_core.%s.%s' %
+                                  (release, architecture))
                 self.move_to_failed_queue(msg)
                 self.update_retrace_stats(release, day_key, retracing_time,
                                           crashed=True)
