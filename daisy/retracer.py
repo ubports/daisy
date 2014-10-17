@@ -673,6 +673,11 @@ class Retracer:
 
             crash_signature = report.crash_signature()
             stacktrace_addr_sig = report.get('StacktraceAddressSignature', '')
+            missing_dbgsym_pkg = False
+            if 'RetraceOutdatedPackages' in report:
+                if 'no debug symbol package' in \
+                        report['RetraceOutdatedPackages']:
+                    missing_dbgsym_pkg = True
             if not crash_signature:
                 log('Apport did not return a crash_signature.')
                 metrics.meter('retrace.missing.crash_signature')
@@ -682,6 +687,12 @@ class Retracer:
                               release)
                 metrics.meter('retrace.missing.%s.%s.crash_signature' %
                               (release, architecture))
+                if missing_dbgsym_pkg:
+                    metrics.meter('retrace.missing.crash_signature. \
+                                   no_dbgsym_pkg')
+                    metrics.meter('retrace.missing.%s.crash_signature. \
+                                   no_dbgsym_pkg' % release)
+
                 log('StacktraceTop:')
                 for line in report['StacktraceTop'].splitlines():
                     log(line)
@@ -763,17 +774,12 @@ class Retracer:
 
                 log('Could not retrace.')
                 if 'RetraceOutdatedPackages' in report:
-                    # this counter will overlap with outdated_packages but
+                    # these counters will overlap with outdated_packages but
                     # that is okay
-                    if 'no debug symbol package' in \
-                            report['RetraceOutdatedPackages']:
+                    if missing_dbgsym_pkg:
                         metrics.meter('retrace.failure.missing_dbgsym')
                         metrics.meter('retrace.failure.%s.missing_dbgsym' % \
                                       release)
-                        metrics.meter('retrace.failure.%s.missing_dbgsym' % \
-                                      architecture)
-                        metrics.meter('retrace.failure.%s.%s.missing_dbgsym' % \
-                                      (release, architecture))
                     log('RetraceOutdatedPackages:')
                     for line in report['RetraceOutdatedPackages'].splitlines():
                         log('%s (%s)' % (line, release))
