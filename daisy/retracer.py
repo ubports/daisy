@@ -644,12 +644,18 @@ class Retracer:
                         if "Invalid core dump" in line:
                             invalid_core = True
                 if invalid_core:
+                    # these should not be reported LP: #1354571 so record
+                    # apport version
+                    apport_vers = report.get('ApportVersion', '')
                     metrics.meter('retrace.failed.invalid_core')
                     metrics.meter('retrace.failed.invalid_core.%s' % release)
                     metrics.meter('retrace.failed.invalid_core.%s' %
                                   architecture)
                     metrics.meter('retrace.failed.invalid_core.%s.%s' %
                                   (release, architecture))
+                    if apport_vers:
+                        metrics.meter('retrace.failed.invalid_core.%s.%s'
+                                      % (release, apport_vers))
                 self.move_to_failed_queue(msg)
                 self.update_retrace_stats(release, day_key, retracing_time,
                                           crashed=True)
