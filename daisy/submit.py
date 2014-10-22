@@ -371,6 +371,10 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
                     now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
                     msg = '%s will retry: %s' % (now, oops_id)
                     print >>sys.stderr, msg
+                elif crash_sig and not retry:
+                    # Do not ask for a core for crashes we don't want to retry
+                    metrics.meter('success.not_retry_failure')
+                    return (True, '% OOPSID' % oops_id)
                 # We do not have a core file in the queue, so ask for one. Do
                 # not assume we're going to get one, so also add this ID the
                 # the AwaitingRetrace CF queue as well.
