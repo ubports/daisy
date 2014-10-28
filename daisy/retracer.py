@@ -18,30 +18,34 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import amqplib.client_0_8 as amqp
+import apport
+import argparse
 import atexit
+import datetime
+import logging
+import magic
 import os
+import re
+import shutil
+import socket
 import sys
 import tempfile
-import shutil
+import traceback
+import time
+
 from subprocess import Popen, PIPE
-import apport
+
 from pycassa import ConsistencyLevel
 from pycassa.columnfamily import ColumnFamily
 from pycassa.cassandra.ttypes import NotFoundException
 from pycassa.pool import MaximumRetryException
 from pycassa.types import IntegerType, FloatType, UTF8Type
-import argparse
-import time
-import socket
-import re
+
 from daisy.metrics import wrapped_connection_pool, get_metrics, revno
 from daisy import utils
 from daisy.version import version_info
-import logging
 from daisy import config
 from oopsrepository import config as oopsconfig
-import traceback
-import datetime
 
 LOGGING_FORMAT = ('%(asctime)s:%(process)d:%(thread)d'
                   ':%(levelname)s:%(name)s:%(message)s')
@@ -524,6 +528,19 @@ class Retracer:
                               self.architecture)
                 metrics.meter('retrace.failure.decompression')
                 metrics.meter('retrace.failure.decompression.%s' %
+                              self.architecture)
+                return
+            # confirm that the core file is good
+            m = magic.open(magic.MAGIC_NONE)
+            m.load()
+            magic_type = m.file(core_file)
+            if 'core file' not in magic_type:
+                log('Not a core file. (%s)' % magic_type)
+                metrics.meter('retrace.failed')
+                metrics.meter('retrace.failed.%s' %
+                              self.architecture)
+                metrics.meter('retrace.failure.core_magic')
+                metrics.meter('retrace.failure.core_magic.%s' %
                               self.architecture)
                 return
 

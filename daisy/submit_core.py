@@ -17,18 +17,20 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import amqplib.client_0_8 as amqp
-import pycassa
-from pycassa.cassandra.ttypes import NotFoundException, InvalidRequestException
-import shutil
 import os
+import pycassa
 import random
-from daisy import config
-import sys
-from datetime import datetime
-from daisy.metrics import get_metrics
+import shutil
 import socket
+import sys
 import time
 import utils
+
+from pycassa.cassandra.ttypes import NotFoundException, InvalidRequestException
+
+from daisy import config
+from datetime import datetime
+from daisy.metrics import get_metrics
 
 metrics = get_metrics('daisy.%s' % socket.gethostname())
 
