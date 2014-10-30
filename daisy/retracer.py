@@ -129,6 +129,11 @@ class Retracer:
         self._lost_connection = None
         self.cache_debs = cache_debs
 
+        # determine path of gdb
+        gdb_which = Popen(['which', 'gdb'], stdout=PIPE,
+                          universal_newlines=True)
+        self.gdb_path = gdb_which.communicate()[0].strip()
+
         # determine path of apport-retrace
         which = Popen(['which', 'apport-retrace'], stdout=PIPE,
                       universal_newlines=True)
@@ -541,6 +546,21 @@ class Retracer:
                               self.architecture)
                 metrics.meter('retrace.failure.core_magic')
                 metrics.meter('retrace.failure.core_magic.%s' %
+                              self.architecture)
+                return
+            # confirm that gdb thinks the core file is good
+            gdb_cmd = [self.gdb_path, "--batch", "--ex", "target core %s" %
+                       core_file]
+            proc = Popen(gdb_cmd, stdout=PIPE, stderr=PIPE,
+                         universal_newlines=True)
+            (out, err) = proc.communicate()
+            if 'not a core dump' in out:
+                log('Not a core dump per gdb.')
+                metrics.meter('retrace.failed')
+                metrics.meter('retrace.failed.%s' %
+                              self.architecture)
+                metrics.meter('retrace.failure.gdb_core_check')
+                metrics.meter('retrace.failure.gdb_core_check.%s' %
                               self.architecture)
                 return
 
