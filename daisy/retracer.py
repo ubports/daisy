@@ -540,6 +540,8 @@ class Retracer:
             m.load()
             magic_type = m.file(core_file)
             if 'core file' not in magic_type:
+                # Not a core file, there's no value in trying again.
+                self.processed(msg)
                 log('Not a core file. (%s)' % magic_type)
                 metrics.meter('retrace.failed')
                 metrics.meter('retrace.failed.%s' %
@@ -555,6 +557,8 @@ class Retracer:
                          universal_newlines=True)
             (out, err) = proc.communicate()
             if 'not a core dump' in out:
+                # Not a core file, there's no value in trying again.
+                self.processed(msg)
                 log('Not a core dump per gdb.')
                 metrics.meter('retrace.failed')
                 metrics.meter('retrace.failed.%s' %
