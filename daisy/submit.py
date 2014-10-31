@@ -364,6 +364,12 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
                         "[origin: Ubuntu RTM]" not in package:
                     metrics.meter('missing.retraceable_origin')
                     return (True, '%s OOPSID' % oops_id)
+                # Do not ask for a core for crashes from click packages as we
+                # don't have ddebs for them.
+                click_package = report.get('ClickPackage', '')
+                if click_package == "True":
+                    metrics.meter('missing.click_package_ddeb')
+                    return (True, '%s OOPSID' % oops_id)
                 # retry SASes that failed to retrace as new dbgsym packages
                 # may be available
                 if crash_sig and retry:
