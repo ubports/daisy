@@ -63,6 +63,11 @@ def get_fields_for_bucket_counters(problem_type, release, package, version,
                 fields.append('%s' % (device_image))
         else:
             fields.append(release)
+            # package w/o version is somewhat useful, version w/o package
+            # isn't so only record this counter
+            if package:
+                fields.append('%s:%s' % (release, package))
+                fields.append(package)
             if pkg_arch:
                 fields.append('%s:%s' % (release, pkg_arch))
                 fields.append('%s' % pkg_arch)
@@ -76,6 +81,7 @@ def get_fields_for_bucket_counters(problem_type, release, package, version,
                 fields.append('%s' % (device_image))
     elif package and version:
         fields.append('%s:%s' % (package, version))
+        fields.append('%s' % (package))
         if pkg_arch:
             fields.append('%s:%s:%s' % (package, version, pkg_arch))
             fields.append('%s:%s' % (package, pkg_arch))
