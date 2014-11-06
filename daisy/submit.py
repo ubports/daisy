@@ -364,6 +364,12 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
                         "[origin: Ubuntu RTM]" not in package:
                     metrics.meter('missing.retraceable_origin')
                     return (True, '%s OOPSID' % oops_id)
+                # Don't ask for cores from things like google-chrome-stable
+                # which will appear as "not installed" if installed from a
+                # .deb
+                if "(not installed)" in package:
+                    metrics.meter('missing.package_version')
+                    return (True, '%s OOPSID' % oops_id)
                 # Do not ask for a core for crashes from click packages as we
                 # don't have ddebs for them.
                 click_package = report.get('ClickPackage', '')
