@@ -23,7 +23,6 @@ import argparse
 import atexit
 import datetime
 import logging
-import magic
 import os
 import re
 import shutil
@@ -533,21 +532,6 @@ class Retracer:
                               self.architecture)
                 metrics.meter('retrace.failure.decompression')
                 metrics.meter('retrace.failure.decompression.%s' %
-                              self.architecture)
-                return
-            # confirm that the core file is good
-            m = magic.open(magic.MAGIC_NONE)
-            m.load()
-            magic_type = m.file(core_file)
-            if 'core file' not in magic_type:
-                # Not a core file, there's no value in trying again.
-                self.processed(msg)
-                log('Not a core file. (%s)' % magic_type)
-                metrics.meter('retrace.failed')
-                metrics.meter('retrace.failed.%s' %
-                              self.architecture)
-                metrics.meter('retrace.failure.core_magic')
-                metrics.meter('retrace.failure.core_magic.%s' %
                               self.architecture)
                 return
             # confirm that gdb thinks the core file is good
