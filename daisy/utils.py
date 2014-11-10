@@ -248,7 +248,7 @@ def wrap_in_oops_wsgi(wsgi_handler):
     return make_app(wsgi_handler, cfg, oops_on_status=['500'])
 
 def retraceable_release(release):
-    release_re = re.compile('^Ubuntu \d\d.\d\d$')
+    release_re = re.compile('^Ubuntu( RTM)? \d\d.\d\d$')
     if release_re.match(release):
         return True
     else:
