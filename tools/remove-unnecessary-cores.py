@@ -27,6 +27,8 @@ def remove_from_retracing(oops_id):
     addr_sig = oops_cf.get(oops_id,
                     ['StacktraceAddressSignature', 'SystemIdentifier'])
     addr_sig = addr_sig.values()[0]
+    if not addr_sig:
+        return
     try:
         #if indexes_cf.get('retracing', [addr_sig]):
         #    print("Found OOPS %s in retracing queue" % oops_id)
