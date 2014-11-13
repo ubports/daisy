@@ -136,7 +136,9 @@ def submit(_pool, environ, system_token):
         metrics.meter('missing.missing_system_token')
 
     release = data.get('DistroRelease', '')
-    eol_releases = {'Ubuntu 11.04': 'natty',
+    eol_releases = {'Ubuntu 10.04': 'lucid',
+        'Ubuntu 10.10': 'maverick',
+        'Ubuntu 11.04': 'natty',
         'Ubuntu 11.10': 'oneiric',
         'Ubuntu 12.10': 'quantal',
         'Ubuntu 13.04': 'raring',
