@@ -161,6 +161,8 @@ def submit(_pool, environ, system_token):
         try:
             reported_crash_ids = systemoopshashes_cf.get(system_token)
             crash_id = '%s:%s:%s' % (date, exec_path, proc_status)
+            if type(crash_id) == unicode:
+                crash_id = crash_id.encode('utf-8')
             crash_id = hashlib.md5(crash_id).hexdigest()
             if crash_id in reported_crash_ids:
                 return (False, 'Crash already reported.')
