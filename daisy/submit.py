@@ -294,16 +294,6 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
 
     # Binary
     if 'StacktraceTop' in data and 'Signal' in data:
-        # apport requires the following fields to be able to retrace a crash
-        # so do not ask for a CORE file if they don't exist
-        if not release:
-            return (False, 'report is missing DistroRelease field.')
-        package = report.get('Package', '')
-        if not package:
-            return (False, 'report is missing Package field.')
-        exec_path = report.get('ExecutablePath', '')
-        if not exec_path:
-            return (False, 'report is missing ExecutablePath field.')
         output = ''
         # we check for addr_sig before bucketing and inserting into oopses
         addr_sig = data.get('StacktraceAddressSignature', None)
@@ -352,6 +342,16 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
             utils.bucket(oops_config, oops_id, crash_sig, data)
             metrics.meter('success.ready_binary_bucketed')
         else:
+            # apport requires the following fields to be able to retrace a crash
+            # so do not ask for a CORE file if they don't exist
+            if not release:
+                return (True, '%s OOPSID' % oops_id)
+            package = report.get('Package', '')
+            if not package:
+                return (True, '%s OOPSID' % oops_id)
+            exec_path = report.get('ExecutablePath', '')
+            if not exec_path:
+                return (True, '%s OOPSID' % oops_id)
             # Are we already waiting for this stacktrace address signature to
             # be retraced?
             waiting = True
@@ -361,7 +361,6 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
                 waiting = False
 
             if not waiting and utils.retraceable_release(release):
-                package = report.get('Package', '')
                 # there will not be a debug symbol version of the package so
                 # don't ask for a CORE
                 if "[origin: " in package and \
