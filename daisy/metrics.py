@@ -67,7 +67,7 @@ def wrapped_connection_pool(namespace='daisy'):
                                   # the last retry.
                                   max_retries=10, credentials=creds)
 
-def revno(namespace='daisy'):
+def record_revno(namespace='daisy'):
     from daisy.version import version_info
     import socket
     if 'revno' in version_info:

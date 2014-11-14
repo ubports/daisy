@@ -23,6 +23,7 @@ import argparse
 import atexit
 import datetime
 import logging
+import oops_dictconfig
 import os
 import re
 import shutil
@@ -1009,20 +1010,30 @@ def main():
 
     logging.basicConfig(format=LOGGING_FORMAT, level=logging.INFO)
 
-    if 'revno' in version_info:
-        revno = version_info['revno']
-        log('Running revision number: %s.' % revno)
-        metrics.revno()
+    retracer_oops_cfg = oops_dictconfig.config_from_dict(config.oops_config)
+    retracer_oops_cfg.template['reporter'] = 'retracer'
 
-    retracer = Retracer(options.config_dir, options.sandbox_dir,
-                        options.architecture, options.verbose,
-                        not options.nocache_debs, failed=options.failed)
-    if options.retrieve_core:
-        parts = options.one_off.split(':', 1)
-        path, oops_id = retracer.write_bucket_to_disk(parts[0], parts[1])
-        log('Wrote %s to %s. Exiting.' % (path, oops_id))
-    else:
-        retracer.listen()
+    try:
+        if 'revno' in version_info:
+            revno = version_info['revno']
+            log('Running revision number: %s.' % revno)
+            record_revno()
+
+        retracer = Retracer(options.config_dir, options.sandbox_dir,
+                            options.architecture, options.verbose,
+                            not options.nocache_debs, failed=options.failed)
+        if options.retrieve_core:
+            parts = options.one_off.split(':', 1)
+            path, oops_id = retracer.write_bucket_to_disk(parts[0], parts[1])
+            log('Wrote %s to %s. Exiting.' % (path, oops_id))
+        else:
+            retracer.listen()
+    except:
+        context = dict(exc_info=sys.exc_info())
+        report = retracer_oops_cfg.create(context)
+        ids = retracer_oops_cfg.publish(report)
+        # log ids if you want
+        raise
 
 if __name__ == '__main__':
     main()
