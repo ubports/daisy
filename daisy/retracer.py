@@ -41,7 +41,7 @@ from pycassa.cassandra.ttypes import NotFoundException
 from pycassa.pool import MaximumRetryException
 from pycassa.types import IntegerType, FloatType, UTF8Type
 
-from daisy.metrics import wrapped_connection_pool, get_metrics, revno
+from daisy.metrics import wrapped_connection_pool, get_metrics, record_revno
 from daisy import utils
 from daisy.version import version_info
 from daisy import config
