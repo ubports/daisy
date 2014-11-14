@@ -11,10 +11,12 @@ pool = pycassa.ConnectionPool(config.cassandra_keyspace,
                               config.cassandra_hosts, timeout=10,
                               credentials=creds)
 oops_cf = pycassa.ColumnFamily(pool, 'OOPS')
+
 old_date = datetime.today() - timedelta(days=7)
 count = 0
+
 for oops, oops_data in oops_cf.get_range(columns=['Date','Package'],
-        row_count=1000):
+        row_count=5000):
     if count >= 10:
         sys.exit(0)
     date_str = oops_data.get('Date', '')
@@ -22,10 +24,24 @@ for oops, oops_data in oops_cf.get_range(columns=['Date','Package'],
         date = datetime.strptime(date_str, '%a %b %d %H:%M:%S %Y')
     except ValueError:
         continue
-    if date.date() >= old_date.date():
+    if date.date() <= old_date.date():
         continue
     pkg = oops_data.get('Package', '')
-    if pkg:
+    try:
+        package = pkg.split()[0]
+    except IndexError:
+        package = ''
+    if package.startswith('linux-image-'):
         continue
-    print("https://errors.ubuntu.com/oops/%s" % oops)
+    try:
+        version = pkg.split()[1:]
+    except IndexError:
+        version = ''
+    if package and version:
+        continue
+    if not package:
+        print("missing package:")
+    elif package and not version:
+        print("missing version:")
+    print("  https://errors.ubuntu.com/oops/%s" % oops)
     count += 1
