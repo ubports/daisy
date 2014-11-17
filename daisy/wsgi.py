@@ -102,5 +102,5 @@ def app(environ, start_response):
     else:
         return bad_request_response(start_response, response[1])
 
-metrics.revno()
+metrics.record_revno()
 application = utils.wrap_in_oops_wsgi(VersionMiddleware(app))
