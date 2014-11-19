@@ -740,7 +740,6 @@ class Retracer:
                                    no_dbgsym_pkg')
                     metrics.meter('retrace.missing.%s.crash_signature. \
                                    no_dbgsym_pkg' % release)
-
                 log('StacktraceTop:')
                 for line in report['StacktraceTop'].splitlines():
                     log(line)
@@ -774,22 +773,11 @@ class Retracer:
                 stacktrace_addr_sig = original_sas
 
             crash_signature = utils.format_crash_signature(crash_signature)
-            # if there are any outdated packages don't write to the
-            # Stacktrace column family LP: #1321386
+
+            # if there isn't a Stacktrace in the retraced report do not
+            # consider it a successful retrace LP: #1321386
             if crash_signature and stacktrace_addr_sig and \
-                    'RetraceOutdatedPackages' not in report:
-                if 'Stacktrace' not in report:
-                    log('Stacktrace not in retraced report with a crash_sig.')
-                    metrics.meter('retrace.missing.stacktrace')
-                    metrics.meter('retrace.missing.%s.stacktrace' %
-                                  architecture)
-                    metrics.meter('retrace.missing.%s.stacktrace' %
-                                  release)
-                    metrics.meter('retrace.missing.%s.%s.stacktrace' %
-                                  (release, architecture))
-                    # copy retraced crash file for manual investigation
-                    shutil.copyfile('%s.new' % report_path,
-                                    '/srv/daisy.ubuntu.com/production/var/%s.crash' % oops_id)
+                    'Stacktrace' in report:
                 if 'CoreDump' in report:
                     report.pop('CoreDump')
                 try:
@@ -808,19 +796,36 @@ class Retracer:
                 metrics.meter('retrace.success.%s.%s' %
                               (release, architecture))
             else:
+                if 'Stacktrace' not in report and crash_signature:
+                    log('Stacktrace not in retraced report with a crash_sig.')
+                    metrics.meter('retrace.missing.stacktrace')
+                    metrics.meter('retrace.missing.%s.stacktrace' %
+                                  architecture)
+                    metrics.meter('retrace.missing.%s.stacktrace' %
+                                  release)
+                    metrics.meter('retrace.missing.%s.%s.stacktrace' %
+                                  (release, architecture))
+                    # copy retraced crash file for manual investigation
+                    shutil.copyfile('%s.new' % report_path,
+                                    '/srv/daisy.ubuntu.com/production/var/%s.crash' % oops_id)
+
                 # Given that we do not as yet keep debugging symbols around for
                 # every package version ever released, it's worth knowing the
                 # extent of the problem. If we ever decide to keep debugging
                 # symbols for every package version, we can reprocess these
                 # with a map/reduce job.
+                log('Could not retrace.')
 
                 if stacktrace_addr_sig:
                     crash_signature = 'failed:%s' % \
                         utils.format_crash_signature(stacktrace_addr_sig)
                 else:
+                    log('Retraced report missing stacktrace_addr_sig.')
                     crash_signature = ''
 
-                log('Could not retrace.')
+                if 'Stacktrace' not in report:
+                    log('Retraced report missing Stacktrace.')
+
                 if 'RetraceOutdatedPackages' in report:
                     # these counters will overlap with outdated_packages but
                     # that is okay
