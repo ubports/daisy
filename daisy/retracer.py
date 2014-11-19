@@ -774,8 +774,8 @@ class Retracer:
 
             crash_signature = utils.format_crash_signature(crash_signature)
 
-            # if there isn't a Stacktrace in the retraced report do not
-            # consider it a successful retrace LP: #1321386
+            # only consider it a successful retrace if there is a Stacktrace
+            # in the retraced report LP: #1321386
             if crash_signature and stacktrace_addr_sig and \
                     'Stacktrace' in report:
                 if 'CoreDump' in report:
