@@ -795,6 +795,12 @@ class Retracer:
                 metrics.meter('retrace.success.%s' % architecture)
                 metrics.meter('retrace.success.%s.%s' %
                               (release, architecture))
+                # for having a total count of missing ddebs log outdated
+                # packages for successful retraces too
+                if 'RetraceOutdatedPackages' in report:
+                    log('RetraceOutdatedPackages:')
+                    for line in report['RetraceOutdatedPackages'].splitlines():
+                        log('%s (%s)' % (line, release))
             else:
                 if 'Stacktrace' not in report and crash_signature:
                     log('Stacktrace not in retraced report with a crash_sig.')
