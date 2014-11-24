@@ -250,6 +250,7 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
     '''
 
     indexes_fam = pycassa.ColumnFamily(_pool, 'Indexes')
+    oops_cf = pycassa.ColumnFamily(_pool, 'OOPS')
     stacktrace_cf = pycassa.ColumnFamily(_pool, 'Stacktrace')
     images_cf = pycassa.ColumnFamily(_pool, 'SystemImages')
     report = create_report_from_bson(data)
@@ -287,6 +288,7 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
     # Python
     crash_signature = report.crash_signature()
     if crash_signature and 'Traceback' in report:
+        oops_cf.insert(oops_id, {'DuplicateSignature': crash_signature})
         crash_signature = utils.format_crash_signature(crash_signature)
         utils.bucket(oops_config, oops_id, crash_signature, data)
         metrics.meter('success.python_bucketed')
@@ -335,7 +337,6 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
             if 'ProcMaps' in report:
                 unneeded_columns = ['Disassembly', 'ProcMaps', 'ProcStatus',
                                     'Registers', 'StacktraceTop']
-                oops_cf = pycassa.ColumnFamily(_pool, 'OOPS')
                 oops_cf.remove(oops_id, columns=unneeded_columns)
             # We have already retraced for this address signature, so this
             # crash can be immediately bucketed.
