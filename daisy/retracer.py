@@ -830,7 +830,10 @@ class Retracer:
                     crash_signature = ''
 
                 if 'Stacktrace' not in report:
+                    failure_reason = 'No stacktrace after retracing'
                     log('Retraced report missing Stacktrace.')
+                else:
+                    failure_reason = 'No crash signature after retracing'
 
                 if 'RetraceOutdatedPackages' in report:
                     # these counters will overlap with outdated_packages but
@@ -839,9 +842,29 @@ class Retracer:
                         metrics.meter('retrace.failure.missing_dbgsym')
                         metrics.meter('retrace.failure.%s.missing_dbgsym' % \
                                       release)
+                    outdated_pkgs = []
+                    missing_ddebs = []
                     log('RetraceOutdatedPackages:')
                     for line in report['RetraceOutdatedPackages'].splitlines():
+                        if 'required, but' in line:
+                            outdated_pkgs.append(line.split(' ')[0])
+                        if 'no debug symbol' in line:
+                            missing_ddebs.append(line.split(' ')[-1])
                         log('%s (%s)' % (line, release))
+                    if not outdated_pkgs:
+                        failure_reason += ' and missing ddebs.'
+                    else:
+                        failure_reason += ' and outdated packages.'
+                    self.oops_cf.insert(oops_id,
+                        {'RetraceFailureReason': failure_reason})
+                    if outdated_pkgs:
+                        self.oops_cf.insert(oops_id,
+                            {'RetraceFailureOutdatedPackages':
+                             '%s' % ' '.join(outdated_pkgs)})
+                    if missing_ddebs:
+                        self.oops_cf.insert(oops_id,
+                            {'RetraceFailureMissingDebugSymbols':
+                             '%s' % ' '.join(missing_ddebs)})
                     metrics.meter('retrace.failure.outdated_packages')
                     metrics.meter('retrace.failure.%s.outdated_packages' % \
                                   release)
@@ -849,6 +872,10 @@ class Retracer:
                                   architecture)
                     metrics.meter('retrace.failure.%s.%s.outdated_packages' % \
                                   (release, architecture))
+                else:
+                    failure_reason += '.'
+                    self.oops_cf.insert(oops_id,
+                        {'RetraceFailureReason': failure_reason})
                 args = (release, day_key, retracing_time, False)
                 self.update_retrace_stats(*args)
                 metrics.meter('retrace.failed')
