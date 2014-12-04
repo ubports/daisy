@@ -858,13 +858,15 @@ class Retracer:
                     self.oops_cf.insert(oops_id,
                         {'RetraceFailureReason': failure_reason})
                     if outdated_pkgs:
+                        outdated_pkgs.sort()
                         self.oops_cf.insert(oops_id,
                             {'RetraceFailureOutdatedPackages':
-                             '%s' % ' '.join(outdated_pkgs.sort())})
+                             '%s' % ' '.join(outdated_pkgs)})
                     if missing_ddebs:
+                        missing_ddebs.sort()
                         self.oops_cf.insert(oops_id,
                             {'RetraceFailureMissingDebugSymbols':
-                             '%s' % ' '.join(missing_ddebs.sort())})
+                             '%s' % ' '.join(missing_ddebs)})
                     metrics.meter('retrace.failure.outdated_packages')
                     metrics.meter('retrace.failure.%s.outdated_packages' % \
                                   release)
