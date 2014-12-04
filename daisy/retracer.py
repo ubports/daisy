@@ -860,11 +860,11 @@ class Retracer:
                     if outdated_pkgs:
                         self.oops_cf.insert(oops_id,
                             {'RetraceFailureOutdatedPackages':
-                             '%s' % ' '.join(outdated_pkgs)})
+                             '%s' % ' '.join(outdated_pkgs.sort())})
                     if missing_ddebs:
                         self.oops_cf.insert(oops_id,
                             {'RetraceFailureMissingDebugSymbols':
-                             '%s' % ' '.join(missing_ddebs)})
+                             '%s' % ' '.join(missing_ddebs.sort())})
                     metrics.meter('retrace.failure.outdated_packages')
                     metrics.meter('retrace.failure.%s.outdated_packages' % \
                                   release)
