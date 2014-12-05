@@ -162,6 +162,8 @@ class Retracer:
         self.retrace_stats_fam = ColumnFamily(self.pool, 'RetraceStats',
                                               retry_counter_mutations=True)
         self.bucket_fam = ColumnFamily(self.pool, 'Bucket')
+        self.bucketretracefail_fam = ColumnFamily(self.pool,
+            'BucketRetraceFailureReason')
 
         # We didn't set a default_validation_class for these in the schema.
         # Whoops.
@@ -858,15 +860,42 @@ class Retracer:
                     self.oops_cf.insert(oops_id,
                         {'RetraceFailureReason': failure_reason})
                     if outdated_pkgs:
+                        outdated_pkg_count = len(outdated_pkgs)
                         outdated_pkgs.sort()
                         self.oops_cf.insert(oops_id,
                             {'RetraceFailureOutdatedPackages':
                              '%s' % ' '.join(outdated_pkgs)})
+                    else:
+                        outdated_pkgs = ''
+                        outdated_pkg_count = 0
                     if missing_ddebs:
+                        missing_ddeb_count = len(missing_ddebs)
                         missing_ddebs.sort()
                         self.oops_cf.insert(oops_id,
                             {'RetraceFailureMissingDebugSymbols':
                              '%s' % ' '.join(missing_ddebs)})
+                    else:
+                        missing_ddebs = ''
+                        missing_ddeb_count = 0
+                    try:
+                        rf_reason = self.bucketretracefail_fam.get(crash_signature)
+                        least_missing_ddeb_count = \
+                            int(rf_reason[crash_signature]['missing_ddeb_count'])
+                        least_outdated_pkg_count = \
+                            int(rf_reason[crash_signature]['outdated_pkg_count'])
+                    except NotFoundException:
+                        least_missing_ddeb_count = 9999
+                        least_outdated_pkg_count = 9999
+                    if outdated_pkg_count < least_outdated_pkg_count and \
+                            missing_ddeb_count < least_missing_ddeb_count:
+                        self.bucketretracefail_fam.insert(crash_signature,
+                            {'oops': oops_id,
+                             'missing_ddeb_count': '%s' % missing_ddeb_count,
+                             'outdated_pkg_count': '%s' % outdated_pkg_count,
+                             'Reason': failure_reason,
+                             'MissingDebugSymbols': '%s' % ' '.join(missing_ddebs),
+                             'OutdatedPackages': '%s' % ' '.join(outdated_pkgs)
+                            })
                     metrics.meter('retrace.failure.outdated_packages')
                     metrics.meter('retrace.failure.%s.outdated_packages' % \
                                   release)
@@ -878,6 +907,9 @@ class Retracer:
                     failure_reason += '.'
                     self.oops_cf.insert(oops_id,
                         {'RetraceFailureReason': failure_reason})
+                    self.bucketretracefail_fam.insert(crash_signature,
+                        {'oops': oops_id,
+                         'Reason': failure_reason})
                 args = (release, day_key, retracing_time, False)
                 self.update_retrace_stats(*args)
                 metrics.meter('retrace.failed')
