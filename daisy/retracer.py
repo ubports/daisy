@@ -663,20 +663,33 @@ class Retracer:
                     # going to be retried
                     rm_eff('%s.new' % report_path)
                     return
+                # return immediately to prevent moving the crash to the failed
+                # queue
+                elif proc.returncode == -15:
+                    log("apport-retrace was killed by retracer restart.")
+                    return
                 # apport-retrace will exit 0 even on a failed retrace unless
                 # something has gone wrong at a lower level, as was the case
                 # when python-apt bailed out on invalid sources.list files.
                 # Fail hard so we do not incorrectly write a lot of retraces to
                 # the database as failures.
                 retracing_time = time.time() - retracing_start_time
-                m = 'Retrace failed (%i), moving to failed queue:'
-                log(m % proc.returncode)
                 invalid_core = False
                 for std in (out, err):
                     for line in std.splitlines():
                         log(line)
                         if "Invalid core dump" in line:
                             invalid_core = True
+                            break
+                        # crash file may have been cleaned up from underneath
+                        # us by retracer restart script
+                        elif "is neither an existing" in line:
+                            cfile = line.split(" ")[1].strip('"')
+                            if not os.path.exists(cfile):
+                                log("Will retry this oops later.")
+                                return
+                m = 'Retrace failed (%i), moving to failed queue:'
+                log(m % proc.returncode)
                 if invalid_core:
                     # these should not be reported LP: #1354571 so record
                     # apport version
