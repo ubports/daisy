@@ -1086,10 +1086,18 @@ def main():
     retracer_oops_cfg.template['reporter'] = 'retracer'
 
     try:
+        msg = "Running"
         if 'revno' in version_info:
             revno = version_info['revno']
-            log('Running revision number: %s.' % revno)
+            msg += " revision number: %s" % revno
             record_revno()
+        if options.sandbox_dir:
+            msg += " with sandbox_dir %s" % options.sandbox_dir
+        if options.nocache_debs:
+            msg += " and not caching debs."
+        else:
+            msg += "."
+        log(msg)
 
         retracer = Retracer(options.config_dir, options.sandbox_dir,
                             options.architecture, options.verbose,
