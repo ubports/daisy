@@ -880,9 +880,9 @@ class Retracer:
                     try:
                         rf_reason = self.bucketretracefail_fam.get(crash_signature)
                         least_missing_ddeb_count = \
-                            int(rf_reason[crash_signature]['missing_ddeb_count'])
+                            int(rf_reason['missing_ddeb_count'])
                         least_outdated_pkg_count = \
-                            int(rf_reason[crash_signature]['outdated_pkg_count'])
+                            int(rf_reason['outdated_pkg_count'])
                     except NotFoundException:
                         least_missing_ddeb_count = 9999
                         least_outdated_pkg_count = 9999
