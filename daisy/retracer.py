@@ -683,11 +683,11 @@ class Retracer:
                             break
                         # crash file may have been cleaned up from underneath
                         # us by retracer restart script
-                        elif "is neither an existing" in line:
-                            cfile = line.split(" ")[1].strip('"')
-                            if not os.path.exists(cfile):
-                                log("Will retry this oops later.")
-                                return
+                        #elif "is neither an existing" in line:
+                        #    cfile = line.split(" ")[1].strip('"')
+                        #    if not os.path.exists(cfile):
+                        #        log("Will retry this oops later.")
+                        #        return
                 m = 'Retrace failed (%i), moving to failed queue:'
                 log(m % proc.returncode)
                 if invalid_core:
