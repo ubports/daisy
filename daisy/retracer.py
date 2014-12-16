@@ -113,7 +113,8 @@ def chunked_insert(cf, row_key, data):
 
 class Retracer:
     def __init__(self, config_dir, sandbox_dir, architecture, verbose,
-                 cache_debs, use_sandbox, failed=False):
+                 cache_debs, use_sandbox, cleanup_sandbox, cleanup_debs,
+                 failed=False):
         self.setup_cassandra()
         self.config_dir = config_dir
         self.sandbox_dir = sandbox_dir
@@ -129,6 +130,8 @@ class Retracer:
         self._lost_connection = None
         self.cache_debs = cache_debs
         self.use_sandbox = use_sandbox
+        self.cleanup_sandbox = cleanup_sandbox
+        self.cleanup_debs = cleanup_debs
 
         # determine path of gdb
         gdb_which = Popen(['which', 'gdb'], stdout=PIPE,
@@ -639,6 +642,12 @@ class Retracer:
                           (release, architecture))
             raise
         finally:
+            if sandbox and self.cleanup_sandbox:
+                shutil.rmtree(sandbox)
+                os.mkdir(sandbox)
+            if cache and self.cleanup_debs:
+                shutil.rmtree(cache)
+                os.mkdir(cache)
             rm_eff(report_path)
 
         try:
@@ -1082,6 +1091,12 @@ def parse_options():
                         help='Do not cache downloaded debs.')
     parser.add_argument('--nouse-sandbox', action='store_true',
                         help='Do not use the sandbox directory.')
+    parser.add_argument('--cleanup-sandbox', action='store_true',
+                        default=False,
+                        help='wipe the sandbox directory after a retrace.')
+    parser.add_argument('--cleanup-debs', action='store_true',
+                        default=False,
+                        help='wipe the deb cache directory after a retrace.')
     parser.add_argument('-o', '--output', help='Log messages to a file.')
     parser.add_argument('--retrieve-core',
                         help=('Debug processing a single uuid:provider_id.'
@@ -1122,6 +1137,7 @@ def main():
         retracer = Retracer(options.config_dir, options.sandbox_dir,
                             options.architecture, options.verbose,
                             not options.nocache_debs, not options.nouse_sandbox,
+                            options.cleanup_sandbox, options.cleanup_debs,
                             failed=options.failed)
         if options.retrieve_core:
             parts = options.one_off.split(':', 1)
