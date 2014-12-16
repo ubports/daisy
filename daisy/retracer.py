@@ -113,7 +113,7 @@ def chunked_insert(cf, row_key, data):
 
 class Retracer:
     def __init__(self, config_dir, sandbox_dir, architecture, verbose,
-                 cache_debs, failed=False):
+                 cache_debs, use_sandbox, failed=False):
         self.setup_cassandra()
         self.config_dir = config_dir
         self.sandbox_dir = sandbox_dir
@@ -128,6 +128,7 @@ class Retracer:
         # The time we were last able to talk to the AMQP server.
         self._lost_connection = None
         self.cache_debs = cache_debs
+        self.use_sandbox = use_sandbox
 
         # determine path of gdb
         gdb_which = Popen(['which', 'gdb'], stdout=PIPE,
@@ -602,9 +603,13 @@ class Retracer:
             day_key = time.strftime('%Y%m%d', time.gmtime())
 
             retracing_start_time = time.time()
+            # the easiest way to test not using a sandbox is to make it another
+            # command line option like don't use sandbox even though we will
+            # provide it on the cli
             cmd = ['python3', self.apport_retrace_path, report_path, '-c',
-                   '-S', self.config_dir, '--sandbox-dir', sandbox,
-                   '-o', '%s.new' % report_path]
+                   '-S', self.config_dir, '-o', '%s.new' % report_path]
+            if self.use_sandbox:
+                cmd.extend(['--sandbox-dir', sandbox])
             if cache:
                 cmd.extend(['-C', cache])
             if self.verbose:
@@ -1075,6 +1080,8 @@ def parse_options():
                         help='Only process previously failed retraces.')
     parser.add_argument('--nocache-debs', action='store_true',
                         help='Do not cache downloaded debs.')
+    parser.add_argument('--nouse-sandbox', action='store_true',
+                        help='Do not use the sandbox directory.')
     parser.add_argument('-o', '--output', help='Log messages to a file.')
     parser.add_argument('--retrieve-core',
                         help=('Debug processing a single uuid:provider_id.'
@@ -1114,7 +1121,8 @@ def main():
 
         retracer = Retracer(options.config_dir, options.sandbox_dir,
                             options.architecture, options.verbose,
-                            not options.nocache_debs, failed=options.failed)
+                            not options.nocache_debs, not options.nouse_sandbox,
+                            failed=options.failed)
         if options.retrieve_core:
             parts = options.one_off.split(':', 1)
             path, oops_id = retracer.write_bucket_to_disk(parts[0], parts[1])
