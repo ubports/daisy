@@ -238,6 +238,8 @@ def submit(_pool, environ, system_token):
     msg = '%s (%s) inserted into OOPS CF' % (now, oops_id)
     print >>sys.stderr, msg
     metrics.meter('success.oopses')
+    if arch:
+        metrics.meter('success.oopses.%s' % arch)
 
     success, output = bucket(_pool, oops_config, oops_id, data, day_key)
     return (success, output)
@@ -342,6 +344,8 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
             # crash can be immediately bucketed.
             utils.bucket(oops_config, oops_id, crash_sig, data)
             metrics.meter('success.ready_binary_bucketed')
+            if arch:
+                metrics.meter('success.ready_binary_bucketed.%s' % arch)
         else:
             # apport requires the following fields to be able to retrace a crash
             # so do not ask for a CORE file if they don't exist
@@ -410,6 +414,8 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
                 msg = '%s (%s) asked for CORE' % (now, oops_id)
                 print >>sys.stderr, msg
                 metrics.meter('success.asked_for_core')
+                if arch:
+                    metrics.meter('success.asked_for_core.%s' % arch)
 
             awaiting_retrace_fam = pycassa.ColumnFamily(_pool, 'AwaitingRetrace')
             if addr_sig:
