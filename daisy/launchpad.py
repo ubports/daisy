@@ -175,6 +175,45 @@ def _get_most_recent_binary_version(package, release):
         return ''
 
 
+def pocket_for_binaries(specific_packages):
+    '''For each (package, version, release) tuple supplied, determine the
+    pocket in which the package version appears.
+
+    This method lets us cache repeated lookups of the pocket for the same
+    binary package.'''
+
+    _cache = {}
+    result = []
+    for package, version, release in specific_packages:
+        if not package or not version or not release:
+            result.append('Not Found')
+            continue
+
+        if (package, version, release) in _cache:
+            pocket = _cache[package, version, release]
+        else:
+            pocket = _get_pocket_for_binary_version(package, version, release)
+            # We cache this even if _get_pocket_for_binary_version returns
+            # None, as packages like Skype will always return None and we
+            # shouldn't keep asking.
+            _cache[package, version, release] = '%s' % (pocket)
+	result.append(pocket)
+    return result
+
+def _get_pocket_for_binary_version(package, version, release):
+    url = _get_published_binaries_url % urllib.quote(package)
+    url += '&version=' + urllib.quote(version)
+    # TODO cache this by pushing it into the above function and instead
+    # passing the distro_arch_series url.
+    version = get_codename_for_version(release.split()[-1])
+    distro_arch_series = _distro_arch_series % version
+    url += '&distro_arch_series=' + urllib.quote(distro_arch_series)
+    try:
+        pocket = json_request_entries(url)[0]['pocket']
+        return ('%s' % pocket)
+    except (KeyError, IndexError):
+        return ''
+
 def binary_is_most_recent(package, version):
     # FIXME we need to factor in the release, otherwise this is often going to
     # look like the issue has disappeared when filtering the most common
