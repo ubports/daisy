@@ -202,6 +202,8 @@ def pocket_for_binaries(specific_packages):
 
 def _get_pocket_for_binary_version(package, version, release):
     url = _get_published_binaries_url % urllib.quote(package)
+    # the package version may be Superseded or Obsolete
+    url = url.replace('&status=Published', '')
     url += '&version=' + urllib.quote(version)
     # TODO cache this by pushing it into the above function and instead
     # passing the distro_arch_series url.
