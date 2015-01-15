@@ -34,6 +34,9 @@ cassandra_pool_size = 9
 # allow the pool to overflow
 cassandra_max_overflow = 18
 
+# list of strings representing the host/domain names that will be served
+allowed_hosts = ['127.0.0.1', 'localhost']
+
 # The AMQP host to receive messages from.
 amqp_host = '127.0.0.1'
 
