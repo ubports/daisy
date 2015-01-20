@@ -180,7 +180,7 @@ def submit(_pool, environ, system_token):
     src_package = data.get('SourcePackage', '')
     problem_type = data.get('ProblemType', '')
     apport_version = data.get('ApportVersion', '')
-    rootfs_build, device_image = utils.get_image_info(data)
+    rootfs_build, channel, device_name, device_image = utils.get_image_info(data)
     third_party = False
     if '[origin:' in package:
         third_party = True
@@ -210,7 +210,8 @@ def submit(_pool, environ, system_token):
     src_package, src_version = utils.split_package_and_version(src_package)
     fields = utils.get_fields_for_bucket_counters(problem_type, release,
                                                   package, version, pkg_arch,
-                                                  rootfs_build, device_image)
+                                                  rootfs_build, channel,
+                                                  device_name, device_image)
 
     if not third_party and problem_type == 'Crash':
         update_release_pkg_counter(counters_fam, release, src_package, day_key)
