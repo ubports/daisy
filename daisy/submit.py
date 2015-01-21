@@ -274,6 +274,16 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
         now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
         msg = '%s (%s) rootfs_build without DistroRelease' % (now, oops_id)
         print >>sys.stderr, msg
+    if channel:
+        try:
+            images_cf.get('channel', [channel])
+        except NotFoundException:
+            images_cf.insert('channel', {channel : ''})
+    if device_name:
+        try:
+            images_cf.get('device_name', [device_name])
+        except NotFoundException:
+            images_cf.insert('device_name', {device_name : ''})
     if device_image:
         try:
             images_cf.get('device_image', [device_image])
