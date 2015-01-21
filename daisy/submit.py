@@ -259,7 +259,7 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
     report = create_report_from_bson(data)
 
     # gather and insert image information in the SystemImages CF
-    rootfs_build, device_image = utils.get_image_info(report)
+    rootfs_build, channel, device_name, device_image = utils.get_image_info(data)
     release = report.get('DistroRelease', '')
     if rootfs_build and release:
         # we include DistroRelease here but not in BucketVersionsCount, as it
