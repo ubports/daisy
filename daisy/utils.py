@@ -252,7 +252,7 @@ def bucket(oops_config, oops_id, crash_signature, report_dict):
     else:
         fields = get_fields_for_bucket_counters(problem_type, release, package,
                                                 version, pkg_arch, rootfs_build,
-                                                device_image)
+                                                channel, device_name, device_image)
     if version:
         oopses.update_bucket_systems(oops_config, crash_signature, system_uuid,
                                      version=version)
