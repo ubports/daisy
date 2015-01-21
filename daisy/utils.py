@@ -187,7 +187,7 @@ def get_package_architecture(report_dict):
 def get_image_info(report_dict):
     sysimage_info = report_dict.get('SystemImageInfo', '')
     if not sysimage_info:
-        return (None, None)
+        return (None, None, None, None)
     sii_dict = {}
     for line in sysimage_info.splitlines():
         sii_dict[line.split(':')[0]] = ':'.join(line.split(':')[1:]).strip()
