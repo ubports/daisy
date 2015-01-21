@@ -241,7 +241,7 @@ def bucket(oops_config, oops_id, crash_signature, report_dict):
     if package:
         package, version = split_package_and_version(package)
     pkg_arch = get_package_architecture(report_dict)
-    rootfs_build, device_image = get_image_info(report_dict)
+    rootfs_build, channel, device_name, device_image = get_image_info(report_dict)
 
     automated_testing = False
     if system_uuid.startswith('deadbeef'):
