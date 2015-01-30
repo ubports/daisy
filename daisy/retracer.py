@@ -111,6 +111,11 @@ def chunked_insert(cf, row_key, data):
         else:
             cf.insert(row_key, {key: data[key]})
 
+class ApportException(Exception):
+    """Class for exceptions caused in apport-retrace"""
+    pass
+
+
 class Retracer:
     def __init__(self, config_dir, sandbox_dir, architecture, verbose,
                  cache_debs, use_sandbox, cleanup_sandbox, cleanup_debs,
@@ -726,6 +731,7 @@ class Retracer:
                 metrics.meter('retrace.failed.%s.%s' %
                               (release, architecture))
                 rm_eff('%s.new' % report_path)
+                raise ApportException(err)
                 return
 
             retracing_time = time.time() - retracing_start_time
