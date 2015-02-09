@@ -77,10 +77,20 @@ def get_all_codenames():
 
 
 def get_codename_for_version(version):
-    url = _launchpad_base + '/ubuntu/series'
-    for entry in json_request_entries(url):
-        if 'name' in entry and entry.get('version', None) == version:
-            return entry['name']
+    release_codenames = {'12.04': 'precise',
+                         '12.10': 'quantal',
+                         '13.04': 'raring',
+                         '13.10': 'saucy',
+                         '14.04': 'trusty',
+                         '14.10': 'utopic',
+                         '15.04': 'vivid'}
+    if version in release_codenames:
+        return release_codenames[version]
+    else:
+        url = _launchpad_base + '/ubuntu/series'
+        for entry in json_request_entries(url):
+            if 'name' in entry and entry.get('version', None) == version:
+                return entry['name']
     return None
 
 
