@@ -84,6 +84,8 @@ def get_codename_for_version(version):
                          '14.04': 'trusty',
                          '14.10': 'utopic',
                          '15.04': 'vivid'}
+    if not version:
+        return None
     if version.startswith('Ubuntu '):
         version = version.replace('Ubuntu ', '')
     if version in release_codenames:
