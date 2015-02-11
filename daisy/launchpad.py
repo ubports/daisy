@@ -84,6 +84,8 @@ def get_codename_for_version(version):
                          '14.04': 'trusty',
                          '14.10': 'utopic',
                          '15.04': 'vivid'}
+    if version.startswith('Ubuntu '):
+        version = version.replace('Ubuntu ', '')
     if version in release_codenames:
         return release_codenames[version]
     else:
@@ -298,7 +300,7 @@ def get_binaries_in_source_package(package_name, release=None):
     if not release:
         dev_series = get_devel_series_codename()
     else:
-        dev_series = release
+        dev_series = get_codename_for_version(release)
     package_name = urllib.quote_plus(package_name)
     ma_url = _launchpad_base + '/ubuntu/' + dev_series + '/main_archive'
     ma = json_request(ma_url)['self_link']
