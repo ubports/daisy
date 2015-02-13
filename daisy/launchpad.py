@@ -122,17 +122,38 @@ def get_version_for_codename(codename):
 
 def get_versions_for_binary(binary_package, ubuntu_version):
     if not ubuntu_version:
-        codenames = get_all_codenames()
+        codename = get_devel_series_codename()
     else:
-        codenames = [get_codename_for_version(ubuntu_version)]
-    if not codenames:
+        codename = get_codename_for_version(ubuntu_version)
+    if not codename:
         return []
+    if is_source_package(binary_package):
+        package_name = urllib.quote_plus(binary_package)
+        ma_url = _launchpad_base + '/ubuntu/' + codename + '/main_archive'
+        ma = json_request(ma_url)['self_link']
+        series_url = _launchpad_base + '/ubuntu/' + codename
+        ps_url = ma + ('/?ws.op=getPublishedSources&exact_match=true&status=Published&source_name=%s&distro_series=%s' %
+            (package_name, series_url))
+        # use the first one, since they are unordered
+        try:
+            ps = json_request_entries(ps_url)[0]['self_link']
+        except IndexError:
+            return ''
+        pb_url = ps + '/?ws.op=getPublishedBinaries'
+        pbs = []
+        json_data = urllib2_request_json(pb_url, config.lp_oauth_token,
+            config.lp_oauth_secret)
+        entries = json.loads(json_data)['entries']
+        for entry in entries:
+            # use the first binary package since all versions should be the
+            # same
+            binary_package = entry['binary_package_name']
+            break
     # i386 and amd64 versions should be the same, hopefully.
     results = set()
-    for codename in codenames:
-        dist_arch = urllib.quote(_distro_arch_series % codename)
-        url = _get_published_binaries_for_release_url % (binary_package, dist_arch)
-        results |= set([x['binary_package_version'] for x in json_request_entries(url) if 'binary_package_version' in x])
+    dist_arch = urllib.quote(_distro_arch_series % codename)
+    url = _get_published_binaries_for_release_url % (binary_package, dist_arch)
+    results |= set([x['binary_package_version'] for x in json_request_entries(url) if 'binary_package_version' in x])
     return sorted(results, cmp=apt.apt_pkg.version_compare)
 
 
