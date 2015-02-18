@@ -68,7 +68,10 @@ def json_request(url):
     except httplib2.ServerNotFoundError:
         return ''
 
-    return json.loads(content)
+    try:
+        return json.loads(content)
+    except ValueError:
+        return ''
 
 
 def get_all_codenames():
