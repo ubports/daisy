@@ -21,7 +21,9 @@ if __name__ == '__main__':
     if len(sys.argv) < 3:
         print 'usage: oops file-path [core]'
         sys.exit(1)
+
     core = None
+    core_file = None
     if len(sys.argv) == 4:
         core_file = sys.argv[3]
     oops = oops_cf.get(sys.argv[1])
@@ -42,4 +44,5 @@ if __name__ == '__main__':
         report['CoreDump'] = (core_file.replace('core', 'coredump'),)
     fp = open(sys.argv[2], 'wb')
     report.write(fp)
-    os.remove(core_file.replace('core', 'coredump'))
+    if core_file:
+        os.remove(core_file.replace('core', 'coredump'))
