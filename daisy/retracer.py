@@ -112,7 +112,7 @@ def chunked_insert(cf, row_key, data):
             cf.insert(row_key, {key: data[key]})
 
 class ApportException(Exception):
-    """Class for exceptions caused in apport-retrace"""
+    """Class for exceptions caused by apport retrace"""
     pass
 
 
