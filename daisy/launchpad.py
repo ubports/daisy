@@ -45,6 +45,8 @@ _get_bug_tasks_url = _launchpad_base + '/bugs/%s/bug_tasks'
 _get_published_binaries_for_release_url = (_launchpad_base +
     '/ubuntu/+archive/primary/?ws.op=getPublishedBinaries&binary_name=%s'
     '&exact_match=true&distro_arch_series=%s')
+_get_packageset_url = (_launchpad_base +
+    '/package-sets/ubuntu/%s/%s')
 
 _person_url = _launchpad_base + '/~'
 _source_target = _launchpad_base + '/ubuntu/+source/'
@@ -399,6 +401,16 @@ def get_subscribed_packages(user):
         bin_pkgs.extend(list(get_binaries_in_source_package(src_pkg,
             dev_series)))
     return bin_pkgs
+
+def get_packages_in_packageset_name(release, name):
+    if not release:
+        series = get_devel_series_codename()
+    else:
+        series = get_codename_for_version(release)
+    url = _get_packageset_url % (series, name) + \
+        "?ws.op=getSourcesIncluded"
+    pkg_set = json_request(url)
+    return pkg_set
 
 def is_valid_source_version(src_package, version):
     url = _get_published_source_version_url % \
