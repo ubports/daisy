@@ -19,9 +19,9 @@
 
 import bson
 import hashlib
+import logging
 import os
 import socket
-import sys
 import time
 import uuid
 
@@ -34,7 +34,6 @@ from daisy import config
 import apport
 from daisy import utils
 from daisy.metrics import get_metrics
-from datetime import datetime
 
 os.environ['OOPS_KEYSPACE'] = config.cassandra_keyspace
 oops_config = oopsconfig.get_config()
@@ -45,6 +44,7 @@ oops_config['pool_size'] = config.cassandra_pool_size
 oops_config['max_overflow'] = config.cassandra_max_overflow
 
 metrics = get_metrics('daisy.%s' % socket.gethostname())
+logger = logging.getLogger('gunicorn.error')
 
 
 def update_release_pkg_counter(counters_fam, release, src_package, date):
@@ -63,9 +63,8 @@ def create_report_from_bson(data):
             # the crash has already been written to the OOPS CF, skip the key
             # and continue bucketing
             metrics.meter('invalid.invalid_key')
-            now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-            msg = '%s Invalid key (%s) in report' % (now, key)
-            print >>sys.stderr, msg
+            msg = 'Invalid key (%s) in report' % (key)
+            logger.info(msg)
             continue
     return report
 
@@ -235,9 +234,8 @@ def submit(_pool, environ, system_token):
             metrics.meter('missing.missing_sas_%s' % arch)
         metrics.meter('missing.missing_sas')
     oopses.insert_dict(oops_config, oops_id, data, system_token, fields)
-    now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-    msg = '%s (%s) inserted into OOPS CF' % (now, oops_id)
-    print >>sys.stderr, msg
+    msg = '(%s) inserted into OOPS CF' % (oops_id)
+    logger.info(msg)
     metrics.meter('success.oopses')
     if arch:
         metrics.meter('success.oopses.%s' % arch)
@@ -271,9 +269,8 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
             images_cf.insert('rootfs_build', {rootfs_build : ''})
     elif rootfs_build and not release:
         metrics.meter('missing.missing_release_has_rootfs_build')
-        now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-        msg = '%s (%s) rootfs_build without DistroRelease' % (now, oops_id)
-        print >>sys.stderr, msg
+        msg = '(%s) rootfs_build without DistroRelease' % (oops_id)
+        logger.info(msg)
     if channel:
         try:
             images_cf.get('channel', [channel])
@@ -399,9 +396,8 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
                 # may be available
                 if crash_sig and retry:
                     metrics.meter('success.retry_failure')
-                    now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-                    msg = '%s will retry: %s' % (now, oops_id)
-                    print >>sys.stderr, msg
+                    msg = 'will retry retrace of: %s' % (oops_id)
+                    logger.info(msg)
                 elif crash_sig and not retry:
                     # Do not ask for a core for crashes we don't want to retry
                     metrics.meter('success.not_retry_failure')
@@ -421,9 +417,8 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
                 # configuration data in a directory named by the DistroRelease, so
                 # these would always fail regardless.
                 output = '%s CORE' % oops_id
-                now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-                msg = '%s (%s) asked for CORE' % (now, oops_id)
-                print >>sys.stderr, msg
+                msg = '(%s) asked for CORE' % (oops_id)
+                logger.info(msg)
                 metrics.meter('success.asked_for_core')
                 if arch:
                     metrics.meter('success.asked_for_core.%s' % arch)

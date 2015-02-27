@@ -17,12 +17,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import amqplib.client_0_8 as amqp
+import logging
 import os
 import pycassa
 import random
 import shutil
 import socket
-import sys
 import time
 import utils
 
@@ -33,6 +33,7 @@ from datetime import datetime
 from daisy.metrics import get_metrics
 
 metrics = get_metrics('daisy.%s' % socket.gethostname())
+logger = logging.getLogger('gunicorn.error')
 
 _cached_swift = None
 _cached_s3 = None
@@ -43,7 +44,7 @@ def write_policy_allow(oops_id, bytes_used, provider_data):
         # Random Early Drop policy: random drop with p-probality as:
         # 0 if <50%, then linearly (50%,100%) -> (0,1)
         if ((50+random.randint(0,49)) < (100*bytes_used/usage_max)):
-            print >> sys.stderr, ('Skipping oops_id={oops_id} save to type={st_type}, '
+            logger.info('Skipping oops_id={oops_id} save to type={st_type}, '
                 'bytes_used={bytes_used}, usage_max={usage_max}'.format(
                   oops_id = oops_id,
                   st_type = provider_data['type'],
@@ -83,9 +84,8 @@ def write_to_swift(environ, fileobj, oops_id, provider_data):
                                      os_options=opts,
                                      auth_version='2.0')
     # it seems to still be None sometimes
-    now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-    msg = '%s swift_token: %s' % (now, _cached_swift.token)
-    print >>sys.stderr, msg
+    msg = 'swift_token: %s' % (_cached_swift.token)
+    logger.info(msg)
     bucket = provider_data['bucket']
     if (provider_data.get('usage_max_mb')):
         headers = _cached_swift.head_account()
@@ -95,9 +95,8 @@ def write_to_swift(environ, fileobj, oops_id, provider_data):
         # related to heavy load on Swift, as has been the case before.
         environ['swift.bytes_used'] = bytes_used
         if (not write_policy_allow(oops_id, bytes_used, provider_data)):
-            now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-            msg = '%s bytes_used issue' % (now, oops_id, str(e))
-            print >>sys.stderr, msg
+            msg = '%s bytes_used issue' % (oops_id)
+            logger.info(msg)
             return False
 
     _cached_swift.put_container(bucket)
@@ -116,33 +115,29 @@ def write_to_swift(environ, fileobj, oops_id, provider_data):
             t.seek(0)
             t_size = os.path.getsize(t.name)
             msg = '%s has a %i byte core file' % (oops_id, t_size)
-            print >>sys.stderr, msg
+            logger.info(msg)
             # Don't set a content_length (that we don't have) to force a chunked
             # transfer.
             _cached_swift.put_object(bucket, oops_id, t, content_length=t_size)
     except IOError, e:
         swift_delete_ignoring_error(_cached_swift, bucket, oops_id)
         if e.message == 'request data read error':
-            now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-            msg = '%s IOError when trying to add (%s) to bucket: %s' % (now, oops_id, str(e))
-            print >>sys.stderr, msg
+            msg = 'IOError when trying to add (%s) to bucket: %s' % (oops_id, str(e))
+            logger.info(msg)
             return False
         else:
-            now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-            msg = '%s IOError when trying to add (%s) to bucket: %s' % (now, oops_id, str(e))
-            print >>sys.stderr, msg
+            msg = 'IOError when trying to add (%s) to bucket: %s' % (oops_id, str(e))
+            logger.info(msg)
             metrics.meter('swift_ioerror')
             raise
     except swiftclient.ClientException as e:
-        now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-        msg = '%s ClientException when trying to add (%s) to bucket: %s' % (now, oops_id, str(e))
-        print >>sys.stderr, msg
+        msg = 'ClientException when trying to add (%s) to bucket: %s' % (oops_id, str(e))
+        logger.info(msg)
         metrics.meter('swift_client_exception')
         swift_delete_ignoring_error(_cached_swift, bucket, oops_id)
         return False
-    now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-    msg = '%s CORE for (%s) written to bucket' % (now, oops_id)
-    print >>sys.stderr, msg
+    msg = 'CORE for (%s) written to bucket' % (oops_id)
+    logger.info(msg)
     return True
 
 def s3_delete_ignoring_error(bucket, oops_id):
@@ -265,9 +260,8 @@ def write_to_amqp(message, arch):
         # Persistent
         body.properties['delivery_mode'] = 2
         channel.basic_publish(body, exchange='', routing_key=queue)
-        now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-        msg = '%s %s added to %s queue' % (now, message, queue)
-        print >>sys.stderr, msg
+        msg = '%s added to %s queue' % (message.split(':')[0], queue)
+        logger.info(msg)
         queued = True
     except utils.amqplib_error_types as e:
         if utils.is_amqplib_connection_error(e):
@@ -292,10 +286,9 @@ def submit(_pool, environ, fileobj, uuid, arch):
         # the core dump before the OOPS has been written to all the
         # nodes. This is acceptable, as we'll just ask the next user
         # for a core dump.
-        now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-        msg = '%s No OOPS found for this core dump.' % now
+        msg = 'No OOPS found for this core dump.'
+        logger.info(msg)
         metrics.meter('submit_core.no_matching_oops')
-        print >>sys.stderr, msg
         return (False, msg)
 
 
@@ -305,9 +298,9 @@ def submit(_pool, environ, fileobj, uuid, arch):
     queued = write_to_amqp(message, arch)
     if not queued:
         # If not written to amqp then write to log file
-        now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-        msg = '%s unqueued %s %s' % (now, arch, message)
-        print >>sys.stderr, msg
+        msg = 'Failure to write to amqp retrace queue %s %s' % \
+            (arch, message)
+        logger.info(msg)
 
     if addr_sig:
         indexes_fam.insert('retracing', {addr_sig : ''})
