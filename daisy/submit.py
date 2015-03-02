@@ -422,6 +422,8 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
                 metrics.meter('success.asked_for_core')
                 if arch:
                     metrics.meter('success.asked_for_core.%s' % arch)
+                if release:
+                    metrics.meter('success.asked_for_core.%s' % release)
 
             awaiting_retrace_fam = pycassa.ColumnFamily(_pool, 'AwaitingRetrace')
             if addr_sig:
