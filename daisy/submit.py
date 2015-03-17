@@ -144,7 +144,7 @@ def submit(_pool, environ, system_token):
         'Ubuntu 13.10': 'saucy'}
     if release in eol_releases:
         metrics.meter('unsupported.eol_%s' % eol_releases[release])
-        return (False, '%s is End of Life' % release)
+        return (False, '%s is End of Life' % str(release))
     arch = data.get('Architecture', '')
     # We cannot retrace without an architecture to do it on
     if not arch:
