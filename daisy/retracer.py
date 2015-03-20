@@ -1121,7 +1121,7 @@ def main():
     global log_output
     global root_handler
     # should move to a configuration option
-    failure_storage = '/srv/daisy.ubuntu.com/production/var/'
+    failure_storage = '/srv/daisy.ubuntu.com/production/var'
 
     options = parse_options()
     if options.output:
