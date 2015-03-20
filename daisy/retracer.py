@@ -782,7 +782,8 @@ class Retracer:
                         'RetraceOutdatedPackages' not in report:
                     # copy retraced crash file for manual investigation
                     shutil.copyfile('%s.new' % report_path,
-                                    '/srv/daisy.ubuntu.com/production/var/%s.crash' % oops_id)
+                                    '%s/%s.crash' % (failure_storage,
+                                                     oops_id))
             original_sas = ''
             if stacktrace_addr_sig:
                 if type(stacktrace_addr_sig) == unicode:
@@ -848,7 +849,8 @@ class Retracer:
                                   (release, architecture))
                     # copy retraced crash file for manual investigation
                     shutil.copyfile('%s.new' % report_path,
-                                    '/srv/daisy.ubuntu.com/production/var/%s.crash' % oops_id)
+                                    '%s/%s.crash' % (failure_storage,
+                                                     oops_id))
 
                 # Given that we do not as yet keep debugging symbols around for
                 # every package version ever released, it's worth knowing the
@@ -886,6 +888,12 @@ class Retracer:
                         if 'no debug symbol' in line:
                             missing_ddebs.append(line.split(' ')[-1])
                         log('%s (%s)' % (line, release))
+                    if architecture == 'armhf' and missing_ddebs \
+                            and not outdated_pkgs:
+                        # copy retraced crash file for manual investigation
+                        shutil.copyfile('%s.new' % report_path,
+                                        '%s/%s.crash' % (failure_storage,
+                                                         oops_id))
                     if not outdated_pkgs:
                         failure_reason += ' and missing ddebs.'
                     else:
@@ -1112,6 +1120,8 @@ def parse_options():
 def main():
     global log_output
     global root_handler
+    # should move to a configuration option
+    failure_storage = '/srv/daisy.ubuntu.com/production/var/'
 
     options = parse_options()
     if options.output:
