@@ -233,7 +233,13 @@ def submit(_pool, environ, system_token):
         if not addr_sig and arch:
             metrics.meter('missing.missing_sas_%s' % arch)
         metrics.meter('missing.missing_sas')
-    oopses.insert_dict(oops_config, oops_id, data, system_token, fields)
+    tags = data.get('Tags', '')
+
+    package_from_proposed = False
+    if 'package-from-proposed' in tags:
+        package_from_proposed = True
+    oopses.insert_dict(oops_config, oops_id, data, system_token, fields,
+                       proposed_pkg=package_from_proposed)
     msg = '(%s) inserted into OOPS CF' % (oops_id)
     logger.info(msg)
     metrics.meter('success.oopses')

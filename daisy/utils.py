@@ -228,11 +228,6 @@ def bucket(oops_config, oops_id, crash_signature, report_dict):
     problem_type = report_dict.get('ProblemType', '')
     dependencies = report_dict.get('Dependencies', '')
     system_uuid = report_dict.get('SystemIdentifier', '')
-    tags = report_dict.get('Tags', '')
-
-    proposed_package = False
-    if 'package-from-proposed' in tags:
-        proposed_package = True
 
     if '[origin:' in package or '[origin:' in dependencies:
         # This package came from a third-party source. We do not want to show
@@ -263,8 +258,7 @@ def bucket(oops_config, oops_id, crash_signature, report_dict):
                                      version=version)
     # DayBucketsCount is only added to if fields is not None, so set fields to
     # None for crashes from systems running automated tests.
-    oopses.bucket(oops_config, oops_id, crash_signature, fields,
-        proposed_package)
+    oopses.bucket(oops_config, oops_id, crash_signature, fields)
 
     if hasattr(oopses, 'update_bucket_hashes'):
         oopses.update_bucket_hashes(oops_config, crash_signature)

@@ -780,6 +780,8 @@ class Retracer:
                     log(line)
                 if architecture == 'armhf' and \
                         'RetraceOutdatedPackages' not in report:
+                    log('Saved OOPS %s for manual investigation.' %
+                        oops_id)
                     # copy retraced crash file for manual investigation
                     shutil.copyfile('%s.new' % report_path,
                                     '%s/%s.crash' % (failure_storage,
@@ -847,6 +849,8 @@ class Retracer:
                                   release)
                     metrics.meter('retrace.missing.%s.%s.stacktrace' %
                                   (release, architecture))
+                    log('Saved OOPS %s for manual investigation.' %
+                        oops_id)
                     # copy retraced crash file for manual investigation
                     shutil.copyfile('%s.new' % report_path,
                                     '%s/%s.crash' % (failure_storage,
@@ -890,6 +894,8 @@ class Retracer:
                         log('%s (%s)' % (line, release))
                     if architecture == 'armhf' and missing_ddebs \
                             and not outdated_pkgs:
+                        log('Saved OOPS %s for manual investigation.' %
+                            oops_id)
                         # copy retraced crash file for manual investigation
                         shutil.copyfile('%s.new' % report_path,
                                         '%s/%s.crash' % (failure_storage,
