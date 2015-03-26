@@ -47,11 +47,11 @@ metrics = get_metrics('daisy.%s' % socket.gethostname())
 logger = logging.getLogger('gunicorn.error')
 
 
-def update_release_pkg_counter(counters_fam, release, src_package, date):
-    counters_fam.insert('%s:%s' % (release, src_package), {date: 1})
+def update_release_pkg_counter(column_family, release, src_package, date):
+    column_family.insert('%s:%s' % (release, src_package), {date: 1})
 
-def update_release_pkg_version_counter(counters_fam, release, src_package, src_version, date):
-    counters_fam.insert('%s:%s:%s' % (release, src_package, src_version), {date: 1})
+def update_release_pkg_version_counter(column_family, release, src_package, src_version, date):
+    column_family.insert('%s:%s:%s' % (release, src_package, src_version), {date: 1})
 
 def create_report_from_bson(data):
     report = apport.Report()
@@ -86,6 +86,8 @@ def try_to_repair_sas(data):
 def submit(_pool, environ, system_token):
     counters_fam = pycassa.ColumnFamily(_pool, 'Counters',
                                         retry_counter_mutations=True)
+    proposed_counters_fam = pycassa.ColumnFamily(_pool, 'CountersForProposed',
+                                                 retry_counter_mutations=True)
     systemoopshashes_cf = pycassa.ColumnFamily(_pool, 'SystemOOPSHashes')
     try:
         data = environ['wsgi.input'].read()
@@ -238,6 +240,10 @@ def submit(_pool, environ, system_token):
     package_from_proposed = False
     if 'package-from-proposed' in tags:
         package_from_proposed = True
+        if not third_party and problem_type == 'Crash':
+            update_release_pkg_counter(proposed_counters_fam, release, src_package, day_key)
+            if version != '':
+                update_release_pkg_version_counter(proposed_counters_fam, release, src_package, version, day_key)
     oopses.insert_dict(oops_config, oops_id, data, system_token, fields,
                        proposed_pkg=package_from_proposed)
     msg = '(%s) inserted into OOPS CF' % (oops_id)
