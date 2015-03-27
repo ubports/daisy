@@ -185,6 +185,9 @@ def submit(_pool, environ, system_token):
     third_party = False
     if '[origin:' in package:
         third_party = True
+    automated_testing = False
+    if system_token.startswith('deadbeef'):
+        automated_testing = True
 
     if not release:
         metrics.meter('missing.missing_release')
@@ -214,7 +217,9 @@ def submit(_pool, environ, system_token):
                                                   rootfs_build, channel,
                                                   device_name, device_image)
 
-    if not third_party and problem_type == 'Crash':
+    # generic counter used by the phased-updater that only counts crashes from
+    # official Ubuntu packages and not those from systems under auto testing
+    if not third_party and not automated_testing and problem_type == 'Crash':
         update_release_pkg_counter(counters_fam, release, src_package, day_key)
         if version == '':
             metrics.meter('missing.missing_package_version')
@@ -240,10 +245,13 @@ def submit(_pool, environ, system_token):
     package_from_proposed = False
     if 'package-from-proposed' in tags:
         package_from_proposed = True
-        if not third_party and problem_type == 'Crash':
+        # generic counter used by the phased-updater that only counts crashes from
+        # official Ubuntu packages and not those from systems under auto testing
+        if not third_party and not automated_testing and problem_type == 'Crash':
             update_release_pkg_counter(proposed_counters_fam, release, src_package, day_key)
             if version != '':
                 update_release_pkg_version_counter(proposed_counters_fam, release, src_package, version, day_key)
+
     oopses.insert_dict(oops_config, oops_id, data, system_token, fields,
                        proposed_pkg=package_from_proposed)
     msg = '(%s) inserted into OOPS CF' % (oops_id)
