@@ -530,80 +530,77 @@ class Retracer:
             ret = p2.communicate()
         rm_eff(path)
 
-        try:
-            if p2.returncode != 0:
-                log('Error processing %s:' % path)
-                if ret[1]:
-                    for line in ret[1].splitlines():
-                        log(line)
-                # We couldn't decompress this, so there's no value in trying again.
-                self.processed(msg)
-                # probably incomplete cores from armhf?
-                metrics.meter('retrace.failed')
-                metrics.meter('retrace.failed.%s' %
-                              self.architecture)
-                metrics.meter('retrace.failure.decompression')
-                metrics.meter('retrace.failure.decompression.%s' %
-                              self.architecture)
-                return
-            # confirm that gdb thinks the core file is good
-            gdb_cmd = [self.gdb_path, "--batch", "--ex", "target core %s" %
-                       core_file]
-            proc = Popen(gdb_cmd, stdout=PIPE, stderr=PIPE,
-                         universal_newlines=True)
-            (out, err) = proc.communicate()
-            if 'is truncated: expected core file size' in err or \
-                    'not a core dump' in err:
-                # Not a core file, there's no value in trying again.
-                self.processed(msg)
-                log('Not a core dump per gdb.')
-                metrics.meter('retrace.failed')
-                metrics.meter('retrace.failed.%s' %
-                              self.architecture)
-                metrics.meter('retrace.failure.gdb_core_check')
-                metrics.meter('retrace.failure.gdb_core_check.%s' %
-                              self.architecture)
-                return
+        if p2.returncode != 0:
+            log('Error processing %s:' % path)
+            if ret[1]:
+                for line in ret[1].splitlines():
+                    log(line)
+            # We couldn't decompress this, so there's no value in trying again.
+            self.processed(msg)
+            # probably incomplete cores from armhf?
+            metrics.meter('retrace.failed')
+            metrics.meter('retrace.failed.%s' %
+                          self.architecture)
+            metrics.meter('retrace.failure.decompression')
+            metrics.meter('retrace.failure.decompression.%s' %
+                          self.architecture)
+            return
+        # confirm that gdb thinks the core file is good
+        gdb_cmd = [self.gdb_path, "--batch", "--ex", "target core %s" %
+                   core_file]
+        proc = Popen(gdb_cmd, stdout=PIPE, stderr=PIPE,
+                     universal_newlines=True)
+        (out, err) = proc.communicate()
+        if 'is truncated: expected core file size' in err or \
+                'not a core dump' in err:
+            # Not a core file, there's no value in trying again.
+            self.processed(msg)
+            log('Not a core dump per gdb.')
+            metrics.meter('retrace.failed')
+            metrics.meter('retrace.failed.%s' %
+                          self.architecture)
+            metrics.meter('retrace.failure.gdb_core_check')
+            metrics.meter('retrace.failure.gdb_core_check.%s' %
+                          self.architecture)
+            return
 
-            report = apport.Report()
+        report = apport.Report()
 
-            for k in col:
-                try:
-                    report[k.encode('UTF-8')] = col[k].encode('UTF-8')
-                except AssertionError:
-                    # apport raises an AssertionError if a key is invalid
-                    # e.g. /usr/bin/media-hub-server became a key somehow,
-                    # and this doesn't need to be part of the report used
-                    # for retracing
-                    continue
+        for k in col:
+            try:
+                report[k.encode('UTF-8')] = col[k].encode('UTF-8')
+            except AssertionError:
+                # apport raises an AssertionError if a key is invalid
+                # e.g. /usr/bin/media-hub-server became a key somehow,
+                # and this doesn't need to be part of the report used
+                # for retracing
+                continue
 
-            # these will not change after retracing
-            architecture = report.get('Architecture', '')
-            release = report.get('DistroRelease', '')
-            bad = '[^-a-zA-Z0-9_.() ]+'
-            retraceable = utils.retraceable_release(release)
-            if not retraceable:
-                metrics.meter('retrace.failed.notretraceable')
-            package = report.get('Package', '')
-            # there will not be a debug symbol version of the package
-            if "[origin: " in package and \
-                    not "[origin: Ubuntu RTM]" in package:
-                log('Not retraced due to foreign origin.')
-                metrics.meter('retrace.failed.foreign')
-                retraceable = False
-            invalid = re.search(bad, release) or len(release) > 1024
-            if invalid:
-                metrics.meter('retrace.failed.invalid')
-            if not release or invalid or not retraceable:
-                self.processed(msg)
-                return
+        # these will not change after retracing
+        architecture = report.get('Architecture', '')
+        release = report.get('DistroRelease', '')
+        bad = '[^-a-zA-Z0-9_.() ]+'
+        retraceable = utils.retraceable_release(release)
+        if not retraceable:
+            metrics.meter('retrace.failed.notretraceable')
+        package = report.get('Package', '')
+        # there will not be a debug symbol version of the package
+        if "[origin: " in package and \
+                not "[origin: Ubuntu RTM]" in package:
+            log('Not retraced due to foreign origin.')
+            metrics.meter('retrace.failed.foreign')
+            retraceable = False
+        invalid = re.search(bad, release) or len(release) > 1024
+        if invalid:
+            metrics.meter('retrace.failed.invalid')
+        if not release or invalid or not retraceable:
+            self.processed(msg)
+            return
 
-            report['CoreDump'] = (core_file,)
-            report_path = '%s.crash' % path
-            with open(report_path, 'wb') as fp:
-                report.write(fp)
-        finally:
-            rm_eff(core_file)
+        report['CoreDump'] = (core_file,)
+        report_path = '%s.crash' % path
+        with open(report_path, 'wb') as fp:
+            report.write(fp)
 
         try:
             log('Retracing {}'.format(msg.body))
@@ -614,8 +611,9 @@ class Retracer:
             # the easiest way to test not using a sandbox is to make it another
             # command line option like don't use sandbox even though we will
             # provide it on the cli
-            cmd = ['python3', self.apport_retrace_path, report_path, '-c',
-                   '-S', self.config_dir, '-o', '%s.new' % report_path]
+            cmd = ['python3', self.apport_retrace_path, report_path,
+                   '--remove-core', '--sandbox', self.config_dir, '--output',
+                   '%s.new' % report_path]
             if self.use_sandbox:
                 cmd.extend(['--sandbox-dir', sandbox])
             if cache:
@@ -782,10 +780,11 @@ class Retracer:
                         'RetraceOutdatedPackages' not in report:
                     log('Saved OOPS %s for manual investigation.' %
                         oops_id)
-                    # copy retraced crash file for manual investigation
-                    shutil.copyfile('%s.new' % report_path,
-                                    '%s/%s.crash' % (failure_storage,
-                                                     oops_id))
+                    # create a new crash with the CoreDump for investigation
+                    report['CoreDump'] = (core_file,)
+                    failed_crash = '%s/%s.crash' % (failure_storage, oops_id)
+                    with open(failed_crash, 'wb') as fp:
+                        report.write(fp)
             original_sas = ''
             if stacktrace_addr_sig:
                 if type(stacktrace_addr_sig) == unicode:
@@ -840,6 +839,9 @@ class Retracer:
                     for line in report['RetraceOutdatedPackages'].splitlines():
                         log('%s (%s)' % (line, release))
             else:
+                # we aren't adding the report back to the stacktrace_cf so put
+                # the CoreDump back in the report in case we save it
+                report['CoreDump'] = (core_file,)
                 if 'Stacktrace' not in report and crash_signature:
                     log('Stacktrace not in retraced report with a crash_sig.')
                     metrics.meter('retrace.missing.stacktrace')
@@ -851,10 +853,10 @@ class Retracer:
                                   (release, architecture))
                     log('Saved OOPS %s for manual investigation.' %
                         oops_id)
-                    # copy retraced crash file for manual investigation
-                    shutil.copyfile('%s.new' % report_path,
-                                    '%s/%s.crash' % (failure_storage,
-                                                     oops_id))
+                    # create a new crash with the CoreDump for investigation
+                    failed_crash = '%s/%s.crash' % (failure_storage, oops_id)
+                    with open(failed_crash, 'wb') as fp:
+                        report.write(fp)
 
                 # Given that we do not as yet keep debugging symbols around for
                 # every package version ever released, it's worth knowing the
@@ -868,7 +870,20 @@ class Retracer:
                         utils.format_crash_signature(stacktrace_addr_sig)
                 else:
                     log('Retraced report missing stacktrace_addr_sig.')
-                    crash_signature = ''
+                    metrics.meter('retrace.missing.stacktrace_addr_sig')
+                    metrics.meter('retrace.missing.%s.stacktrace_addr_sig' %
+                                  architecture)
+                    metrics.meter('retrace.missing.%s.stacktrace_addr_sig' %
+                                  release)
+                    metrics.meter('retrace.missing.%s.%s.stacktrace_addr_sig' %
+                                  (release, architecture))
+                    log('Saved OOPS %s for manual investigation.' %
+                        oops_id)
+                    # create a new crash with the CoreDump for investigation
+                    failed_crash = '%s/%s.crash' % (failure_storage, oops_id)
+                    with open(failed_crash, 'wb') as fp:
+                        report.write(fp)
+                    return
 
                 if 'Stacktrace' not in report:
                     failure_reason = 'No stacktrace after retracing'
@@ -896,10 +911,10 @@ class Retracer:
                             and not outdated_pkgs:
                         log('Saved OOPS %s for manual investigation.' %
                             oops_id)
-                        # copy retraced crash file for manual investigation
-                        shutil.copyfile('%s.new' % report_path,
-                                        '%s/%s.crash' % (failure_storage,
-                                                         oops_id))
+                        # create a new crash with the CoreDump for investigation
+                        failed_crash = '%s/%s.crash' % (failure_storage, oops_id)
+                        with open(failed_crash, 'wb') as fp:
+                            report.write(fp)
                     if not outdated_pkgs:
                         failure_reason += ' and missing ddebs.'
                     else:
@@ -1010,6 +1025,7 @@ class Retracer:
         finally:
             rm_eff('%s' % report_path)
             rm_eff('%s.new' % report_path)
+            rm_eff(core_file)
 
         log('Done processing %s' % path)
         self.processed(msg)
