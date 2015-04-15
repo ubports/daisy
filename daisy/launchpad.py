@@ -91,7 +91,9 @@ def get_codename_for_version(version):
                          '15.04': 'vivid'}
     if not version:
         return None
-    if version.startswith('Ubuntu '):
+    if version in release_codenames.values():
+        return version
+    elif version.startswith('Ubuntu '):
         version = version.replace('Ubuntu ', '')
     if version in release_codenames:
         return release_codenames[version]
@@ -375,7 +377,6 @@ def get_subscribed_packages(user):
     '''return binary packages to which a user is subscribed'''
     src_pkgs = []
     bin_pkgs = []
-    dev_series = get_devel_series_codename()
     url = _person_url + user + '?ws.op=getBugSubscriberPackages'
     json_data = urllib2_request_json(url, config.lp_oauth_token,
         config.lp_oauth_secret)
@@ -398,8 +399,7 @@ def get_subscribed_packages(user):
         for entry in entries:
             src_pkgs.append(entry['name'])
     for src_pkg in src_pkgs:
-        bin_pkgs.extend(list(get_binaries_in_source_package(src_pkg,
-            dev_series)))
+        bin_pkgs.extend(list(get_binaries_in_source_package(src_pkg)))
     return bin_pkgs
 
 def get_packages_in_packageset_name(release, name):
