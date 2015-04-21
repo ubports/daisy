@@ -1,8 +1,12 @@
 #!/usr/bin/python
-import pycassa
-from daisy import config
-from pycassa.cassandra.ttypes import NotFoundException
 import sys
+
+from urllib import quote
+
+import pycassa
+from pycassa.cassandra.ttypes import NotFoundException
+
+from daisy import config
 
 creds = {'username': config.cassandra_username,
          'password': config.cassandra_password}
@@ -37,7 +41,7 @@ def print_stacktrace(signature):
         print("Found crash signature for SAS: %s" %
               crash_sig[signature])
         print("https://errors.ubuntu.com/bucket/?id=%s" %
-              crash_sig[signature])
+              quote(crash_sig[signature]))
         return
     except NotFoundException:
         pass
