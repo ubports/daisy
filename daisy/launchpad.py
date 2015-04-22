@@ -137,9 +137,13 @@ def get_versions_for_binary(binary_package, ubuntu_version):
     if is_source_package(binary_package):
         package_name = urllib.quote_plus(binary_package)
         ma_url = _launchpad_base + '/ubuntu/' + codename + '/main_archive'
-        ma = json_request(ma_url)['self_link']
+        ma = json_request(ma_url)
+        if ma:
+            ma_link = ma['self_link']
+        else:
+            return ''
         series_url = _launchpad_base + '/ubuntu/' + codename
-        ps_url = ma + ('/?ws.op=getPublishedSources&exact_match=true&status=Published&source_name=%s&distro_series=%s' %
+        ps_url = ma_link + ('/?ws.op=getPublishedSources&exact_match=true&status=Published&source_name=%s&distro_series=%s' %
             (package_name, series_url))
         # use the first one, since they are unordered
         try:
@@ -333,9 +337,13 @@ def get_binaries_in_source_package(package_name, release=None):
         dev_series = get_codename_for_version(release)
     package_name = urllib.quote_plus(package_name)
     ma_url = _launchpad_base + '/ubuntu/' + dev_series + '/main_archive'
-    ma = json_request(ma_url)['self_link']
+    ma = json_request(ma_url)
+    if ma:
+        ma_link = ma['self_link']
+    else:
+        return ''
     dev_series_url = _launchpad_base + '/ubuntu/' + dev_series
-    ps_url = ma + ('/?ws.op=getPublishedSources&exact_match=true&status=Published&source_name=%s&distro_series=%s' %
+    ps_url = ma_link + ('/?ws.op=getPublishedSources&exact_match=true&status=Published&source_name=%s&distro_series=%s' %
         (package_name, dev_series_url))
     # just use the first one, since they are unordered
     try:
