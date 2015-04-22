@@ -302,7 +302,7 @@ def submit(_pool, environ, fileobj, uuid, arch):
             (arch, message)
         logger.info(msg)
 
-    if addr_sig:
+    if addr_sig and queued:
         indexes_fam.insert('retracing', {addr_sig : ''})
 
     return (True, uuid)
