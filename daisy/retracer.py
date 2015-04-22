@@ -721,6 +721,11 @@ class Retracer:
                         metrics.meter('retrace.failed.invalid_core.%s.%s'
                             % (release, apport_vers.replace('.', '_')))
                 self.move_to_failed_queue(msg)
+                # Remove the SAS from the retracing index so that we ask for
+                # another core
+                sas = report.get('StacktraceAddressSignature', '')
+                if sas:
+                    self.indexes_fam.remove('retracing', [sas])
                 self.update_retrace_stats(release, day_key, retracing_time,
                                           crashed=True)
                 metrics.meter('retrace.failed')
