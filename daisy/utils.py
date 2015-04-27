@@ -190,7 +190,7 @@ def get_image_info(report_dict):
         return (None, None, None, None)
     sii_dict = {}
     for line in sysimage_info.splitlines():
-        sii_dict[line.split(':')[0]] = ':'.join(line.split(':')[1:]).strip()
+        sii_dict[line.split(':')[0].strip()] = ':'.join(line.split(':')[1:]).strip()
     rootfs_build = sii_dict.get('version ubuntu', '')
     channel = sii_dict.get('channel', '')
     alias = sii_dict.get('alias', '')
