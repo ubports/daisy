@@ -48,7 +48,7 @@ if __name__ == '__main__':
             release = data.get('DistroRelease', '')
             if not release.startswith('Ubuntu '):
                 continue
-            # If its don't from a device we don't need to recount it
+            # If its not from a device we don't need to recount it
             if 'SystemImageInfo' not in data:
                 continue
             # Don't add counters for devices under automated testing
@@ -63,40 +63,55 @@ if __name__ == '__main__':
             for line in data['SystemImageInfo'].splitlines():
                 sii_dict[line.split(':')[0]] = ':'.join(line.split(':')[1:]).strip()
             channel = sii_dict.get('channel', '')
+            alias = sii_dict.get('alias', '')
+            if not alias:
+                continue
+            # if alias and channel are the same we've already counted it
+            if alias == channel:
+                continue
+            else:
+                remove_channel = False
+                with open('channels-to-remove.txt', 'r') as f:
+                    channels = f.readlines()
+                    if '%s\n' % channel not in channels:
+                        remove_channel = True
+                if remove_channel:
+                    with open('channels-to-remove.txt', 'a') as f:
+                        f.write('%s\n' % channel)
             device_name = sii_dict.get('device name', '')
             package, version = utils.split_package_and_version(data.get('Package', ''))
-            if release and channel and package and version and pkg_arch:
-                keys.append('%s:%s:%s:%s:%s' % (release, channel, package, version, pkg_arch))
-                keys.append('%s:%s:%s:%s' % (release, channel, package, pkg_arch))
-                keys.append('%s:%s:%s' % (release, channel, pkg_arch))
-                keys.append('%s:%s:%s:%s' % (channel, package, version, pkg_arch))
-                keys.append('%s:%s:%s' % (channel, package, pkg_arch))
-                keys.append('%s:%s' % (channel, pkg_arch))
+            if release and alias and package and version and pkg_arch:
+                keys.append('%s:%s:%s:%s:%s' % (release, alias, package, version, pkg_arch))
+                keys.append('%s:%s:%s:%s' % (release, alias, package, pkg_arch))
+                keys.append('%s:%s:%s' % (release, alias, pkg_arch))
+                keys.append('%s:%s:%s:%s' % (alias, package, version, pkg_arch))
+                keys.append('%s:%s:%s' % (alias, package, pkg_arch))
+                keys.append('%s:%s' % (alias, pkg_arch))
                 if device_name:
-                    keys.append('%s:%s:%s:%s:%s:%s' % (release, channel, device_name, package, version, pkg_arch))
-                    keys.append('%s:%s:%s:%s:%s' % (release, channel, device_name, package, pkg_arch))
-                    keys.append('%s:%s:%s:%s' % (release, channel, device_name, pkg_arch))
-                    keys.append('%s:%s:%s:%s:%s' % (channel, device_name, package, version, pkg_arch))
-                    keys.append('%s:%s:%s:%s' % (channel, device_name, package, pkg_arch))
-                    keys.append('%s:%s:%s' % (channel, device_name, pkg_arch))
-            if release and channel and package and version:
-                keys.append('%s:%s:%s:%s' % (release, channel, package, version))
-                keys.append('%s:%s:%s' % (release, channel, package))
-                keys.append('%s:%s' % (release, channel))
-            if channel and package and version:
-                keys.append('%s:%s:%s' % (channel, package, version))
-                keys.append('%s:%s' % (channel, package))
-                keys.append('%s' % (channel))
-            if release and channel and device_name and package and version:
-                keys.append('%s:%s:%s:%s:%s' % (release, channel, device_name, package, version))
-                keys.append('%s:%s:%s:%s' % (release, channel, device_name, package))
-                keys.append('%s:%s:%s' % (release, channel, device_name))
-                keys.append('%s:%s' % (release, channel))
-            if channel and device_name and package and version:
-                keys.append('%s:%s:%s:%s' % (channel, device_name, package, version))
-                keys.append('%s:%s:%s' % (channel, device_name, package))
-                keys.append('%s:%s' % (channel, device_name))
-                keys.append('%s' % channel)
+                    keys.append('%s:%s:%s:%s:%s:%s' % (release, alias, device_name, package, version, pkg_arch))
+                    keys.append('%s:%s:%s:%s:%s' % (release, alias, device_name, package, pkg_arch))
+                    keys.append('%s:%s:%s:%s' % (release, alias, device_name, pkg_arch))
+                    keys.append('%s:%s:%s:%s:%s' % (alias, device_name, package, version, pkg_arch))
+                    keys.append('%s:%s:%s:%s' % (alias, device_name, package, pkg_arch))
+                    keys.append('%s:%s:%s' % (alias, device_name, pkg_arch))
+            if release and alias and package and version:
+                keys.append('%s:%s:%s:%s' % (release, alias, package, version))
+                keys.append('%s:%s:%s' % (release, alias, package))
+                keys.append('%s:%s' % (release, alias))
+            if alias and package and version:
+                keys.append('%s:%s:%s' % (alias, package, version))
+                keys.append('%s:%s' % (alias, package))
+                keys.append('%s' % (alias))
+            if release and alias and device_name and package and version:
+                keys.append('%s:%s:%s:%s:%s' % (release, alias, device_name, package, version))
+                keys.append('%s:%s:%s:%s' % (release, alias, device_name, package))
+                keys.append('%s:%s:%s' % (release, alias, device_name))
+                keys.append('%s:%s' % (release, alias))
+            if alias and device_name and package and version:
+                keys.append('%s:%s:%s:%s' % (alias, device_name, package, version))
+                keys.append('%s:%s:%s' % (alias, device_name, package))
+                keys.append('%s:%s' % (alias, device_name))
+                keys.append('%s' % alias)
         except (NotFoundException):
             # Sometimes we didn't insert the full OOPS. I have no idea why.
             #print 'could not find', uuid
@@ -106,11 +121,21 @@ if __name__ == '__main__':
         #count += 1
         #if count > 1000:
         #    break
+    # write counters to increment to a file in case the update fails
+    for result in results:
+        with open('%s-counters-to-backfill.txt' % date, 'a') as f:
+            f.write('%s, %s\n' % (result, results[result]))
     for result in results:
         k = 'oopses:%s' % result
         try:
             v = counters_cf.get(k, columns=[date])
-            print k, date, 'already exists! Skipping.', v
+            #print k, date, 'already exists! Skipping.', v
+            print(k)
+            print("Old count: %i" % v[date])
+            print("Alias count: %i" % results[result])
+            counters_cf.add(k, date, results[result])
+            new_value = counters_cf.get(k, columns=[date])
+            print("New count: %i" % new_value)
         except NotFoundException:
-            print 'adding', k, date, results[result]
+            print 'Count for key not found adding', k, results[result]
             counters_cf.add(k, date, results[result])
