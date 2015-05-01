@@ -135,7 +135,7 @@ if __name__ == '__main__':
             print("Alias count: %i" % results[result])
             counters_cf.add(k, date, results[result])
             new_value = counters_cf.get(k, columns=[date])
-            print("New count: %i" % new_value)
+            print("New count: %i" % new_value[date])
         except NotFoundException:
             print 'Count for key not found adding', k, results[result]
             counters_cf.add(k, date, results[result])
