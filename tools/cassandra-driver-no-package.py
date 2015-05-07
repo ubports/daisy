@@ -27,13 +27,17 @@ date = sys.argv[1]
 hex_date = '0x' + hexlify(date)
 oopses = session.execute('SELECT * FROM "DayOOPS" WHERE key = %s LIMIT 2000' % hex_date)
 
+# use a prepared statement which is less resource intensive
+oops_lookup_stmt = session.prepare('SELECT * FROM "OOPS" WHERE key=?')
+
 missing_data = {}
 for oops in oopses:
     data = {}
-    hex_oops = '0x' + hexlify(oops.value)
+    #hex_oops = '0x' + hexlify(oops.value)
     # double quotes are needed to make table names case-sensitive
-    oops_data = session.execute('SELECT * FROM "OOPS" WHERE key = %s' %
-        hex_oops)
+    #oops_data = session.execute('SELECT * FROM "OOPS" WHERE key = %s' %
+    #    hex_oops)
+    oops_data = session.execute(oops_lookup_stmt, [oops.value])
     # all the column "names" are column1 so make a dictionary of keys: values
     for od in oops_data:
         data[od.column1] = od.value
