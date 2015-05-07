@@ -34,6 +34,16 @@ def main(hashed):
     print_stacktrace(signature)
 
 
+def oops_information(oops_id):
+    try:
+        oops_details = oops.get(oops_id, ['Date'])
+    except NotFoundException:
+        print("OOPS instance %s not found" % oops_id)
+        return ''
+    date = oops_details['Date']
+    return date
+
+
 def print_stacktrace(signature):
     try:
         idx = 'crash_signature_for_stacktrace_address_signature'
@@ -42,12 +52,15 @@ def print_stacktrace(signature):
               crash_sig[signature])
         print("https://errors.ubuntu.com/bucket/?id=%s" %
               quote(crash_sig[signature]))
-        return
     except NotFoundException:
         pass
     try:
         awaiting = awaiting_retrace.get(signature)
         print("Waiting to retrace SAS")
+        print("%i items are awaiting retrace." % len(awaiting))
+        for a in awaiting:
+            date = oops_information(a)
+            print("https://errors.ubuntu.com/oops/%s - %s" % (a, date))
     except NotFoundException:
         pass
     try:
