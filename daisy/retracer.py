@@ -893,7 +893,7 @@ class Retracer:
                     failed_crash = '%s/%s.crash' % (failure_storage, oops_id)
                     with open(failed_crash, 'wb') as fp:
                         report.write(fp)
-                    return
+                    self.move_to_failed_queue(msg)
 
                 if 'Stacktrace' not in report:
                     failure_reason = 'No stacktrace after retracing'
@@ -949,38 +949,41 @@ class Retracer:
                     else:
                         missing_ddebs = ''
                         missing_ddeb_count = 0
-                    try:
-                        rf_reason = self.bucketretracefail_fam.get(crash_signature)
-                        if 'missing_ddeb_count' in rf_reason:
-                            least_missing_ddeb_count = \
-                                int(rf_reason['missing_ddeb_count'])
-                        else:
+                    if crash_signature:
+                        try:
+                            rf_reason = self.bucketretracefail_fam.get(crash_signature)
+                            if 'missing_ddeb_count' in rf_reason:
+                                least_missing_ddeb_count = \
+                                    int(rf_reason['missing_ddeb_count'])
+                            else:
+                                least_missing_ddeb_count = 9999
+                            if 'outdated_pkg_count' in rf_reason:
+                                least_outdated_pkg_count = \
+                                    int(rf_reason['outdated_pkg_count'])
+                            else:
+                                least_outdated_pkg_count = 9999
+                        except NotFoundException:
                             least_missing_ddeb_count = 9999
-                        if 'outdated_pkg_count' in rf_reason:
-                            least_outdated_pkg_count = \
-                                int(rf_reason['outdated_pkg_count'])
-                        else:
                             least_outdated_pkg_count = 9999
-                    except NotFoundException:
-                        least_missing_ddeb_count = 9999
-                        least_outdated_pkg_count = 9999
-                    if outdated_pkg_count < least_outdated_pkg_count and \
-                            missing_ddeb_count < least_missing_ddeb_count:
-                        self.bucketretracefail_fam.insert(crash_signature,
-                            {'oops': oops_id,
-                             'missing_ddeb_count': '%s' % missing_ddeb_count,
-                             'outdated_pkg_count': '%s' % outdated_pkg_count,
-                             'Reason': failure_reason,
-                             'MissingDebugSymbols': '%s' % ' '.join(missing_ddebs),
-                             'OutdatedPackages': '%s' % ' '.join(outdated_pkgs)
-                            })
-                    metrics.meter('retrace.failure.outdated_packages')
-                    metrics.meter('retrace.failure.%s.outdated_packages' % \
-                                  release)
-                    metrics.meter('retrace.failure.%s.outdated_packages' % \
-                                  architecture)
-                    metrics.meter('retrace.failure.%s.%s.outdated_packages' % \
-                                  (release, architecture))
+                        if outdated_pkg_count < least_outdated_pkg_count and \
+                                missing_ddeb_count < least_missing_ddeb_count:
+                            self.bucketretracefail_fam.insert(crash_signature,
+                                {'oops': oops_id,
+                                 'missing_ddeb_count': '%s' % missing_ddeb_count,
+                                 'outdated_pkg_count': '%s' % outdated_pkg_count,
+                                 'Reason': failure_reason,
+                                 'MissingDebugSymbols': '%s' % ' '.join(missing_ddebs),
+                                 'OutdatedPackages': '%s' % ' '.join(outdated_pkgs)
+                                })
+                        metrics.meter('retrace.failure.outdated_packages')
+                        metrics.meter('retrace.failure.%s.outdated_packages' % \
+                                      release)
+                        metrics.meter('retrace.failure.%s.outdated_packages' % \
+                                      architecture)
+                        metrics.meter('retrace.failure.%s.%s.outdated_packages' % \
+                                      (release, architecture))
+                    else:
+                        pass
                 else:
                     failure_reason += '.'
                     self.oops_cf.insert(oops_id,
