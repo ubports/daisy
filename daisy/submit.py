@@ -29,6 +29,7 @@ from oopsrepository import config as oopsconfig
 from oopsrepository import oopses
 import pycassa
 from pycassa.cassandra.ttypes import NotFoundException, InvalidRequestException
+from pycassa.pool import MaximumRetryException
 
 from daisy import config
 import apport
@@ -256,7 +257,7 @@ def submit(_pool, environ, system_token):
         oopses.insert_dict(oops_config, oops_id, data, system_token, fields,
                            proposed_pkg=package_from_proposed)
     except MaximumRetryException:
-        msg = "MaximumRetryException with %s number of keys." % \
+        msg = "MaximumRetryException with %s keys." % \
               len(data.keys())
         logger.info(msg)
         logger.info("The keys are %s" % data.keys())
