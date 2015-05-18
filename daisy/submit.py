@@ -252,8 +252,18 @@ def submit(_pool, environ, system_token):
             if version != '':
                 update_release_pkg_version_counter(proposed_counters_fam, release, src_package, version, day_key)
 
-    oopses.insert_dict(oops_config, oops_id, data, system_token, fields,
-                       proposed_pkg=package_from_proposed)
+    try:
+        oopses.insert_dict(oops_config, oops_id, data, system_token, fields,
+                           proposed_pkg=package_from_proposed)
+    except MaximumRetryException:
+        msg = "MaximumRetryException with %s number of keys." % \
+              len(data.keys())
+        logger.info(msg)
+        logger.info("The keys are %s" % data.keys())
+        logger.info("The crash has a ProblemType of: %s" % problem_type)
+        if 'Traceback' in data:
+            logger.info("The crash has a python traceback.")
+        raise
     msg = '(%s) inserted into OOPS CF' % (oops_id)
     logger.info(msg)
     metrics.meter('success.oopses')
