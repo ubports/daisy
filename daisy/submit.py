@@ -257,13 +257,14 @@ def submit(_pool, environ, system_token):
         oopses.insert_dict(oops_config, oops_id, data, system_token, fields,
                            proposed_pkg=package_from_proposed)
     except MaximumRetryException:
-        msg = "MaximumRetryException with %s keys." % \
-              len(data.keys())
+        msg = "%s: MaximumRetryException with %s keys." % \
+              (system_token, len(data.keys()))
         logger.info(msg)
-        logger.info("The keys are %s" % data.keys())
-        logger.info("The crash has a ProblemType of: %s" % problem_type)
+        logger.info("%s: The keys are %s" % (system_token, data.keys()))
+        logger.info("%s: The crash has a ProblemType of: %s" % \
+                    (system_token, problem_type))
         if 'Traceback' in data:
-            logger.info("The crash has a python traceback.")
+            logger.info("%s: The crash has a python traceback." % system_token)
         raise
     msg = '(%s) inserted into OOPS CF' % (oops_id)
     logger.info(msg)
