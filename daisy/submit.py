@@ -182,7 +182,7 @@ def submit(_pool, environ, system_token):
     src_package = data.get('SourcePackage', '')
     problem_type = data.get('ProblemType', '')
     apport_version = data.get('ApportVersion', '')
-    rootfs_build, alias, device_name, device_image = utils.get_image_info(data)
+    rootfs_build, channel, device_name, device_image = utils.get_image_info(data)
     third_party = False
     if '[origin:' in package:
         third_party = True
@@ -215,7 +215,7 @@ def submit(_pool, environ, system_token):
     src_package, src_version = utils.split_package_and_version(src_package)
     fields = utils.get_fields_for_bucket_counters(problem_type, release,
                                                   package, version, pkg_arch,
-                                                  rootfs_build, alias,
+                                                  rootfs_build, channel,
                                                   device_name, device_image)
 
     # generic counter used by the phased-updater that only counts crashes from
@@ -289,7 +289,7 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
     report = create_report_from_bson(data)
 
     # gather and insert image information in the SystemImages CF
-    rootfs_build, alias, device_name, device_image = utils.get_image_info(data)
+    rootfs_build, channel, device_name, device_image = utils.get_image_info(data)
     release = report.get('DistroRelease', '')
     if rootfs_build and release:
         # we include DistroRelease here but not in BucketVersionsCount, as it
@@ -303,14 +303,11 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
         metrics.meter('missing.missing_release_has_rootfs_build')
         msg = '(%s) rootfs_build without DistroRelease' % (oops_id)
         logger.info(msg)
-    # We switched to alias as that is the real channel name and includes all
-    # channel names. We keep using the channel list in the images table rather
-    # than starting over with an alias list in the images table.
-    if alias:
+    if channel:
         try:
-            images_cf.get('channel', [alias])
+            images_cf.get('channel', [channel])
         except NotFoundException:
-            images_cf.insert('channel', {alias : ''})
+            images_cf.insert('channel', {channel : ''})
     if device_name:
         try:
             images_cf.get('device_name', [device_name])

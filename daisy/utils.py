@@ -17,7 +17,7 @@ amqplib_connection_errors = (socket.error, AMQPConnectionException)
 amqplib_error_types = amqplib_connection_errors + (IOError,)
 
 def get_fields_for_bucket_counters(problem_type, release, package, version,
-        pkg_arch, rootfs_build, alias, device_name, device_image):
+        pkg_arch, rootfs_build, channel, device_name, device_image):
     fields = []
     if release:
         if package and version:
@@ -40,20 +40,20 @@ def get_fields_for_bucket_counters(problem_type, release, package, version,
                     fields.append('%s:%s:%s:%s' % (rootfs_build, package, version, pkg_arch))
                     fields.append('%s:%s:%s' % (rootfs_build, package, pkg_arch))
                     fields.append('%s:%s' % (rootfs_build, pkg_arch))
-                if alias:
-                    fields.append('%s:%s:%s:%s:%s' % (release, alias, package, version, pkg_arch))
-                    fields.append('%s:%s:%s:%s' % (release, alias, package, pkg_arch))
-                    fields.append('%s:%s:%s' % (release, alias, pkg_arch))
-                    fields.append('%s:%s:%s:%s' % (alias, package, version, pkg_arch))
-                    fields.append('%s:%s:%s' % (alias, package, pkg_arch))
-                    fields.append('%s:%s' % (alias, pkg_arch))
+                if channel:
+                    fields.append('%s:%s:%s:%s:%s' % (release, channel, package, version, pkg_arch))
+                    fields.append('%s:%s:%s:%s' % (release, channel, package, pkg_arch))
+                    fields.append('%s:%s:%s' % (release, channel, pkg_arch))
+                    fields.append('%s:%s:%s:%s' % (channel, package, version, pkg_arch))
+                    fields.append('%s:%s:%s' % (channel, package, pkg_arch))
+                    fields.append('%s:%s' % (channel, pkg_arch))
                     if device_name:
-                        fields.append('%s:%s:%s:%s:%s:%s' % (release, alias, device_name, package, version, pkg_arch))
-                        fields.append('%s:%s:%s:%s:%s' % (release, alias, device_name, package, pkg_arch))
-                        fields.append('%s:%s:%s:%s' % (release, alias, device_name, pkg_arch))
-                        fields.append('%s:%s:%s:%s:%s' % (alias, device_name, package, version, pkg_arch))
-                        fields.append('%s:%s:%s:%s' % (alias, device_name, package, pkg_arch))
-                        fields.append('%s:%s:%s' % (alias, device_name, pkg_arch))
+                        fields.append('%s:%s:%s:%s:%s:%s' % (release, channel, device_name, package, version, pkg_arch))
+                        fields.append('%s:%s:%s:%s:%s' % (release, channel, device_name, package, pkg_arch))
+                        fields.append('%s:%s:%s:%s' % (release, channel, device_name, pkg_arch))
+                        fields.append('%s:%s:%s:%s:%s' % (channel, device_name, package, version, pkg_arch))
+                        fields.append('%s:%s:%s:%s' % (channel, device_name, package, pkg_arch))
+                        fields.append('%s:%s:%s' % (channel, device_name, pkg_arch))
                 if device_image:
                     fields.append('%s:%s:%s:%s:%s' % (release, device_image, package, version, pkg_arch))
                     fields.append('%s:%s:%s:%s' % (release, device_image, package, pkg_arch))
@@ -68,20 +68,20 @@ def get_fields_for_bucket_counters(problem_type, release, package, version,
                 fields.append('%s:%s:%s' % (rootfs_build, package, version))
                 fields.append('%s:%s' % (rootfs_build, package))
                 fields.append('%s' % (rootfs_build))
-            if alias:
-                fields.append('%s:%s:%s:%s' % (release, alias, package, version))
-                fields.append('%s:%s:%s' % (release, alias, package))
-                fields.append('%s:%s' % (release, alias))
-                fields.append('%s:%s:%s' % (alias, package, version))
-                fields.append('%s:%s' % (alias, package))
-                fields.append('%s' % (alias))
+            if channel:
+                fields.append('%s:%s:%s:%s' % (release, channel, package, version))
+                fields.append('%s:%s:%s' % (release, channel, package))
+                fields.append('%s:%s' % (release, channel))
+                fields.append('%s:%s:%s' % (channel, package, version))
+                fields.append('%s:%s' % (channel, package))
+                fields.append('%s' % (channel))
                 if device_name:
-                    fields.append('%s:%s:%s:%s:%s' % (release, alias, device_name, package, version))
-                    fields.append('%s:%s:%s:%s' % (release, alias, device_name, package))
-                    fields.append('%s:%s:%s' % (release, alias, device_name))
-                    fields.append('%s:%s:%s:%s' % (alias, device_name, package, version))
-                    fields.append('%s:%s:%s' % (alias, device_name, package))
-                    fields.append('%s:%s' % (alias, device_name))
+                    fields.append('%s:%s:%s:%s:%s' % (release, channel, device_name, package, version))
+                    fields.append('%s:%s:%s:%s' % (release, channel, device_name, package))
+                    fields.append('%s:%s:%s' % (release, channel, device_name))
+                    fields.append('%s:%s:%s:%s' % (channel, device_name, package, version))
+                    fields.append('%s:%s:%s' % (channel, device_name, package))
+                    fields.append('%s:%s' % (channel, device_name))
             if device_image:
                 fields.append('%s:%s:%s:%s' % (release, device_image, package, version))
                 fields.append('%s:%s:%s' % (release, device_image, package))
@@ -103,14 +103,14 @@ def get_fields_for_bucket_counters(problem_type, release, package, version,
                 fields.append('%s:%s:%s' % (release, rootfs_build, pkg_arch))
                 fields.append('%s:%s' % (rootfs_build, pkg_arch))
                 fields.append('%s' % (rootfs_build))
-            if alias:
-                fields.append('%s:%s:%s' % (release, alias, pkg_arch))
-                fields.append('%s:%s' % (alias, pkg_arch))
-                fields.append('%s' % (alias))
+            if channel:
+                fields.append('%s:%s:%s' % (release, channel, pkg_arch))
+                fields.append('%s:%s' % (channel, pkg_arch))
+                fields.append('%s' % (channel))
                 if device_name:
-                    fields.append('%s:%s:%s:%s' % (release, alias, device_name, pkg_arch))
-                    fields.append('%s:%s:%s' % (alias, device_name, pkg_arch))
-                    fields.append('%s:%s' % (alias, device_name))
+                    fields.append('%s:%s:%s:%s' % (release, channel, device_name, pkg_arch))
+                    fields.append('%s:%s:%s' % (channel, device_name, pkg_arch))
+                    fields.append('%s:%s' % (channel, device_name))
             if device_image:
                 fields.append('%s:%s:%s' % (release, device_image, pkg_arch))
                 fields.append('%s:%s' % (device_image, pkg_arch))
@@ -126,14 +126,14 @@ def get_fields_for_bucket_counters(problem_type, release, package, version,
                 fields.append('%s:%s:%s:%s' % (rootfs_build, package, version, pkg_arch))
                 fields.append('%s:%s:%s' % (rootfs_build, package, pkg_arch))
                 fields.append('%s:%s' % (rootfs_build, pkg_arch))
-            if alias:
-                fields.append('%s:%s:%s:%s' % (alias, package, version, pkg_arch))
-                fields.append('%s:%s:%s' % (alias, package, pkg_arch))
-                fields.append('%s:%s' % (alias, pkg_arch))
+            if channel:
+                fields.append('%s:%s:%s:%s' % (channel, package, version, pkg_arch))
+                fields.append('%s:%s:%s' % (channel, package, pkg_arch))
+                fields.append('%s:%s' % (channel, pkg_arch))
                 if device_name:
-                    fields.append('%s:%s:%s:%s:%s' % (alias, device_name, package, version, pkg_arch))
-                    fields.append('%s:%s:%s:%s' % (alias, device_name, package, pkg_arch))
-                    fields.append('%s:%s:%s' % (alias, device_name, pkg_arch))
+                    fields.append('%s:%s:%s:%s:%s' % (channel, device_name, package, version, pkg_arch))
+                    fields.append('%s:%s:%s:%s' % (channel, device_name, package, pkg_arch))
+                    fields.append('%s:%s:%s' % (channel, device_name, pkg_arch))
             if device_image:
                 fields.append('%s:%s:%s:%s' % (device_image, package, version, pkg_arch))
                 fields.append('%s:%s:%s' % (device_image, package, pkg_arch))
@@ -142,14 +142,14 @@ def get_fields_for_bucket_counters(problem_type, release, package, version,
             fields.append('%s:%s:%s' % (rootfs_build, package, version))
             fields.append('%s:%s' % (rootfs_build, package))
             fields.append('%s' % (rootfs_build))
-        if alias:
-            fields.append('%s:%s:%s' % (alias, package, version))
-            fields.append('%s:%s' % (alias, package))
-            fields.append('%s' % (alias))
+        if channel:
+            fields.append('%s:%s:%s' % (channel, package, version))
+            fields.append('%s:%s' % (channel, package))
+            fields.append('%s' % (channel))
             if device_name:
-                fields.append('%s:%s:%s:%s' % (alias, device_name, package, version))
-                fields.append('%s:%s:%s' % (alias, device_name, package))
-                fields.append('%s:%s' % (alias, device_name))
+                fields.append('%s:%s:%s:%s' % (channel, device_name, package, version))
+                fields.append('%s:%s:%s' % (channel, device_name, package))
+                fields.append('%s:%s' % (channel, device_name))
         if device_image:
             fields.append('%s:%s:%s' % (device_image, package, version))
             fields.append('%s:%s' % (device_image, package))
@@ -196,11 +196,14 @@ def get_image_info(report_dict):
     alias = sii_dict.get('alias', '')
     version = sii_dict.get('version version', '')
     device_name = sii_dict.get('device name', '')
-    if alias and version and device_name:
-        device_image = '%s %s %s' % (alias, version, device_name)
+    # prefer the alias only if there is one
+    if alias:
+        channel = alias
+    if channel and version and device_name:
+        device_image = '%s %s %s' % (channel, version, device_name)
     else:
         device_image = None
-    return (rootfs_build, alias, device_name, device_image)
+    return (rootfs_build, channel, device_name, device_image)
 
 def format_crash_signature(crash_signature):
     # https://errors.ubuntu.com/oops-local/2013-03-07/50428.daisy.ubuntu.com3
@@ -242,7 +245,7 @@ def bucket(oops_config, oops_id, crash_signature, report_dict):
     if package:
         package, version = split_package_and_version(package)
     pkg_arch = get_package_architecture(report_dict)
-    rootfs_build, alias, device_name, device_image = get_image_info(report_dict)
+    rootfs_build, channel, device_name, device_image = get_image_info(report_dict)
 
     automated_testing = False
     if system_uuid.startswith('deadbeef'):
@@ -253,7 +256,7 @@ def bucket(oops_config, oops_id, crash_signature, report_dict):
     else:
         fields = get_fields_for_bucket_counters(problem_type, release, package,
                                                 version, pkg_arch, rootfs_build,
-                                                alias, device_name, device_image)
+                                                channel, device_name, device_image)
     if version:
         oopses.update_bucket_systems(oops_config, crash_signature, system_uuid,
                                      version=version)
