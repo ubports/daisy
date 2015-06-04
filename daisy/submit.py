@@ -184,7 +184,7 @@ def submit(_pool, environ, system_token):
     apport_version = data.get('ApportVersion', '')
     rootfs_build, channel, device_name, device_image = utils.get_image_info(data)
     third_party = False
-    if '[origin:' in package:
+    if not utils.retraceable_package(package):
         third_party = True
     automated_testing = False
     if system_token.startswith('deadbeef'):
@@ -369,10 +369,10 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
         if arch == 'armhf' and crash_sig:
             if crash_sig.startswith('failed:'):
                 retry = True
-        # only retry retracing failures that don't have third party packages
-        # as those are likely to fail retracing
-            if 'third-party-packages' in data.get('Tags', ''):
-                retry = False
+            # retry retracing failures that have third party
+            # packages because of the phone overlay PPA
+            # if 'third-party-packages' in data.get('Tags', ''):
+            #     retry = False
         if crash_sig and not retry and stacktrace:
             # the crash is a duplicate so we don't need this data
             # Stacktrace, and ThreadStacktrace were already not accepted
@@ -408,8 +408,7 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
             if not waiting and utils.retraceable_release(release):
                 # there will not be a debug symbol version of the package so
                 # don't ask for a CORE
-                if "[origin: " in package and \
-                        "[origin: Ubuntu RTM]" not in package:
+                if not utils.retraceable_package(package):
                     metrics.meter('missing.retraceable_origin')
                     return (True, '%s OOPSID' % oops_id)
                 # Don't ask for cores from things like google-chrome-stable

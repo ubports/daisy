@@ -585,8 +585,7 @@ class Retracer:
             metrics.meter('retrace.failed.notretraceable')
         package = report.get('Package', '')
         # there will not be a debug symbol version of the package
-        if "[origin: " in package and \
-                not "[origin: Ubuntu RTM]" in package:
+        if not utils.retraceable_package(package):
             log('Not retraced due to foreign origin.')
             metrics.meter('retrace.failed.foreign')
             retraceable = False

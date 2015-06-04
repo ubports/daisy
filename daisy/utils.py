@@ -310,6 +310,19 @@ def retraceable_release(release):
     else:
         return False
 
+def retraceable_package(package):
+    if not "[origin: " in package:
+        return True
+    elif "[origin: Ubuntu RTM]" in package:
+        return True
+    # confirm how this can happen
+    # elif "[origin: Ubuntu]" in package:
+    #     return True
+    elif "[origin: LP-PPA-ci-train-ppa-service" in package:
+        return True
+    else:
+        return False
+
 # From oops-amqp
 def is_amqplib_ioerror(e):
     """Returns True if e is an amqplib internal exception."""
