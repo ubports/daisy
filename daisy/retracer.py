@@ -498,8 +498,11 @@ class Retracer:
             # Build a new message from the old one, publish the new and bin
             # the old.
             ts = msg.properties.get('timestamp')
-            # 2014-06-12 Set missing old OOPSes (in newcassandra) as failed
-            if ts < datetime.datetime(2014, 6, 11):
+            # If we are still unable to find the OOPS after 8 days then
+            # just process it as a failure.
+            today = datetime.datetime.utcnow()
+            target_date = today - datetime.timedelta(8)
+            if ts < target_date.date():
                 log('Marked old OOPS (%s) as failed' % oops_id)
                 # failed_to_process calls processed which removes the core
                 self.failed_to_process(msg, oops_id)
@@ -986,10 +989,13 @@ class Retracer:
                 else:
                     failure_reason += '.'
                     self.oops_cf.insert(oops_id,
-                        {'RetraceFailureReason': failure_reason})
-                    self.bucketretracefail_fam.insert(crash_signature,
-                        {'oops': oops_id,
-                         'Reason': failure_reason})
+                                        {'RetraceFailureReason':
+                                         failure_reason})
+                    if crash_signature:
+                        self.bucketretracefail_fam.insert(
+                            crash_signature,
+                            {'oops': oops_id,
+                             'Reason': failure_reason})
                 args = (release, day_key, retracing_time, False)
                 self.update_retrace_stats(*args)
                 metrics.meter('retrace.failed')
