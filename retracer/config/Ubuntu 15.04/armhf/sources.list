@@ -11,3 +11,6 @@ deb-src http://ports.ubuntu.com/ vivid-security main restricted universe multive
 deb http://ddebs.ubuntu.com vivid main restricted universe multiverse
 deb http://ddebs.ubuntu.com vivid-updates main restricted universe multiverse
 deb http://ddebs.ubuntu.com vivid-proposed main restricted universe multiverse
+
+deb http://ppa.launchpad.net/ci-train-ppa-service/stable-phone-overlay/ubuntu vivid main
+deb-src http://ppa.launchpad.net/ci-train-ppa-service/stable-phone-overlay/ubuntu vivid main
