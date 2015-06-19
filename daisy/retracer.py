@@ -502,7 +502,7 @@ class Retracer:
             # just process it as a failure.
             today = datetime.datetime.utcnow()
             target_date = today - datetime.timedelta(8)
-            if ts < target_date.date():
+            if ts.date() < target_date.date():
                 log('Marked old OOPS (%s) as failed' % oops_id)
                 # failed_to_process calls processed which removes the core
                 self.failed_to_process(msg, oops_id)
