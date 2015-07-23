@@ -144,7 +144,8 @@ def submit(_pool, environ, system_token):
         'Ubuntu 11.10': 'oneiric',
         'Ubuntu 12.10': 'quantal',
         'Ubuntu 13.04': 'raring',
-        'Ubuntu 13.10': 'saucy'}
+        'Ubuntu 13.10': 'saucy',
+        'Ubuntu 14.10': 'utopic'}
     if release in eol_releases:
         metrics.meter('unsupported.eol_%s' % eol_releases[release])
         return (False, '%s is End of Life' % str(release))
