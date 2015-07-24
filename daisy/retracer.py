@@ -327,7 +327,12 @@ class Retracer:
         msg.channel.basic_publish(body, exchange='', routing_key=queue)
 
     def failed_to_process(self, msg, oops_id):
-        self.processed(msg)
+        processed = self.processed(msg)
+        # Removing the core file failed in the processing phase, so requeue
+        # the crash.
+        if not processed:
+            log('Requeued failed to process OOPS (%s)' % oops_id)
+            requeue(msg)
         # Also remove it from the retracing index, if we haven't already.
         try:
             addr_sig = self.oops_cf.get(oops_id,
@@ -388,6 +393,8 @@ class Retracer:
             log('Could not remove %s (swift):' % key)
             log(traceback.format_exc())
             metrics.meter('swift_delete_error')
+            return False
+        return True
 
     def write_s3_bucket_to_disk(self, key, provider_data):
         global _cached_s3
@@ -432,6 +439,8 @@ class Retracer:
         except S3ResponseError:
             log('Could not remove %s (s3):' % key)
             log(traceback.format_exc())
+            return False
+        return True
 
     def write_local_to_disk(self, key, provider_data):
         path = os.path.join(provider_data['path'], key)
@@ -447,6 +456,7 @@ class Retracer:
     def remove_from_local(self, key, provider_data):
         path = os.path.join(provider_data['path'], key)
         rm_eff(path)
+        return True
 
     def write_bucket_to_disk(self, oops_id, provider):
         path = ''
@@ -472,11 +482,14 @@ class Retracer:
         provider_data = cs[provider]
         t = provider_data['type']
         if t == 'swift':
-            self.remove_from_swift(oops_id, provider_data)
+            removed = self.remove_from_swift(oops_id, provider_data)
         elif t == 's3':
-            self.remove_from_s3(oops_id, provider_data)
+            removed = self.remove_from_s3(oops_id, provider_data)
         elif t == 'local':
-            self.remove_from_local(oops_id, provider_data)
+            removed = self.remove_from_local(oops_id, provider_data)
+        if removed:
+            return True
+        return False
 
     @prefix_log_with_amqp_message
     def callback(self, msg):
@@ -492,28 +505,7 @@ class Retracer:
             # back on the queue and hope that eventual consistency works its
             # magic by then.
             log('Unable to find in OOPS CF.')
-            # RabbitMQ versions from 2.7.0 push basic_reject'ed messages
-            # back onto the front of the queue:
-            # http://www.rabbitmq.com/semantics.html
-            # Build a new message from the old one, publish the new and bin
-            # the old.
-            ts = msg.properties.get('timestamp')
-            # If we are still unable to find the OOPS after 8 days then
-            # just process it as a failure.
-            today = datetime.datetime.utcnow()
-            target_date = today - datetime.timedelta(8)
-            if ts.date() < target_date.date():
-                log('Marked old OOPS (%s) as failed' % oops_id)
-                # failed_to_process calls processed which removes the core
-                self.failed_to_process(msg, oops_id)
-                return
-
-            key = msg.delivery_info['routing_key']
-
-            body = amqp.Message(msg.body, timestamp=ts)
-            body.properties['delivery_mode'] = 2
-            msg.channel.basic_publish(body, exchange='', routing_key=key)
-            msg.channel.basic_reject(msg.delivery_tag, False)
+            requeue(msg)
 
             metrics.meter('could_not_find_oops')
             return
@@ -1058,11 +1050,37 @@ class Retracer:
         parts = msg.body.split(':', 1)
         oops_id = None
         oops_id, provider = parts
-        self.remove(*parts)
+        removed = self.remove(*parts)
+        if removed:
+            # We've processed this. Delete it off the MQ.
+            msg.channel.basic_ack(msg.delivery_tag)
+            self.update_time_to_retrace(msg)
+            return True
+        return False
 
-        # We've processed this. Delete it off the MQ.
-        msg.channel.basic_ack(msg.delivery_tag)
-        self.update_time_to_retrace(msg)
+    def requeue(self, msg):
+        # RabbitMQ versions from 2.7.0 push basic_reject'ed messages
+        # back onto the front of the queue:
+        # http://www.rabbitmq.com/semantics.html
+        # Build a new message from the old one, publish the new and bin
+        # the old.
+        ts = msg.properties.get('timestamp')
+        # If we are still unable to find the OOPS after 8 days then
+        # just process it as a failure.
+        today = datetime.datetime.utcnow()
+        target_date = today - datetime.timedelta(8)
+        if ts.date() < target_date.date():
+            log('Marked old OOPS (%s) as failed' % oops_id)
+            # failed_to_process calls processed which removes the core
+            self.failed_to_process(msg, oops_id)
+            return
+
+        key = msg.delivery_info['routing_key']
+
+        body = amqp.Message(msg.body, timestamp=ts)
+        body.properties['delivery_mode'] = 2
+        msg.channel.basic_publish(body, exchange='', routing_key=key)
+        msg.channel.basic_reject(msg.delivery_tag, False)
 
     def update_time_to_retrace(self, msg):
         '''Record how long it took to retrace this crash, from the time we got
