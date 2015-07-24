@@ -661,6 +661,8 @@ class Retracer:
                                 in line:
                                 retry = True
                     if retry:
+                        log("Will retry (%s) due to a transient error." %
+                            oops_id)
                         self.requeue(msg)
                         # don't record it as a failure in the metrics as it is
                         # going to be retried
