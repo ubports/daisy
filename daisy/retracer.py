@@ -660,21 +660,8 @@ class Retracer:
                             if 'Package download error, try again later' \
                                 in line:
                                 retry = True
-                    # RabbitMQ versions from 2.7.0 push basic_reject'ed messages
-                    # back onto the front of the queue:
-                    # http://www.rabbitmq.com/semantics.html
-                    # Build a new message from the old one, publish the new and bin
-                    # the old.
                     if retry:
-                        ts = msg.properties.get('timestamp')
-
-                        key = msg.delivery_info['routing_key']
-
-                        body = amqp.Message(msg.body, timestamp=ts)
-                        body.properties['delivery_mode'] = 2
-                        msg.channel.basic_publish(body, exchange='',
-                                                  routing_key=key)
-                        msg.channel.basic_reject(msg.delivery_tag, False)
+                        self.requeue(msg)
                         # don't record it as a failure in the metrics as it is
                         # going to be retried
                         rm_eff('%s.new' % report_path)
