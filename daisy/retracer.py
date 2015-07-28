@@ -658,8 +658,18 @@ class Retracer:
                         for line in std.splitlines():
                             log(line)
                             if 'Package download error, try again later' \
-                                in line:
+                                    in line:
                                 retry = True
+                                break
+                            # probably due to network errors
+                            if 'W:GPG error:' in line:
+                                retry = True
+                                break
+                            # probably due to network errors
+                            if 'index files failed to download.' \
+                                    in line:
+                                retry = True
+                                break
                     if retry:
                         log("Will retry (%s) due to a transient error." %
                             oops_id)
