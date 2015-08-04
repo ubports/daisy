@@ -219,8 +219,9 @@ def submit(_pool, environ, system_token):
                                                   rootfs_build, channel,
                                                   device_name, device_image)
 
-    # generic counter used by the phased-updater that only counts crashes from
-    # official Ubuntu packages and not those from systems under auto testing
+    # generic counter for crashes about a source package which is used by the
+    # phased-updater and only includes official Ubuntu packages and not those
+    # from systems under auto testing.
     if not third_party and not automated_testing and problem_type == 'Crash':
         update_release_pkg_counter(counters_fam, release, src_package, day_key)
         if version == '':
@@ -247,8 +248,9 @@ def submit(_pool, environ, system_token):
     package_from_proposed = False
     if 'package-from-proposed' in tags:
         package_from_proposed = True
-        # generic counter used by the phased-updater that only counts crashes from
-        # official Ubuntu packages and not those from systems under auto testing
+        # generic counter for crashes about a source package which is used by
+        # the phased-updater and only includes official Ubuntu packages and
+        # not those from systems under auto testing.
         if not third_party and not automated_testing and problem_type == 'Crash':
             update_release_pkg_counter(proposed_counters_fam, release, src_package, day_key)
             if version != '':
@@ -337,7 +339,7 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
         metrics.meter('success.python_bucketed')
         return (True, '%s OOPSID' % oops_id)
 
-    # Binary
+    # Crashing binary
     if 'StacktraceTop' in data and 'Signal' in data:
         output = ''
         # we check for addr_sig before bucketing and inserting into oopses
@@ -436,7 +438,7 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
                     return (True, '%s OOPSID' % oops_id)
                 elif not addr_sig and not retry:
                     # Do not ask for a core for crashes without a SAS as they
-                    # are likely corrupt cores
+                    # are likely corrupt cores.
                     metrics.meter('success.not_retry_no_sas')
                     return (True, '%s OOPSID' % oops_id)
                 # We do not have a core file in the queue, so ask for one. Do
