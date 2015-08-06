@@ -30,7 +30,8 @@ if config.lp_use_staging:
     _launchpad_base = 'https://api.qastaging.launchpad.net/devel'
 else:
     _launchpad_base = 'https://api.launchpad.net/devel'
-
+# TODO: replace hardcoding of 'ubuntu' in all these urls e.g. so we can use
+# ubuntu-rtm too
 _get_published_binaries_url = (_launchpad_base + '/ubuntu/+archive/primary'
     '?ws.op=getPublishedBinaries&binary_name=%s'
     '&exact_match=true&ordered=true&status=Published')
@@ -97,6 +98,8 @@ def get_codename_for_version(version):
         version = version.replace('Ubuntu ', '')
     if version in release_codenames:
         return release_codenames[version]
+    elif version == 'Ubuntu RTM 14.09':
+        return '14.09'
     else:
         url = _launchpad_base + '/ubuntu/series'
         for entry in json_request_entries(url):
@@ -247,10 +250,14 @@ def pocket_for_binaries(specific_packages):
     return result
 
 def _get_pocket_for_binary_version(package, version, release):
-    url = _get_published_binaries_url % urllib.quote(package)
+    if release == 'Ubuntu RTM 14.09':
+        url = _get_published_binaries_url.replace('/ubuntu/', '/ubuntu-rtm/') % \
+            urllib.quote(package)
+    else:
+        url = _get_published_binaries_url % urllib.quote(package)
     # the package version may be Superseded or Obsolete
     url = url.replace('&status=Published', '')
-    url += '&version=' + urllib.quote(version)
+    url += '&version=' + urllib.quote_plus(version)
     # TODO cache this by pushing it into the above function and instead
     # passing the distro_arch_series url.
     version = get_codename_for_version(release.split()[-1])
@@ -431,6 +438,22 @@ def is_valid_source_version(src_package, version):
     elif json_data['total_size'] >= 1:
         return True
 
+def get_pocket_for_source_version(src_package, version, release):
+    # hack for packages from RTM
+    if release == 'Ubuntu RTM 14.09':
+        url = _get_published_source_version_url.replace('/ubuntu/', '/ubuntu-rtm/') % \
+            (urllib.quote_plus(src_package), urllib.quote_plus(version))
+    else:
+        url = _get_published_source_version_url % \
+            (urllib.quote_plus(src_package), urllib.quote_plus(version))
+    series = get_codename_for_version(release.split()[-1])
+    distro_arch_series = _distro_arch_series % series
+    url += '&distro_arch_series=' + urllib.quote(distro_arch_series)
+    try:
+        pocket = json_request_entries(url)[0]['pocket']
+        return ('%s' % pocket)
+    except (KeyError, IndexError):
+        return '?'
 
 # Bug creation.
 
