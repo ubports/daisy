@@ -256,6 +256,11 @@ def submit(_pool, environ, system_token):
             if version != '':
                 update_release_pkg_version_counter(proposed_counters_fam, release, src_package, version, day_key)
 
+    # A device is manually blacklisted if it has repeatedly failed to have an
+    # crash inserted into the OOPS table.
+    if blacklisted_device(system_token):
+        return (False, 'Device blocked from sending crash reports.')
+
     try:
         oopses.insert_dict(oops_config, oops_id, data, system_token, fields,
                            proposed_pkg=package_from_proposed)

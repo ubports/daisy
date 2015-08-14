@@ -60,3 +60,4 @@ for oops in oops_cf.get_range(start='79be7ecc-7e63-11e4-b370-fa163e22e467',
     # if counts >= 100:
     #      break
 print_totals(force=True)
+print("Done!")
