@@ -325,11 +325,14 @@ def retraceable_package(package):
 
 def blacklisted_device(system_token):
     '''Return True if a device is not allowed to report crashes.
-       
+
     Used for devices that have repeatedly failed to submit a crash.
     '''
 
-    blacklist = ['2f175cea621bda810f267f1da46409a111f58011435f410aa198362e9372da78b6fafe6827ff26e025a5ab7d2859346de6b188f0622118c15a119c58ca538acb']
+    blacklist = [
+        # 20150814 - OOPS count was at 43
+        '2f175cea621bda810f267f1da46409a111f58011435f410aa198362e9372da78b6fafe6827ff26e025a5ab7d2859346de6b188f0622118c15a119c58ca538acb'
+    ]
     if system_token in blacklist:
         return True
     return False
