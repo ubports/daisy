@@ -649,6 +649,7 @@ class Retracer:
 
         try:
             if proc.returncode != 0:
+                missing_pkg = False
                 if proc.returncode == 1:
                     # Package download errors return 1
                     log("Apport's return code was 1.")
@@ -657,6 +658,11 @@ class Retracer:
                     for std in (out, err):
                         for line in std.splitlines():
                             log(line)
+                            # this happens for binaries from packages not in Ubuntu
+                            if 'Cannot find package which ships ExecutablePath' \
+                                    in line:
+                                missing_pkg = True
+                                break
                             if 'Package download error, try again later' \
                                     in line:
                                 retry = True
@@ -703,8 +709,15 @@ class Retracer:
                         #    if not os.path.exists(cfile):
                         #        log("Will retry this oops later.")
                         #        return
-                m = 'Retrace failed (%i), moving to failed queue:'
-                log(m % proc.returncode)
+                m = 'Retrace failed (%i), %s'
+                if missing_pkg:
+                    action = 'leaving as failed.'
+                    # we don't want to see this OOPS again so process it
+                    self.processed(msg)
+                else:
+                    self.move_to_failed_queue(msg)
+                    action = 'moving to failed queue.'
+                log(m % (proc.returncode, action))
                 if invalid_core:
                     # these should not be reported LP: #1354571 so record
                     # apport version
@@ -718,7 +731,6 @@ class Retracer:
                     if apport_vers:
                         metrics.meter('retrace.failed.invalid_core.%s.%s'
                             % (release, apport_vers.replace('.', '_')))
-                self.move_to_failed_queue(msg)
                 # Remove the SAS from the retracing index so that we ask for
                 # another core
                 sas = report.get('StacktraceAddressSignature', '')
