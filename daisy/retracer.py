@@ -332,7 +332,7 @@ class Retracer:
         # the crash.
         if not processed:
             log('Requeued failed to process OOPS (%s)' % oops_id)
-            requeue(msg)
+            self.requeue(msg, oops_id)
         # Also remove it from the retracing index, if we haven't already.
         try:
             addr_sig = self.oops_cf.get(oops_id,
@@ -505,7 +505,7 @@ class Retracer:
             # back on the queue and hope that eventual consistency works its
             # magic by then.
             log('Unable to find in OOPS CF.')
-            requeue(msg)
+            self.requeue(msg, oops_id)
 
             metrics.meter('could_not_find_oops')
             return
@@ -673,7 +673,7 @@ class Retracer:
                     if retry:
                         log("Will retry (%s) due to a transient error." %
                             oops_id)
-                        self.requeue(msg)
+                        self.requeue(msg, oops_id)
                         # don't record it as a failure in the metrics as it is
                         # going to be retried
                         rm_eff('%s.new' % report_path)
@@ -1057,7 +1057,7 @@ class Retracer:
             return True
         return False
 
-    def requeue(self, msg):
+    def requeue(self, msg, oops_id):
         # RabbitMQ versions from 2.7.0 push basic_reject'ed messages
         # back onto the front of the queue:
         # http://www.rabbitmq.com/semantics.html
@@ -1068,6 +1068,12 @@ class Retracer:
         # just process it as a failure.
         today = datetime.datetime.utcnow()
         target_date = today - datetime.timedelta(8)
+        # if we don't know how old it is it must be ancient
+        if not ts:
+            log('Marked OOPS (%s) without timestamp as failed' % oops_id)
+            # failed_to_process calls processed which removes the core
+            self.failed_to_process(msg, oops_id)
+            return
         if ts.date() < target_date.date():
             log('Marked old OOPS (%s) as failed' % oops_id)
             # failed_to_process calls processed which removes the core
