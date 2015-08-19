@@ -258,7 +258,7 @@ def submit(_pool, environ, system_token):
 
     # A device is manually blacklisted if it has repeatedly failed to have an
     # crash inserted into the OOPS table.
-    if blacklisted_device(system_token):
+    if utils.blacklisted_device(system_token):
         # If the device stops appearing in the log file then the offending
         # crash file may have been removed and it could be unblacklisted.
         logger.info('Blacklisted device %s disallowed from sending a crash.' %
