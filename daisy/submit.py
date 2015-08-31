@@ -213,6 +213,7 @@ def submit(_pool, environ, system_token):
         metrics.meter('success.problem_type.%s' % problem_type)
 
     package, version = utils.split_package_and_version(package)
+    # src_version is None and is never used, nor should it be.
     src_package, src_version = utils.split_package_and_version(src_package)
     fields = utils.get_fields_for_bucket_counters(problem_type, release,
                                                   package, version, pkg_arch,
@@ -360,6 +361,9 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
             crash_sig = crash_sig.values()[0]
         except (NotFoundException, KeyError, InvalidRequestException):
             pass
+        failed_to_retrace = False
+        if crash_sig.startswith('failed:'):
+            failed_to_retrace = True
         # for some crashes apport isn't creating a Stacktrace in the
         # successfully retraced report, we need to retry these even though
         # there is a crash_sig
@@ -376,17 +380,17 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
                 metrics.meter('missing.missing_retraced_stacktrace')
                 pass
         retry = False
-        # 2014-09-15 - given the retracer backlog only retry armhf
+        # If the retrace was successful but we don't have a stacktrace
+        # something is wrong, so try retracing it again.
+        if not failed_to_retrace and not stacktrace:
+            retry = True
+        # 2014-09-15 - given the quantity of crashes about i386 and amd64 only
+        # retry crashes from armhf.
         arch = data.get('Architecture', '')
-        if arch == 'armhf' and crash_sig:
-            if crash_sig.startswith('failed:'):
-                retry = True
-            # retry retracing failures that have third party
-            # packages because of the phone overlay PPA
-            # if 'third-party-packages' in data.get('Tags', ''):
-            #     retry = False
-        if crash_sig and not retry and stacktrace:
-            # the crash is a duplicate so we don't need this data
+        if arch == 'armhf' and failed_to_retrace:
+            retry = True
+        if crash_sig and not retry:
+            # The crash is a duplicate so we don't need this data.
             # Stacktrace, and ThreadStacktrace were already not accepted
             if 'ProcMaps' in report:
                 unneeded_columns = ['Disassembly', 'ProcMaps', 'ProcStatus',
