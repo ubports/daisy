@@ -354,7 +354,7 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
         output = ''
         # we check for addr_sig before bucketing and inserting into oopses
         addr_sig = data.get('StacktraceAddressSignature', None)
-        crash_sig = None
+        crash_sig = ''
         try:
             crash_sig = indexes_fam.get(
                 'crash_signature_for_stacktrace_address_signature', [addr_sig])
