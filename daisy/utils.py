@@ -333,7 +333,9 @@ def blacklisted_device(system_token):
         # 20150814 - OOPS count was at 43
         '2f175cea621bda810f267f1da46409a111f58011435f410aa198362e9372da78b6fafe6827ff26e025a5ab7d2859346de6b188f0622118c15a119c58ca538acb',
         # 20150826 - OOPS count was at 18
-        '81b75a0bdd531a5c02a4455b05674ea45fbb65324bcae5fe51659bce850aa40bcd1388e3eed4d46ce9abb4e56d1dd7dde45ded473995feb0ac2c01518a841efe'
+        '81b75a0bdd531a5c02a4455b05674ea45fbb65324bcae5fe51659bce850aa40bcd1388e3eed4d46ce9abb4e56d1dd7dde45ded473995feb0ac2c01518a841efe',
+        # 20150903 - OOPS count was at 27
+        'b5329547bdab8adea4245399ff9656ca608e825425fbb0ad2c68e182b75ce80c13f9186e4e9b8e7a17dd15dd196b12a65e1b7f513184296320dad50c587754f5'
     ]
     if system_token in blacklist:
         return True
