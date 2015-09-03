@@ -308,10 +308,9 @@ class Retracer:
         self._sandboxes[release] = (sandbox, cache)
         return self._sandboxes[release]
 
-    def move_to_failed_queue(self, msg, oops_id):
+    def move_to_failed_queue(self, msg):
         if self.failed:
-            # It's already on the failed queue, so requeue it.
-            self.requeue(msg, oops_id)
+            # It's already on the failed queue.
             return
 
         # We've processed this. Delete it off the MQ.
@@ -716,7 +715,7 @@ class Retracer:
                     # we don't want to see this OOPS again so process it
                     self.processed(msg)
                 else:
-                    self.move_to_failed_queue(msg, oops_id)
+                    self.move_to_failed_queue(msg)
                     action = 'moving to failed queue.'
                 log(m % (proc.returncode, action))
                 if invalid_core:
@@ -899,7 +898,7 @@ class Retracer:
                     failed_crash = '%s/%s.crash' % (failure_storage, oops_id)
                     with open(failed_crash, 'wb') as fp:
                         report.write(fp)
-                    self.move_to_failed_queue(msg, oops_id)
+                    self.move_to_failed_queue(msg)
 
                 if 'Stacktrace' not in report:
                     failure_reason = 'No stacktrace after retracing'
