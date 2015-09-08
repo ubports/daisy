@@ -509,6 +509,13 @@ class Retracer:
 
             metrics.meter('could_not_find_oops')
             return
+        # There are some items still in amqp queue that have already been
+        # retraced, check for this and ack the message.
+        if 'RetraceFailureReason' in col.keys():
+            log("Ack'ing already retraced OOPS.")
+            msg.channel.basic_ack(msg.delivery_tag)
+            return
+
         path = self.write_bucket_to_disk(*parts)
 
         if not path or not os.path.exists(path):
