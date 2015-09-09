@@ -314,8 +314,7 @@ class Retracer:
             return
 
         # We've processed this. Delete it off the MQ.
-        # msg.channel.basic_ack(msg.delivery_tag)
-        msg.channel.basic_ack(delivery_tag=0)
+        msg.channel.basic_ack(msg.delivery_tag)
         # We don't call self.processed here because that would remove the core
         # file from the storage provider, and we want to retain it.
 
@@ -1074,8 +1073,7 @@ class Retracer:
         removed = self.remove(*parts)
         if removed:
             # We've processed this. Delete it off the MQ.
-            # msg.channel.basic_ack(msg.delivery_tag)
-            msg.channel.basic_ack(delivery_tag=0)
+            msg.channel.basic_ack(msg.delivery_tag)
             self.update_time_to_retrace(msg)
             return True
         return False
@@ -1108,8 +1106,7 @@ class Retracer:
         body = amqp.Message(msg.body, timestamp=ts)
         body.properties['delivery_mode'] = 2
         msg.channel.basic_publish(body, exchange='', routing_key=key)
-        # msg.channel.basic_reject(msg.delivery_tag, False)
-        msg.channel.basic_reject(delivery_tag=0, requeue=False)
+        msg.channel.basic_reject(msg.delivery_tag, False)
 
     def update_time_to_retrace(self, msg):
         '''Record how long it took to retrace this crash, from the time we got
