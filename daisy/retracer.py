@@ -926,7 +926,7 @@ class Retracer:
                     missing_ddebs = []
                     log('RetraceOutdatedPackages:')
                     for line in report['RetraceOutdatedPackages'].splitlines():
-                        if 'required, but' in line:
+                        if 'outdated debug symbol' in line:
                             outdated_pkgs.append(line.split(' ')[0])
                         if 'no debug symbol' in line:
                             missing_ddebs.append(line.split(' ')[-1])
