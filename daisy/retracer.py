@@ -730,7 +730,8 @@ class Retracer:
                     self.processed(msg)
                 else:
                     self.move_to_failed_queue(msg)
-                    action = 'moving to failed queue.'
+                    if not self.failed:
+                        action = 'moving to failed queue.'
                 log(m % (proc.returncode, action))
                 if invalid_core:
                     # these should not be reported LP: #1354571 so record
@@ -912,7 +913,6 @@ class Retracer:
                     failed_crash = '%s/%s.crash' % (failure_storage, oops_id)
                     with open(failed_crash, 'wb') as fp:
                         report.write(fp)
-                    self.move_to_failed_queue(msg)
 
                 if 'Stacktrace' not in report:
                     failure_reason = 'No stacktrace after retracing'
