@@ -326,11 +326,11 @@ class Retracer:
         body.properties['delivery_mode'] = 2
         msg.channel.basic_publish(body, exchange='', routing_key=queue)
 
-    def failed_to_process(self, msg, oops_id):
+    def failed_to_process(self, msg, oops_id, old=False):
         processed = self.processed(msg)
         # Removing the core file failed in the processing phase, so requeue
-        # the crash.
-        if not processed:
+        # the crash unless it is an old OOPS then don't requeue it.
+        if not processed and not old:
             log('Requeued failed to process OOPS (%s)' % oops_id)
             self.requeue(msg, oops_id)
         # Also remove it from the retracing index, if we haven't already.
@@ -1093,12 +1093,12 @@ class Retracer:
         if not ts:
             log('Marked OOPS (%s) without timestamp as failed' % oops_id)
             # failed_to_process calls processed which removes the core
-            self.failed_to_process(msg, oops_id)
+            self.failed_to_process(msg, oops_id, True)
             return
         if ts.date() < target_date.date():
             log('Marked old OOPS (%s) as failed' % oops_id)
             # failed_to_process calls processed which removes the core
-            self.failed_to_process(msg, oops_id)
+            self.failed_to_process(msg, oops_id, True)
             return
 
         key = msg.delivery_info['routing_key']
