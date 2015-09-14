@@ -333,6 +333,11 @@ class Retracer:
         if not processed and not old:
             log('Requeued failed to process OOPS (%s)' % oops_id)
             self.requeue(msg, oops_id)
+        # It is old so we should just ack the request to retrace it.
+        if not processed and old:
+            log("Ack'ing message about old missing core.")
+            msg.channel.basic_ack(msg.delivery_tag)
+            metrics.meter('retrace.failure.old_missing_core')
         # Also remove it from the retracing index, if we haven't already.
         try:
             addr_sig = self.oops_cf.get(oops_id,
