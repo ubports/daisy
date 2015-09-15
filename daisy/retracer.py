@@ -340,6 +340,7 @@ class Retracer:
             metrics.meter('retrace.failure.old_missing_core')
         # Also remove it from the retracing index, if we haven't already.
         try:
+            # TODO: Remove the SystemIdentifier as we don't use it here.
             addr_sig = self.oops_cf.get(oops_id,
                             ['StacktraceAddressSignature', 'SystemIdentifier'])
             addr_sig = addr_sig.values()[0]
@@ -518,6 +519,7 @@ class Retracer:
             return
         # There are some items still in amqp queue that have already been
         # retraced, check for this and ack the message.
+        # N.B. This only works for failures!
         if 'RetraceFailureReason' in col.keys():
             log("Ack'ing already retraced OOPS.")
             msg.channel.basic_ack(msg.delivery_tag)
@@ -527,7 +529,9 @@ class Retracer:
 
         if not path or not os.path.exists(path):
             log('Could not find %s' % path)
-            self.failed_to_process(msg, oops_id)
+            # 2015-09-15 temporarily indicate these are old to help with
+            # backlog.
+            self.failed_to_process(msg, oops_id, old=True)
             return
 
         core_file = '%s.core' % path
