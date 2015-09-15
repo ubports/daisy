@@ -728,8 +728,8 @@ class Retracer:
                         #        log("Will retry this oops later.")
                         #        return
                 m = 'Retrace failed (%i), %s'
+                action = 'leaving as failed.'
                 if missing_pkg:
-                    action = 'leaving as failed.'
                     # we don't want to see this OOPS again so process it
                     self.processed(msg)
                 else:
