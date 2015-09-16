@@ -812,13 +812,14 @@ class Retracer:
                     log(line)
                 if architecture == 'armhf' and \
                         'RetraceOutdatedPackages' not in report:
-                    log('Saved OOPS %s for manual investigation.' %
-                        oops_id)
-                    # create a new crash with the CoreDump for investigation
-                    report['CoreDump'] = (core_file,)
-                    failed_crash = '%s/%s.crash' % (failure_storage, oops_id)
-                    with open(failed_crash, 'wb') as fp:
-                        report.write(fp)
+                    if failure_storage:
+                        log('Saved OOPS %s for manual investigation.' %
+                            oops_id)
+                        # create a new crash with the CoreDump for investigation
+                        report['CoreDump'] = (core_file,)
+                        failed_crash = '%s/%s.crash' % (failure_storage, oops_id)
+                        with open(failed_crash, 'wb') as fp:
+                            report.write(fp)
             original_sas = ''
             if stacktrace_addr_sig:
                 if type(stacktrace_addr_sig) == unicode:
@@ -885,12 +886,13 @@ class Retracer:
                                   release)
                     metrics.meter('retrace.missing.%s.%s.stacktrace' %
                                   (release, architecture))
-                    log('Saved OOPS %s for manual investigation.' %
-                        oops_id)
-                    # create a new crash with the CoreDump for investigation
-                    failed_crash = '%s/%s.crash' % (failure_storage, oops_id)
-                    with open(failed_crash, 'wb') as fp:
-                        report.write(fp)
+                    if failure_storage:
+                        log('Saved OOPS %s for manual investigation.' %
+                            oops_id)
+                        # create a new crash with the CoreDump for investigation
+                        failed_crash = '%s/%s.crash' % (failure_storage, oops_id)
+                        with open(failed_crash, 'wb') as fp:
+                            report.write(fp)
 
                 # Given that we do not as yet keep debugging symbols around for
                 # every package version ever released, it's worth knowing the
@@ -911,12 +913,13 @@ class Retracer:
                                   release)
                     metrics.meter('retrace.missing.%s.%s.stacktrace_addr_sig' %
                                   (release, architecture))
-                    log('Saved OOPS %s for manual investigation.' %
-                        oops_id)
-                    # create a new crash with the CoreDump for investigation
-                    failed_crash = '%s/%s.crash' % (failure_storage, oops_id)
-                    with open(failed_crash, 'wb') as fp:
-                        report.write(fp)
+                    if failure_storage:
+                        log('Saved OOPS %s for manual investigation.' %
+                            oops_id)
+                        # create a new crash with the CoreDump for investigation
+                        failed_crash = '%s/%s.crash' % (failure_storage, oops_id)
+                        with open(failed_crash, 'wb') as fp:
+                            report.write(fp)
 
                 if 'Stacktrace' not in report:
                     failure_reason = 'No stacktrace after retracing'
@@ -942,12 +945,13 @@ class Retracer:
                         log('%s (%s)' % (line, release))
                     if architecture == 'armhf' and missing_ddebs \
                             and not outdated_pkgs:
-                        log('Saved OOPS %s for manual investigation.' %
-                            oops_id)
-                        # create a new crash with the CoreDump for investigation
-                        failed_crash = '%s/%s.crash' % (failure_storage, oops_id)
-                        with open(failed_crash, 'wb') as fp:
-                            report.write(fp)
+                        if failure_storage:
+                            log('Saved OOPS %s for manual investigation.' %
+                                oops_id)
+                            # create a new crash with the CoreDump for investigation
+                            failed_crash = '%s/%s.crash' % (failure_storage, oops_id)
+                            with open(failed_crash, 'wb') as fp:
+                                report.write(fp)
                     if not outdated_pkgs:
                         failure_reason += ' and missing ddebs.'
                     else:
@@ -1210,6 +1214,9 @@ def parse_options():
     parser.add_argument('--cleanup-debs', action='store_true',
                         default=False,
                         help='wipe the deb cache directory after a retrace.')
+    parser.add_argument('--core-storage',
+                        help='Directory in which to store cores for manual '
+                             'investigation.')
     parser.add_argument('-o', '--output', help='Log messages to a file.')
     parser.add_argument('--retrieve-core',
                         help=('Debug processing a single uuid:provider_id.'
@@ -1221,7 +1228,6 @@ def main():
     global root_handler
     # should move to a configuration option
     global failure_storage
-    failure_storage = '/srv/daisy.ubuntu.com/production/var'
 
     options = parse_options()
     if options.output:
@@ -1230,6 +1236,11 @@ def main():
         sys.stdout = open(path, 'a')
         sys.stderr.close()
         sys.stderr = sys.stdout
+
+    failure_storage = ''
+    if options.core_storage:
+        if os.path.exists(options.core_storage):
+            failure_storage = options.core_storage
 
     logging.basicConfig(format=LOGGING_FORMAT, level=logging.INFO)
 
