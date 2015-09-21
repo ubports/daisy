@@ -807,9 +807,10 @@ class Retracer:
                                    no_dbgsym_pkg')
                     metrics.meter('retrace.missing.%s.crash_signature. \
                                    no_dbgsym_pkg' % release)
-                log('StacktraceTop:')
-                for line in report['StacktraceTop'].splitlines():
-                    log(line)
+                if 'StacktraceTop' in report:
+                    log('StacktraceTop:')
+                    for line in report['StacktraceTop'].splitlines():
+                        log(line)
                 if architecture == 'armhf' and \
                         'RetraceOutdatedPackages' not in report:
                     if failure_storage:
