@@ -354,6 +354,8 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
         output = ''
         # we check for addr_sig before bucketing and inserting into oopses
         addr_sig = data.get('StacktraceAddressSignature', None)
+        # TODO: create a method to set retry = True for specific SASes
+        # LP: #1505818
         crash_sig = ''
         try:
             crash_sig = indexes_fam.get(
