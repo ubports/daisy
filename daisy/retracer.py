@@ -525,6 +525,12 @@ class Retracer:
             msg.channel.basic_ack(msg.delivery_tag)
             return
 
+        # Check to see if there is an UnreportableReason so we can log more
+        # information about failures to retrace.
+        unreporable_reason = ''
+        if 'UnreportableReason' in col.keys():
+            unreportable_reason = col['UnreportableReason']
+
         path = self.write_bucket_to_disk(*parts)
 
         if not path or not os.path.exists(path):
@@ -545,6 +551,8 @@ class Retracer:
 
         if p2.returncode != 0:
             log('Error processing %s:' % path)
+            if unreportable_reason:
+                log('UnreportableReason is: %s' % unreportable_reason)
             if ret[1]:
                 for line in ret[1].splitlines():
                     log(line)
@@ -569,6 +577,8 @@ class Retracer:
             # Not a core file, there's no value in trying again.
             self.processed(msg)
             log('Not a core dump per gdb.')
+            if unreportable_reason:
+                log('UnreportableReason is: %s' % unreportable_reason)
             metrics.meter('retrace.failed')
             metrics.meter('retrace.failed.%s' %
                           self.architecture)
@@ -600,6 +610,8 @@ class Retracer:
         # there will not be a debug symbol version of the package
         if not utils.retraceable_package(package):
             log('Not retraced due to foreign origin.')
+            if unreportable_reason:
+                log('UnreportableReason is: %s' % unreportable_reason)
             metrics.meter('retrace.failed.foreign')
             retraceable = False
         invalid = re.search(bad, release) or len(release) > 1024
@@ -738,6 +750,8 @@ class Retracer:
                         action = 'moving to failed queue.'
                 log(m % (proc.returncode, action))
                 if invalid_core:
+                    if unreportable_reason:
+                        log('UnreportableReason is: %s' % unreportable_reason)
                     # these should not be reported LP: #1354571 so record
                     # apport version
                     apport_vers = report.get('ApportVersion', '')
@@ -795,6 +809,8 @@ class Retracer:
                     missing_dbgsym_pkg = True
             if not crash_signature:
                 log('Apport did not return a crash_signature.')
+                if unreportable_reason:
+                    log('UnreportableReason is: %s' % unreportable_reason)
                 metrics.meter('retrace.missing.crash_signature')
                 metrics.meter('retrace.missing.%s.crash_signature' %
                               architecture)
@@ -880,6 +896,8 @@ class Retracer:
                 report['CoreDump'] = (core_file,)
                 if 'Stacktrace' not in report and crash_signature:
                     log('Stacktrace not in retraced report with a crash_sig.')
+                    if unreportable_reason:
+                        log('UnreportableReason is: %s' % unreportable_reason)
                     metrics.meter('retrace.missing.stacktrace')
                     metrics.meter('retrace.missing.%s.stacktrace' %
                                   architecture)
@@ -907,6 +925,8 @@ class Retracer:
                         utils.format_crash_signature(stacktrace_addr_sig)
                 else:
                     log('Retraced report missing stacktrace_addr_sig.')
+                    if unreportable_reason:
+                        log('UnreportableReason is: %s' % unreportable_reason)
                     metrics.meter('retrace.missing.stacktrace_addr_sig')
                     metrics.meter('retrace.missing.%s.stacktrace_addr_sig' %
                                   architecture)
@@ -925,8 +945,12 @@ class Retracer:
                 if 'Stacktrace' not in report:
                     failure_reason = 'No stacktrace after retracing'
                     log('Retraced report missing Stacktrace.')
+                    if unreportable_reason:
+                        log('UnreportableReason is: %s' % unreportable_reason)
                 else:
                     failure_reason = 'No crash signature after retracing'
+                    if unreportable_reason:
+                        log('UnreportableReason is: %s' % unreportable_reason)
 
                 if 'RetraceOutdatedPackages' in report:
                     # these counters will overlap with outdated_packages but
