@@ -527,7 +527,7 @@ class Retracer:
 
         # Check to see if there is an UnreportableReason so we can log more
         # information about failures to retrace.
-        unreporable_reason = ''
+        unreportable_reason = ''
         if 'UnreportableReason' in col.keys():
             unreportable_reason = col['UnreportableReason']
 
