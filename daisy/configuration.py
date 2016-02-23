@@ -208,3 +208,5 @@ try:
     from postgres_settings import *
 except ImportError:
     pass
+
+allow_bug_filing = True
