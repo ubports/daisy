@@ -4,6 +4,8 @@ import pycassa
 from daisy import config
 import datetime
 
+from pycassa.cassandra.ttypes import NotFoundException
+
 creds = {'username': config.cassandra_username,
          'password': config.cassandra_password}
 pool = pycassa.ConnectionPool('crashdb', config.cassandra_hosts, timeout=60,
@@ -33,9 +35,20 @@ for bucket in buckets:
         print i
     bucketid, release, version = bucket
     real_count = bv_full_cf.get_count(bucket)
-    actual_count = bv_count_cf.get(bucketid)[release, version]
-    c = real_count - actual_count
-    if c != 0:
-        print bucket, 'adjusted by', c
-        bv_count_cf.insert(bucketid, {(release, version): c})
+    try:
+        actual_count = bv_count_cf.get(bucketid)[release, version]
+    # There are no counts for the bucketid at all.
+    except NotFoundException:
+        actual_count = 0
+    # There are is entry for the release and version.
+    except KeyError:
+        actual_count = 0
+    count = real_count - actual_count
+    # We shouldn't ever decrease the count.
+    if count < 0:
+        continue
+    if count != 0:
+        print bucket, 'adjusted by', count
+        bv_count_cf.insert(bucketid, {(release, version): count})
+    i += 1
 print i
