@@ -310,7 +310,9 @@ class Retracer:
 
     def move_to_failed_queue(self, msg):
         if self.failed:
-            # It's already on the failed queue.
+            # It failed its 2nd retrace attempt, admit defeat and don't try
+            # again.
+            self.processed(msg)
             return
 
         # We've processed this. Delete it off the MQ.
@@ -690,6 +692,10 @@ class Retracer:
                             log(line)
                             # this happens for binaries from packages not in Ubuntu
                             if 'Cannot find package which ships ExecutablePath' \
+                                    in line:
+                                missing_pkg = True
+                                break
+                            if 'Cannot find package which ships InterpreterPath' \
                                     in line:
                                 missing_pkg = True
                                 break
