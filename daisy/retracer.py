@@ -33,7 +33,7 @@ import tempfile
 import traceback
 import time
 
-from subprocess import Popen, PIPE
+from subprocess import Popen, PIPE, check_output
 
 from pycassa import ConsistencyLevel
 from pycassa.columnfamily import ColumnFamily
@@ -1287,9 +1287,8 @@ def main():
         if options.sandbox_dir:
             msg += " with sandbox_dir %s" % options.sandbox_dir
         if options.nocache_debs:
-            msg += " and not caching debs."
-        else:
-            msg += "."
+            msg += " and not caching debs"
+        msg += ", gdb %s." % check_output(["dpkg-query", "--show", "-f${Version}", "gdb"]).decode()
         log(msg)
 
         retracer = Retracer(options.config_dir, options.sandbox_dir,
