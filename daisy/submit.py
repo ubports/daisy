@@ -129,6 +129,8 @@ def submit(_pool, environ, system_token):
     if system_token:
         data['SystemIdentifier'] = system_token
     else:
+        # we want to try and find out which releases are sending reports with
+        # a missing SystemIdentifier
         try:
             whoopsie_version = environ['HTTP_X_WHOOPSIE_VERSION']
             metrics.meter('missing.missing_system_token_%s' % \
