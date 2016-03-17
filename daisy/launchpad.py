@@ -42,6 +42,7 @@ _get_published_source_version_url = (_launchpad_base + '/ubuntu/+archive/primary
     '?ws.op=getPublishedSources&source_name=%s&version=%s'
     '&exact_match=true&ordered=true')
 _get_bug_tasks_url = _launchpad_base + '/bugs/%s/bug_tasks'
+_get_bug_dupof_url = _launchpad_base + '/bugs/%s/duplicate_of_link'
 
 _get_published_binaries_for_release_url = (_launchpad_base +
     '/ubuntu/+archive/primary/?ws.op=getPublishedBinaries&binary_name=%s'
@@ -321,6 +322,21 @@ def bug_is_fixed(bug, release=None):
         return True
     except (ValueError, KeyError):
         return False
+
+
+def bug_get_master_id(bug):
+    '''Return master bug (of which given bug is a duplicate)
+
+    Return None if bug is not a duplicate.
+    '''
+    url = _get_bug_dupof_url % urllib.quote(bug)
+    try:
+        res = json_request(url)
+        if res:
+            return res.split('/')[-1]
+    except (ValueError, KeyError):
+        pass
+    return None
 
 
 def is_source_package(package_name):
