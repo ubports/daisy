@@ -209,4 +209,4 @@ try:
 except ImportError:
     pass
 
-allow_bug_filing = True
+allow_bug_filing = 'True'
