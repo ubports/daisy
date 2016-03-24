@@ -80,8 +80,8 @@ lp_use_staging = False
 
 # Launchpad OAuth tokens.
 # See https://wiki.ubuntu.com/ErrorTracker/Contributing/Errors
-lp_oauth_token=''
-lp_oauth_secret=''
+lp_oauth_token = ''
+lp_oauth_secret = ''
 
 # Directory for httplib2's request cache.
 http_cache_dir = '/tmp/errors.ubuntu.com-httplib2-cache'
