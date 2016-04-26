@@ -808,6 +808,9 @@ class Retracer:
 
             crash_signature = report.crash_signature()
             stacktrace_addr_sig = report.get('StacktraceAddressSignature', '')
+            # col contains information about the report before retracing
+            original_sas = col.get('StacktraceAddressSignature','')
+
             missing_dbgsym_pkg = False
             if 'RetraceOutdatedPackages' in report:
                 if 'no debug symbol package' in \
@@ -831,8 +834,21 @@ class Retracer:
                                    no_dbgsym_pkg' % release)
                 if 'StacktraceTop' in report:
                     log('StacktraceTop:')
-                    for line in report['StacktraceTop'].splitlines():
+                    stacktracetop = report['StacktraceTop']
+                    for line in stacktracetop.splitlines():
                         log(line)
+                    # If the StacktraceTop is completely useless but we had
+                    # a SAS in the original report and nothing predicts a
+                    # failure we should retry retracing the crash.
+                    # StacktraceTop can have a variable number of lines.
+                    if set(stacktracetop.splitlines()) == {u'?? ()'} \
+                            and original_sas \
+                            and not unreportable_reason \
+                            and not missing_dbgsym_pkg:
+                        metrics.meter('retrace.missing.crash_signature.apport_issue')
+                        log('Requeueing a possible apport failure.')
+                        self.requeue(msg, oops_id)
+                        return
                 if architecture == 'armhf' and \
                         'RetraceOutdatedPackages' not in report:
                     if failure_storage:
@@ -843,15 +859,12 @@ class Retracer:
                         failed_crash = '%s/%s.crash' % (failure_storage, oops_id)
                         with open(failed_crash, 'wb') as fp:
                             report.write(fp)
-            original_sas = ''
-            if stacktrace_addr_sig:
+
+            if stacktrace_addr_sig and not original_sas:
                 if type(stacktrace_addr_sig) == unicode:
                     stacktrace_addr_sig = stacktrace_addr_sig.encode('utf-8')
                 # if the OOPS doesn't already have a SAS add one
-                try:
-                    original_sas = self.oops_cf.get(oops_id, ['StacktraceAddressSignature'])['StacktraceAddressSignature']
-                except NotFoundException:
-                    self.oops_cf.insert(oops_id, {'StacktraceAddressSignature': stacktrace_addr_sig})
+                self.oops_cf.insert(oops_id, {'StacktraceAddressSignature': stacktrace_addr_sig})
             else:
                 metrics.meter('retrace.missing.stacktrace_address_signature')
                 metrics.meter('retrace.missing.%s.stacktrace_address_signature' %
