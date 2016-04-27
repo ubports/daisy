@@ -9,5 +9,5 @@ deb-src http://ports.ubuntu.com/ yakkety-proposed main restricted universe multi
 deb-src http://ports.ubuntu.com/ yakkety-security main restricted universe multiverse
 
 deb http://ddebs.ubuntu.com yakkety main restricted universe multiverse
-deb http://ddebs.ubuntu.com yakkety-updates main restricted universe multiverse
+# deb http://ddebs.ubuntu.com yakkety-updates main restricted universe multiverse
 deb http://ddebs.ubuntu.com yakkety-proposed main restricted universe multiverse
