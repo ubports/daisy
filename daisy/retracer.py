@@ -369,6 +369,7 @@ class Retracer:
         os.close(fd)
         bucket = provider_data['bucket']
         try:
+            _cached_swift.http_conn = None
             headers, body = _cached_swift.get_object(bucket, key,
                                                      resp_chunk_size=65536)
             with open(path, 'wb') as fp:
@@ -398,6 +399,7 @@ class Retracer:
             if self.verbose:
                 log('swift token: %s' % str( _cached_swift.token))
             bucket = provider_data['bucket']
+            _cached_swift.http_conn = None
             _cached_swift.delete_object(bucket, key)
         except swiftclient.client.ClientException:
             log('Could not remove %s (swift):' % key)

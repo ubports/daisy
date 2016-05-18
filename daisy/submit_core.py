@@ -87,6 +87,7 @@ def write_to_swift(environ, fileobj, oops_id, provider_data):
     msg = 'swift_token: %s' % (_cached_swift.token)
     logger.info(msg)
     bucket = provider_data['bucket']
+    _cached_swift.http_conn = None
     if (provider_data.get('usage_max_mb')):
         headers = _cached_swift.head_account()
         bytes_used = int(headers.get('x-account-bytes-used', 0))
