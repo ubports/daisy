@@ -524,7 +524,8 @@ class Retracer:
         # N.B. This only works for failures!
         if 'RetraceFailureReason' in col.keys():
             log("Ack'ing already retraced OOPS.")
-            msg.channel.basic_ack(msg.delivery_tag)
+            # Call processed so that we also try to remove the core file
+            self.processed(msg)
             return
 
         # Check to see if there is an UnreportableReason so we can log more
@@ -672,9 +673,11 @@ class Retracer:
             raise
         finally:
             if sandbox and self.cleanup_sandbox:
+                log('Removing %s' % sandbox)
                 shutil.rmtree(sandbox)
                 os.mkdir(sandbox)
             if cache and self.cleanup_debs:
+                log('Removing %s' % cache)
                 shutil.rmtree(cache)
                 os.mkdir(cache)
             rm_eff(report_path)
@@ -1138,6 +1141,13 @@ class Retracer:
             msg.channel.basic_ack(msg.delivery_tag)
             self.update_time_to_retrace(msg)
             return True
+        # 2016-05-18 This was added due to intermittent issues removing core
+        # files from swift. Requeue the oops_id and on the second pass we will
+        # try to remove the core again or just retrace it.
+        else:
+            log('Requeued an OOPS (%s) whose core file was not removed.' %
+                oops_id)
+            self.requeue(msg, oops_id)
         return False
 
     def requeue(self, msg, oops_id):
