@@ -526,8 +526,10 @@ class Retracer:
         # N.B. This only works for failures!
         if 'RetraceFailureReason' in col.keys():
             log("Ack'ing already retraced OOPS.")
+            msg.channel.basic_ack(msg.delivery_tag)
+            # 2016-05-19 - this failed to delete cores and ack'ing of msgs
             # Call processed so that we also try to remove the core file
-            self.processed(msg)
+            # self.processed(msg)
             return
 
         # Check to see if there is an UnreportableReason so we can log more
