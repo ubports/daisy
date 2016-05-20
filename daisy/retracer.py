@@ -329,14 +329,22 @@ class Retracer:
         msg.channel.basic_publish(body, exchange='', routing_key=queue)
 
     def failed_to_process(self, msg, oops_id, old=False):
-        processed = self.processed(msg)
+        # Try to remove the core file from the storage provider
+        parts = msg.body.split(':', 1)
+        oops_id = None
+        oops_id, provider = parts
+        removed = self.remove(*parts)
+        if removed:
+            # We've processed this. Delete it off the MQ.
+            msg.channel.basic_ack(msg.delivery_tag)
+            self.update_time_to_retrace(msg)
         # Removing the core file failed in the processing phase, so requeue
         # the crash unless it is an old OOPS then don't requeue it.
-        if not processed and not old:
+        elif not removed and not old:
             log('Requeued failed to process OOPS (%s)' % oops_id)
             self.requeue(msg, oops_id)
         # It is old so we should just ack the request to retrace it.
-        if not processed and old:
+        elif not removed and old:
             log("Ack'ing message about old missing core.")
             msg.channel.basic_ack(msg.delivery_tag)
             metrics.meter('retrace.failure.old_missing_core')
@@ -401,6 +409,7 @@ class Retracer:
             bucket = provider_data['bucket']
             _cached_swift.http_conn = None
             _cached_swift.delete_object(bucket, key)
+        # should we handle a 404 differently?
         except swiftclient.client.ClientException:
             log('Could not remove %s (swift):' % key)
             log(traceback.format_exc())
