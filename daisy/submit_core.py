@@ -295,6 +295,10 @@ def submit(_pool, environ, fileobj, uuid, arch):
 
     message = write_to_storage_provider(environ, fileobj, uuid)
     if not message:
+        # If not written to storage then write to log file
+        msg = 'Failure to write OOPS %s to storage provider' % \
+            (uuid)
+        logger.info(msg)
         return (False, '')
     queued = write_to_amqp(message, arch)
     if not queued:
