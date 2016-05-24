@@ -300,6 +300,9 @@ def submit(_pool, environ, fileobj, uuid, arch):
         msg = 'Failure to write OOPS %s to storage provider' % \
             (uuid)
         logger.info(msg)
+        # Return False and whoopsie will not try and upload it again.
+        # However, we'll ask for a core file for a different crash with the
+        # same SAS.
         return (False, '')
     queued = write_to_amqp(message, arch)
     if not queued:
