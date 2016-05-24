@@ -233,6 +233,7 @@ def write_to_storage_provider(environ, fileobj, uuid):
     if written:
         return message
     else:
+        metrics.meter('storage_write_error')
         return None
 
 def write_to_amqp(message, arch):
