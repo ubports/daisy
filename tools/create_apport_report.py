@@ -6,7 +6,7 @@ import sys
 
 from apport import report
 from daisy import config
-from subprocess import Popen, PIPE
+from subprocess import Popen, PIPE, check_output, CalledProcessError
 
 creds = {'username': config.cassandra_username,
          'password': config.cassandra_password}
@@ -19,7 +19,7 @@ oops_cf = pycassa.ColumnFamily(pool, 'OOPS')
 
 if __name__ == '__main__':
     if len(sys.argv) < 3:
-        print 'usage: oops file-path [core]'
+        print('usage: oops file-path [core]')
         sys.exit(1)
 
     core = None
@@ -30,19 +30,20 @@ if __name__ == '__main__':
     report = report.Report()
     for k in oops:
         report[k] = oops[k]
-    from ipdb import set_trace; set_trace()
     if core_file:
-        with open(core_file.replace('core', 'coredump'), 'wb') as fp:
-        #r['CoreDump'] = (core,)
-            # 2014-02-11 the coredumps fo0bar gave me were already base64
-            # decoded, if they aren't in the future then you'll need this
-            #p1 = Popen(['base64', '-d', core_file], stdout=PIPE)
+        with open('%s.coredump' % core_file, 'wb') as fp:
+            # test to see if the core_file can be base64 decoded
+            try:
+                output = check_output(['base64', '-d', core_file])
+                p1 = Popen(['base64', '-d', core_file], stdout=PIPE)
+            except CalledProcessError:
+                # if base64 decoding doesn't work maybe it was decoded for us
+                p1 = Popen(['cat', core_file], stdout=PIPE)
             # Set stderr to PIPE so we get output in the result tuple.
-            #p2 = Popen(['zcat'], stdin=p1.stdout, stdout=fp, stderr=PIPE)
-            p2 = Popen(['zcat', core_file], stdout=fp, stderr=PIPE)
-            ret = p2.communicate()
-        report['CoreDump'] = (core_file.replace('core', 'coredump'),)
+            p2 = Popen(['zcat'], stdin=p1.stdout, stdout=fp, stderr=PIPE)
+            ret2 = p2.communicate()
+        report['CoreDump'] = ('%s.coredump' % core_file,)
     fp = open(sys.argv[2], 'wb')
     report.write(fp)
     if core_file:
-        os.remove(core_file.replace('core', 'coredump'))
+        os.remove('%s.coredump' % core_file)
