@@ -862,14 +862,22 @@ class Retracer:
                             and not unreportable_reason \
                             and not missing_dbgsym_pkg:
                         metrics.meter('retrace.missing.crash_signature.apport_issue')
-                        log('Requeueing a possible apport failure.')
-                        self.requeue(msg, oops_id)
-                        # don't record it as a failure in the metrics as it is
-                        # going to be retried
-                        rm_eff('%s.new' % report_path)
-                        # return immediately to prevent moving the crash to
-                        # the failed queue
-                        return
+                        count = int(col.get('RetraceAttempts', 0))
+                        # only requeue this failure type 3 times
+                        if count < 3:
+                            count += 1
+                            log('Requeueing a possible apport failure (#%s).' % count)
+                            self.oops_cf.insert(oops_id, {'RetraceAttempts': '%s' % count})
+                            self.requeue(msg, oops_id)
+                            # don't record it as a failure in the metrics as it is
+                            # going to be retried
+                            rm_eff('%s.new' % report_path)
+                            # return immediately to prevent moving the crash to
+                            # the failed queue
+                            return
+                        else:
+                            log('Gave up requeueing after %s attempts.' \
+                                % count)
                 if architecture == 'armhf' and \
                         'RetraceOutdatedPackages' not in report:
                     if failure_storage:
