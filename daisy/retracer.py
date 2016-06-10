@@ -42,9 +42,12 @@ from pycassa.pool import MaximumRetryException
 from pycassa.types import IntegerType, FloatType, UTF8Type
 
 from daisy.metrics import wrapped_connection_pool, get_metrics, record_revno
-from daisy import utils
-from daisy.version import version_info
+from daisy.version import version_info as daisy_version_info
 from daisy import config
+from daisy import utils
+
+from apport import version_info as apport_version_info
+
 from oopsrepository import config as oopsconfig
 
 LOGGING_FORMAT = ('%(asctime)s:%(process)d:%(thread)d'
@@ -299,8 +302,10 @@ class Retracer:
         # doing so.
         with open(os.path.join(instance_sandbox, 'pid'), 'w') as fp:
             fp.write('%d' % os.getpid())
-        sandbox = os.path.join(instance_sandbox, 'sandbox')
-        os.mkdir(sandbox)
+        sandbox = None
+        if self.use_sandbox:
+            sandbox = os.path.join(instance_sandbox, 'sandbox')
+            os.mkdir(sandbox)
         cache = None
         if self.cache_debs:
             cache = os.path.join(instance_sandbox, 'cache')
@@ -643,7 +648,7 @@ class Retracer:
             report.write(fp)
 
         try:
-            log('Retracing {}'.format(msg.body))
+            retrace_msg = 'Retracing {}'.format(msg.body)
             sandbox, cache = self.setup_cache(self.sandbox_dir, release)
             day_key = time.strftime('%Y%m%d', time.gmtime())
 
@@ -654,12 +659,15 @@ class Retracer:
             cmd = ['python3', self.apport_retrace_path, report_path,
                    '--remove-core', '--sandbox', self.config_dir, '--output',
                    '%s.new' % report_path]
-            if self.use_sandbox:
+            if sandbox:
+                retrace_msg += ' with sandbox-dir %s' % sandbox
                 cmd.extend(['--sandbox-dir', sandbox])
             if cache:
+                retrace_msg += ' with cache %s' % cache
                 cmd.extend(['-C', cache])
             if self.verbose:
                 cmd.append('-v')
+            log(retrace_msg)
             # use our own crashdb config with all supported architectures
             env = os.environ.copy()
             env['APPORT_CRASHDB_CONF'] = os.path.join(self.config_dir, 'crashdb.conf')
@@ -1329,10 +1337,13 @@ def main():
 
     try:
         msg = "Running"
-        if 'revno' in version_info:
-            revno = version_info['revno']
-            msg += " revision number: %s" % revno
+        if 'revno' in daisy_version_info:
+            revno = daisy_version_info['revno']
+            msg += " daisy revision number: %s" % revno
             record_revno()
+        if 'revno' in apport_version_info:
+            revno = apport_version_info['revno']
+            msg += " apport_revision number: %s" % revno
         if options.sandbox_dir:
             msg += " with sandbox_dir %s" % options.sandbox_dir
         if options.nocache_debs:
