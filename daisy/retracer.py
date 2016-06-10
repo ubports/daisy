@@ -46,7 +46,7 @@ from daisy.version import version_info as daisy_version_info
 from daisy import config
 from daisy import utils
 
-from apport import version_info as apport_version_info
+from apport.version_info import version_info as apport_version_info
 
 from oopsrepository import config as oopsconfig
 
