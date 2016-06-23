@@ -100,8 +100,11 @@ def submit(_pool, environ, system_token):
         else:
             raise
     try:
+        if not bson.is_valid(data):
+            metrics.meter('invalid.invalid_bson')
+            return (False, 'Invalid BSON.')
         data = bson.BSON(data).decode()
-    except bson.errors.InvalidBSON:
+    except bson.errors.InvalidBSON, TypeError:
         metrics.meter('invalid.invalid_bson')
         return (False, 'Invalid BSON.')
     except MemoryError:
