@@ -631,6 +631,9 @@ class Retracer:
         retraceable = utils.retraceable_release(release)
         if not retraceable:
             metrics.meter('retrace.failed.notretraceable')
+            if release in utils.EOL_RELEASES:
+                metrics.meter('retrace.failed.eolrelease')
+                log('Not retraced due to EoL release: %s' % release)
         package = report.get('Package', '')
         # there will not be a debug symbol version of the package
         if not utils.retraceable_package(package):

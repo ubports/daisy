@@ -16,6 +16,17 @@ amqplib_connection_errors = (socket.error, AMQPConnectionException)
 # do a second-stage filter after catching the exception.
 amqplib_error_types = amqplib_connection_errors + (IOError,)
 
+EOL_RELEASES = {'Ubuntu 10.04': 'lucid',
+                'Ubuntu 10.10': 'maverick',
+                'Ubuntu 11.04': 'natty',
+                'Ubuntu 11.10': 'oneiric',
+                'Ubuntu 12.10': 'quantal',
+                'Ubuntu 13.04': 'raring',
+                'Ubuntu 13.10': 'saucy',
+                'Ubuntu 14.10': 'utopic',
+                'Ubuntu 15.10': 'wily'}
+                #'Ubuntu 15.04': 'vivid'}
+
 def get_fields_for_bucket_counters(problem_type, release, package, version,
         pkg_arch, rootfs_build, channel, device_name, device_image):
     fields = []
@@ -304,6 +315,8 @@ def wrap_in_oops_wsgi(wsgi_handler):
     return make_app(wsgi_handler, cfg, oops_on_status=['500'])
 
 def retraceable_release(release):
+    if release in EOL_RELEASES:
+        return False
     release_re = re.compile('^Ubuntu( RTM)? \d\d.\d\d$')
     if release_re.match(release):
         return True

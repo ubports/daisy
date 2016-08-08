@@ -143,17 +143,7 @@ def submit(_pool, environ, system_token):
         metrics.meter('missing.missing_system_token')
 
     release = data.get('DistroRelease', '')
-    eol_releases = {'Ubuntu 10.04': 'lucid',
-        'Ubuntu 10.10': 'maverick',
-        'Ubuntu 11.04': 'natty',
-        'Ubuntu 11.10': 'oneiric',
-        'Ubuntu 12.10': 'quantal',
-        'Ubuntu 13.04': 'raring',
-        'Ubuntu 13.10': 'saucy',
-        'Ubuntu 14.10': 'utopic',
-        'Ubuntu 15.10': 'wily'}
-        #'Ubuntu 15.04': 'vivid'}
-    if release in eol_releases:
+    if release in utils.EOL_RELEASES:
         metrics.meter('unsupported.eol_%s' % eol_releases[release])
         return (False, '%s is End of Life' % str(release))
     arch = data.get('Architecture', '')
