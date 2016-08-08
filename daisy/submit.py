@@ -144,7 +144,7 @@ def submit(_pool, environ, system_token):
 
     release = data.get('DistroRelease', '')
     if release in utils.EOL_RELEASES:
-        metrics.meter('unsupported.eol_%s' % eol_releases[release])
+        metrics.meter('unsupported.eol_%s' % utils.EOL_RELEASES[release])
         return (False, '%s is End of Life' % str(release))
     arch = data.get('Architecture', '')
     # We cannot retrace without an architecture to do it on
