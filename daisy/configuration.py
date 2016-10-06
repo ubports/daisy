@@ -76,7 +76,7 @@ statsd_host = 'localhost'
 statsd_port = 8125
 
 # Use Launchpad staging instead of production.
-lp_use_staging = False
+lp_use_staging = True
 
 # Launchpad OAuth tokens.
 # See https://wiki.ubuntu.com/ErrorTracker/Contributing/Errors

@@ -498,8 +498,8 @@ def _generate_headers(oauth_token, oauth_secret):
           (_oauth_realm, oauth_token, oauth_secret,
            int(oauth.time.time()), oauth.generate_nonce()))
 
-    headers = { 'Authorization' : a,
-                'Content-Type' : 'application/x-www-form-urlencoded' }
+    headers = {'Authorization': a,
+               'Content-Type': 'application/x-www-form-urlencoded'}
     return headers
 
 
@@ -507,14 +507,29 @@ def create_bug(signature, source='', releases=[], hashed=None, lastseen=''):
     '''Returns a tuple of (bug number, url)'''
 
     title = '%s' % signature
+    details = ("details, including versions of packages affected, "
+               "stacktrace or traceback, and individual crash reports")
+
     if not hashed:
-        href = 'https://errors.ubuntu.com/bucket/?id=%s' % urllib.quote(signature)
+        href = 'https://errors.ubuntu.com/bucket/?id=%s' % \
+               urllib.quote(signature)
     else:
         href = 'https://errors.ubuntu.com/problem/%s' % hashed
+
     if source and lastseen:
-        description = "The Ubuntu Error Tracker has been receiving reports about a problem regarding %s.  This problem was most recently seen with version %s, the problem page at %s contains more details." % (source, lastseen, href)
+        description = ("The Ubuntu Error Tracker has been receiving reports "
+                       "about a problem regarding %s.  This problem was "
+                       "most recently seen with package version %s, the "
+                       "problem page at %s contains more %s." %
+                       (source, lastseen, href, details))
     else:
-        description = "The Ubuntu Error Tracker has been receiving reports about a problem, more details are available at %s" % (href)
+        description = ("The Ubuntu Error Tracker has been receiving reports "
+                       "about a problem regarding %s.  The problem page at "
+                       "%s contains more %s." % (source, href, details))
+    description += ("\nIf you do not have access to the Ubuntu Error Tracker "
+                   "you can request it at "
+                   "http://forms.canonical.com/reports/.")
+
     release_codenames = []
     for release in releases:
         # release_codenames need to be strings not unicode
@@ -525,7 +540,7 @@ def create_bug(signature, source='', releases=[], hashed=None, lastseen=''):
             # can't use capital letters or spaces in a tag e.g. 'RTM 14.09'
             release = release.lower()
             release_codenames.append('%s' % str(release).replace(' ', '-'))
-    #print >>sys.stderr, 'code names:', release_codenames
+    # print >>sys.stderr, 'code names:', release_codenames
     tags = release_codenames
     if source:
         target = _source_target + source
@@ -538,7 +553,7 @@ def create_bug(signature, source='', releases=[], hashed=None, lastseen=''):
     # TODO Record the source packages and Ubuntu releases this crash has been
     # seen in, so we can add tasks for each relevant release.
     request = urllib2.Request(_create_bug_url, operation, headers)
-    #print >>sys.stderr, 'operation:', str(operation)
+    # print >>sys.stderr, 'operation:', str(operation)
     try:
         response = urllib2.urlopen(request)
     except urllib2.HTTPError as e:
