@@ -506,7 +506,12 @@ def _generate_headers(oauth_token, oauth_secret):
 def create_bug(signature, source='', releases=[], hashed=None, lastseen=''):
     '''Returns a tuple of (bug number, url)'''
 
-    title = '%s' % signature
+    # temporary solution to LP: #1322325 by creating short titles
+    if signature.startswith('Traceback (most recent call last'):
+        lines = signature.splitlines()
+        title = '%s crashed with %s' % (source, lines[-1])
+    else:
+        title = '%s' % signature
     details = ("details, including versions of packages affected, "
                "stacktrace or traceback, and individual crash reports")
 
