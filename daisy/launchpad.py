@@ -90,7 +90,11 @@ def get_codename_for_version(version):
                          '13.10': 'saucy',
                          '14.04': 'trusty',
                          '14.10': 'utopic',
-                         '15.04': 'vivid'}
+                         '15.04': 'vivid',
+                         '15.10': 'wily',
+                         '16.04': 'xenial',
+                         '16.10': 'yakkety',
+                         '17.04': 'zesty'}
     if not version:
         return None
     if version in release_codenames.values():
