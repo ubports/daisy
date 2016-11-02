@@ -70,7 +70,10 @@ def app(environ, start_response):
     if not _pool:
         _pool = metrics.wrapped_connection_pool()
 
+    method = environ.get('REQUEST_METHOD', '')
     path = environ.get('PATH_INFO', '')
+    if method == 'GET' and path == '/nagios-check':
+        return ok_response(start_response)
     if path == '/oops-please':
         if environ.get('REMOTE_ADDR') == '127.0.0.1':
             raise Exception('User requested OOPS.')
