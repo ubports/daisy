@@ -18,7 +18,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import amqplib.client_0_8 as amqp
-import apport
 import argparse
 import atexit
 import datetime
@@ -33,6 +32,7 @@ import tempfile
 import traceback
 import time
 
+from apport import Report
 from subprocess import Popen, PIPE, check_output
 
 from pycassa import ConsistencyLevel
@@ -612,7 +612,7 @@ class Retracer:
                           self.architecture)
             return
 
-        report = apport.Report()
+        report = Report()
 
         for k in col:
             try:
@@ -832,7 +832,7 @@ class Retracer:
                 return
 
             log('Writing back to Cassandra')
-            report = apport.Report()
+            report = Report()
             # ran into MemoryError loading retraced report with CoreDump
             with open('%s.new' % report_path, 'rb') as fp:
                 report.load(fp)
