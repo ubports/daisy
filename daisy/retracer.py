@@ -649,7 +649,6 @@ class Retracer:
             self.processed(msg)
             return
 
-        report['CoreDump'] = (core_file,)
         report_path = '%s.crash' % path
         with open(report_path, 'wb') as fp:
             report.write(fp)
@@ -664,8 +663,9 @@ class Retracer:
             # command line option like don't use sandbox even though we will
             # provide it on the cli
             cmd = ['python3', self.apport_retrace_path, report_path,
-                   '--remove-core', '--sandbox', self.config_dir, '--output',
-                   '%s.new' % report_path]
+                   '--core-file', core_file, '--remove-core',
+                   '--sandbox', self.config_dir,
+                   '--output', '%s.new' % report_path]
             if sandbox:
                 retrace_msg += ' with sandbox-dir %s' % sandbox
                 cmd.extend(['--sandbox-dir', sandbox])
