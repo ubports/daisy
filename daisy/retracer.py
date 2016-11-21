@@ -59,6 +59,7 @@ LOGGING_FORMAT = ('%(asctime)s:%(process)d:%(thread)d'
 
 _cached_swift = None
 _cached_s3 = None
+_swift_auth_failure = False
 
 metrics = get_metrics('retracer.%s' % socket.gethostname())
 
@@ -359,16 +360,17 @@ class Retracer:
             metrics.meter('retrace.failure.old_missing_core')
         # Also remove it from the retracing index, if we haven't already.
         try:
-            # TODO: Remove the SystemIdentifier as we don't use it here.
             addr_sig = self.oops_cf.get(oops_id,
-                            ['StacktraceAddressSignature', 'SystemIdentifier'])
+                            ['StacktraceAddressSignature'])
             addr_sig = addr_sig.values()[0]
-            self.indexes_fam.remove('retracing', [addr_sig])
+            if addr_sig:
+                self.indexes_fam.remove('retracing', [addr_sig])
         except NotFoundException:
             log('Could not remove from the retracing row (%s):' % oops_id)
 
     def write_swift_bucket_to_disk(self, key, provider_data):
         global _cached_swift
+        global _swift_auth_failure
         import swiftclient
         opts = {'tenant_name': provider_data['os_tenant_name'],
                 'region_name': provider_data['os_region_name']}
@@ -393,9 +395,14 @@ class Retracer:
                 for chunk in body:
                     fp.write(chunk)
             return path
-        except swiftclient.client.ClientException:
-            metrics.meter('swift_client_exception')
-            log('Could not retrieve %s (swift):' % key)
+        except swiftclient.client.ClientException as e:
+            if "Authorization Failure" in str(e):
+                metrics.meter('swift_client_exception.auth_failure')
+                log('Authorization failure connecting to swift.')
+                _swift_auth_failure = True
+            else:
+                metrics.meter('swift_client_exception')
+                log('Could not retrieve %s (swift):' % key)
             log(traceback.format_exc())
             # This will still exist if we were partway through a write.
             rm_eff(path)
@@ -403,6 +410,7 @@ class Retracer:
 
     def remove_from_swift(self, key, provider_data):
         global _cached_swift
+        global _swift_auth_failure
         import swiftclient
         opts = {'tenant_name': provider_data['os_tenant_name'],
                 'region_name': provider_data['os_region_name']}
@@ -419,11 +427,22 @@ class Retracer:
             _cached_swift.http_conn = None
             _cached_swift.delete_object(bucket, key)
         # should we handle a 404 differently?
-        except swiftclient.client.ClientException:
-            log('Could not remove %s (swift):' % key)
-            log(traceback.format_exc())
-            metrics.meter('swift_delete_error')
-            return False
+        except swiftclient.client.ClientException as e:
+            if "Authorization Failure" in str(e):
+                metrics.meter('swift_client_exception.auth_failure')
+                log('Authorization failure connecting to swift.')
+                log(traceback.format_exc())
+                # if there is a failure to receive and a failure to delete
+                # stop the retracing process
+                if _swift_auth_failure:
+                    log('Two swift auth failures, stopping.')
+                    sys.exit(1) 
+                _swift_auth_failure = True
+            else:
+                log('Could not remove %s (swift):' % key)
+                log(traceback.format_exc())
+                metrics.meter('swift_delete_error')
+                return False
         return True
 
     def write_s3_bucket_to_disk(self, key, provider_data):
@@ -560,9 +579,7 @@ class Retracer:
 
         if not path or not os.path.exists(path):
             log('Could not find %s' % path)
-            # 2015-09-15 temporarily indicate these are old to help with
-            # backlog.
-            self.failed_to_process(msg, oops_id, old=True)
+            self.failed_to_process(msg, oops_id)
             return
 
         core_file = '%s.core' % path
