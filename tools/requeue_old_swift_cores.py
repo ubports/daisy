@@ -15,9 +15,9 @@ from daisy import config
 from datetime import datetime, timedelta
 
 if len(sys.argv) == 2:
-    count = int(sys.argv[1])
+    limit = int(sys.argv[1])
 else:
-    count = ''
+    limit = ''
 
 cs = getattr(config, 'core_storage', '')
 if not cs:
@@ -48,22 +48,24 @@ atexit.register(channel.close)
 
 now = datetime.utcnow()
 abitago = now - timedelta(7)
+count = 0
 
 for container in _cached_swift.get_container(container=bucket):
     # the dict is the metadata for the container
     if isinstance(container, dict):
         continue
-    if count:
-        toreview = container[:count]
+    if limit:
+        toreview = container[:limit]
     else:
         toreview = container
     for core in toreview:
         core_date = datetime.strptime(core['last_modified'],
                                       '%Y-%m-%dT%H:%M:%S.%f')
         uuid = core['name']
+        count += 1
         # it may still be in the queue awaiting its first retrace attempt
         if core_date > abitago:
-            # print 'skipping too new core %s' % uuid
+            print 'skipping too new core %s' % uuid
             continue
         arch = ''
         try:
@@ -85,3 +87,4 @@ for container in _cached_swift.get_container(container=bucket):
         body.properties['delivery_mode'] = 2
         channel.basic_publish(body, exchange='', routing_key=queue)
         print 'published %s to %s queue' % (uuid, arch)
+    print 'Finished, reviewed %i cores.' % count
