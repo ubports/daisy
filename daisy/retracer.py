@@ -400,6 +400,8 @@ class Retracer:
                 metrics.meter('swift_client_exception.auth_failure')
                 log('Authorization failure connecting to swift.')
                 _swift_auth_failure = True
+            elif "404 Not Found" in str(e):
+                return "Missing"
             else:
                 metrics.meter('swift_client_exception')
                 log('Could not retrieve %s (swift):' % key)
@@ -426,7 +428,7 @@ class Retracer:
             bucket = provider_data['bucket']
             _cached_swift.http_conn = None
             _cached_swift.delete_object(bucket, key)
-        # should we handle a 404 differently?
+        # 404s are handled when we write the bucket to disk
         except swiftclient.client.ClientException as e:
             if "Authorization Failure" in str(e):
                 metrics.meter('swift_client_exception.auth_failure')
@@ -560,8 +562,10 @@ class Retracer:
             return
         # There are some items still in amqp queue that have already been
         # retraced, check for this and ack the message.
-        # N.B. This only works for failures!
-        if 'RetraceFailureReason' in col.keys():
+        # N.B.: This only works in some cases because we don't mark a report as
+        # having been retraced e.g. there is no Retrace column in keys
+        if 'RetraceFailureReason' in col.keys() or \
+                 'RetraceOutdatedPackages' in col.keys():
             log("Ack'ing already retraced OOPS.")
             msg.channel.basic_ack(msg.delivery_tag)
             # 2016-05-19 - this failed to delete cores and ack'ing of msgs
@@ -577,6 +581,10 @@ class Retracer:
 
         path = self.write_bucket_to_disk(*parts)
 
+        if path == "Missing":
+            log("Ack'ing OOPS with missing core file.")
+            msg.channel.basic_ack(msg.delivery_tag)
+            return
         if not path or not os.path.exists(path):
             log('Could not find %s' % path)
             self.failed_to_process(msg, oops_id)
