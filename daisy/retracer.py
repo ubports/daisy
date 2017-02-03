@@ -26,6 +26,7 @@ import oops_dictconfig
 import os
 import re
 import shutil
+import signal
 import socket
 import sys
 import tempfile
@@ -128,12 +129,17 @@ class Retracer:
     def __init__(self, config_dir, sandbox_dir, architecture, verbose,
                  cache_debs, use_sandbox, cleanup_sandbox, cleanup_debs,
                  failed=False):
+        signal.signal(signal.SIGTERM, self.exit_gracefully)
+        self._stop_now = False
+        self._processing_callback = False
         self.setup_cassandra()
         self.config_dir = config_dir
         self.sandbox_dir = sandbox_dir
         self.verbose = verbose
         self.architecture = architecture
         self.failed = failed
+        self.connection = None
+        self.channel = None
         # A mapping of release names to temporary sandbox and cache
         # directories, so that we can remove them at the end of the run.
         # TODO: we should create a single temporary directory that all of these
@@ -158,6 +164,13 @@ class Retracer:
 
         m = 'Cannot find apport-retrace in $PATH (%s)' % os.environ.get('PATH')
         assert which.returncode == 0, m
+
+    def exit_gracefully(self, signal, frame):
+        # Set a flag so that we can give apport-retrace a chance to finish.
+        log('Received SIGTERM')
+        self._stop_now = True
+        if not self._processing_callback:
+            sys.exit()
 
     def setup_cassandra(self):
         os.environ['OOPS_KEYSPACE'] = config.cassandra_keyspace
@@ -195,32 +208,31 @@ class Retracer:
         else:
             retrace = 'retrace_%s'
         retrace = retrace % self.architecture
-        connection = None
-        channel = None
         try:
             if config.amqp_username and config.amqp_password:
-                connection = amqp.Connection(host=config.amqp_host,
+                self.connection = amqp.Connection(host=config.amqp_host,
                                         userid=config.amqp_username,
                                         password=config.amqp_password)
             else:
-                connection = amqp.Connection(host=config.amqp_host)
-            channel = connection.channel()
-            channel.queue_declare(queue=retrace, durable=True,
-                                  auto_delete=False)
-            channel.basic_qos(0, 1, False)
+                self.connection = amqp.Connection(host=config.amqp_host)
+            self.channel = self.connection.channel()
+            self.channel.queue_declare(queue=retrace, durable=True,
+                                       auto_delete=False)
+            self.channel.basic_qos(0, 1, False)
             log('Waiting for messages. ^C to exit.')
-            self.run_forever(channel, self.callback, queue=retrace)
+            self.run_forever(self.channel, self.callback, queue=retrace)
         finally:
-            if connection:
-                connection.close()
-            if channel:
-                channel.close()
+            if self.connection:
+                self.connection.close()
+            if self.channel:
+                self.channel.close()
 
     def run_forever(self, channel, callback, queue):
         tag = channel.basic_consume(callback=callback, queue=queue)
         try:
             while (not self._lost_connection or
-                   time.time() < self._lost_connection + 120):
+                   time.time() < self._lost_connection + 120 or
+                   self._stop_now and not self._processing_callback):
                 try:
                     channel.wait()
                 except (socket.error, IOError), e:
@@ -238,6 +250,8 @@ class Retracer:
                         time.sleep(0.1)
                     else:
                         raise
+            if self._stop_now and not self._processing_callback:
+                log('Exiting due to SIGTERM.')
             log('Rabbit did not reappear quickly enough.')
         except KeyboardInterrupt:
             pass
@@ -544,6 +558,7 @@ class Retracer:
 
     @prefix_log_with_amqp_message
     def callback(self, msg):
+        self._processing_callback = True
         log('Processing.')
         parts = msg.body.split(':', 1)
         oops_id, provider = parts
@@ -707,7 +722,7 @@ class Retracer:
             if http_proxy:
                 env.update({'http_proxy': http_proxy})
             proc = Popen(cmd, env=env, stdout=PIPE, stderr=PIPE,
-                         universal_newlines=True)
+                         universal_newlines=True, preexec_fn=os.setpgrp)
             out, err = proc.communicate()
         except:
             rm_eff('%s.new' % report_path)
@@ -1191,6 +1206,14 @@ class Retracer:
 
         log('Done processing %s' % path)
         self.processed(msg)
+        self._processing_callback = False
+        # If stop now has been set then we should stop working.
+        if self._stop_now:
+            if self.connection:
+                self.connection.close()
+            if self.channel:
+                self.channel.close()
+            sys.exit()
 
     def processed(self, msg):
         parts = msg.body.split(':', 1)
