@@ -170,6 +170,10 @@ class Retracer:
         log('Received SIGTERM')
         self._stop_now = True
         if not self._processing_callback:
+            if self.connection:
+                self.connection.close()
+            if self.channel:
+                self.channel.close()
             sys.exit()
 
     def setup_cassandra(self):
