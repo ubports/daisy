@@ -796,9 +796,11 @@ class Retracer:
                         rm_eff('%s.new' % report_path)
                         # return immediately to prevent moving the crash to
                         # the failed queue
+                        self._processing_callback = False
                         return
                 elif proc.returncode == -15:
                     log("apport-retrace was killed by retracer restart.")
+                    self._processing_callback = False
                     return
                 # apport-retrace will exit 0 even on a failed retrace unless
                 # something has gone wrong at a lower level, as was the case
@@ -859,6 +861,7 @@ class Retracer:
                               (release, architecture))
                 rm_eff('%s.new' % report_path)
                 raise ApportException(err)
+                self._processing_callback = False
                 return
 
             retracing_time = time.time() - retracing_start_time
@@ -872,7 +875,7 @@ class Retracer:
                 metrics.meter('retrace.failed.%s' % architecture)
                 metrics.meter('retrace.failed.%s.%s' %
                               (release, architecture))
-
+                self._processing_callback = False
                 return
 
             log('Writing back to Cassandra')
@@ -933,6 +936,7 @@ class Retracer:
                             rm_eff('%s.new' % report_path)
                             # return immediately to prevent moving the crash to
                             # the failed queue
+                            self._processing_callback = False
                             return
                         else:
                             log('Gave up requeueing after %s attempts.' \
