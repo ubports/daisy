@@ -661,8 +661,8 @@ class Retracer:
         for k in col:
             try:
                 report[k.encode('UTF-8')] = col[k].encode('UTF-8')
-            except AssertionError:
-                # apport raises an AssertionError if a key is invalid
+            except (AssertionError, ValueError):
+                # apport raises an ValueError if a key is invalid
                 # e.g. /usr/bin/media-hub-server became a key somehow,
                 # and this doesn't need to be part of the report used
                 # for retracing
