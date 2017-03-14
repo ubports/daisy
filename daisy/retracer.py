@@ -686,6 +686,13 @@ class Retracer:
                 log('UnreportableReason is: %s' % unreportable_reason)
             metrics.meter('retrace.failed.foreign')
             retraceable = False
+        srcpackage = report.get('SourcePackage', '')
+        if srcpackage == 'vim' and release == 'Ubuntu 16.10':
+            # 2017-03-14 gdb is hanging trying to retrace these so put them at
+            # the end of the line.
+            log('Requeueing a Ubuntu 16.10 vim crash.')
+            self.requeue(msg, oops_id)
+            return
         invalid = re.search(bad, release) or len(release) > 1024
         if invalid:
             metrics.meter('retrace.failed.invalid')
