@@ -147,10 +147,6 @@ def submit(_pool, environ, system_token):
         metrics.meter('unsupported.eol_%s' % utils.EOL_RELEASES[release])
         return (False, '%s is End of Life' % str(release))
     arch = data.get('Architecture', '')
-    if release == "Ubuntu 15.04" and arch != 'armhf':
-        metrics.meter('unsupported.eol_%s_%s' % 
-                      ('vivid', arch))
-        return (False, '%s is End of Life' % str(release))
     # We cannot retrace without an architecture to do it on
     if not arch:
         metrics.meter('missing.missing_arch')

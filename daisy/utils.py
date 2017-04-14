@@ -24,8 +24,8 @@ EOL_RELEASES = {'Ubuntu 10.04': 'lucid',
                 'Ubuntu 13.04': 'raring',
                 'Ubuntu 13.10': 'saucy',
                 'Ubuntu 14.10': 'utopic',
+                'Ubuntu 15.04': 'vivid',
                 'Ubuntu 15.10': 'wily'}
-                #'Ubuntu 15.04': 'vivid'}
 
 def get_fields_for_bucket_counters(problem_type, release, package, version,
         pkg_arch, rootfs_build, channel, device_name, device_image):
