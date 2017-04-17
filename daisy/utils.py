@@ -23,6 +23,7 @@ EOL_RELEASES = {'Ubuntu 10.04': 'lucid',
                 'Ubuntu 12.10': 'quantal',
                 'Ubuntu 13.04': 'raring',
                 'Ubuntu 13.10': 'saucy',
+                'Ubuntu RTM 14.09', 'vivid',
                 'Ubuntu 14.10': 'utopic',
                 'Ubuntu 15.04': 'vivid',
                 'Ubuntu 15.10': 'wily'}
