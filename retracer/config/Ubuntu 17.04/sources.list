@@ -9,5 +9,5 @@ deb-src http://archive.ubuntu.com/ubuntu/ zesty-proposed main restricted univers
 deb-src http://security.ubuntu.com/ubuntu/ zesty-security main restricted universe multiverse
 
 deb http://ddebs.ubuntu.com zesty main restricted universe multiverse
-# deb http://ddebs.ubuntu.com zesty-updates main restricted universe multiverse
+deb http://ddebs.ubuntu.com zesty-updates main restricted universe multiverse
 deb http://ddebs.ubuntu.com zesty-proposed main restricted universe multiverse

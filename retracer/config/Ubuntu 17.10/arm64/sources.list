@@ -1,0 +1,13 @@
+deb http://ports.ubuntu.com/ artful main restricted universe multiverse
+deb http://ports.ubuntu.com/ artful-updates main restricted universe multiverse
+deb http://ports.ubuntu.com/ artful-proposed main restricted universe multiverse
+deb http://ports.ubuntu.com/ artful-security main restricted universe multiverse
+
+deb-src http://ports.ubuntu.com/ artful main restricted universe multiverse
+deb-src http://ports.ubuntu.com/ artful-updates main restricted universe multiverse
+deb-src http://ports.ubuntu.com/ artful-proposed main restricted universe multiverse
+deb-src http://ports.ubuntu.com/ artful-security main restricted universe multiverse
+
+deb http://ddebs.ubuntu.com artful main restricted universe multiverse
+#deb http://ddebs.ubuntu.com artful-updates main restricted universe multiverse
+deb http://ddebs.ubuntu.com artful-proposed main restricted universe multiverse
