@@ -24,7 +24,7 @@ def _date_range_iterator(start, finish):
 # Main
 
 if __name__ == '__main__':
-    if sys.argv > 1:
+    if len(sys.argv) > 1:
         start = datetime.datetime.strptime(sys.argv[1], '%Y%m%d')
     else:
         start = datetime.date.today()
@@ -42,4 +42,4 @@ if __name__ == '__main__':
             users.update(buf)
             if len(buf) < 1000:
                 break
-    print 'total unique users in 90 days:', len(users)
+    print 'total unique users of Ubuntu 12.04 in 90 days:', len(users)
