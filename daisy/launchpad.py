@@ -94,7 +94,8 @@ def get_codename_for_version(version):
                          '15.10': 'wily',
                          '16.04': 'xenial',
                          '16.10': 'yakkety',
-                         '17.04': 'zesty'}
+                         '17.04': 'zesty',
+                         '17.10': 'artful'}
     if not version:
         return None
     if version in release_codenames.values():
