@@ -634,6 +634,7 @@ class Retracer:
             metrics.meter('retrace.failure.decompression')
             metrics.meter('retrace.failure.decompression.%s' %
                           self.architecture)
+            rm_eff(core_file)
             return
         # confirm that gdb thinks the core file is good
         gdb_cmd = [self.gdb_path, "--batch", "--ex", "target core %s" %
@@ -654,6 +655,7 @@ class Retracer:
             metrics.meter('retrace.failure.gdb_core_check')
             metrics.meter('retrace.failure.gdb_core_check.%s' %
                           self.architecture)
+            rm_eff(core_file)
             return
 
         report = Report()
@@ -692,12 +694,14 @@ class Retracer:
             # the end of the line.
             log('Requeueing a Ubuntu 16.10 vim crash.')
             self.requeue(msg, oops_id)
+            rm_eff(core_file)
             return
         invalid = re.search(bad, release) or len(release) > 1024
         if invalid:
             metrics.meter('retrace.failed.invalid')
         if not release or invalid or not retraceable:
             self.processed(msg)
+            rm_eff(core_file)
             return
 
         report_path = '%s.crash' % path
@@ -760,6 +764,7 @@ class Retracer:
                 shutil.rmtree(cache)
                 os.mkdir(cache)
             rm_eff(report_path)
+            rm_eff(core_file)
 
         try:
             if proc.returncode != 0:
