@@ -764,7 +764,6 @@ class Retracer:
                 shutil.rmtree(cache)
                 os.mkdir(cache)
             rm_eff(report_path)
-            rm_eff(core_file)
 
         try:
             if proc.returncode != 0:
