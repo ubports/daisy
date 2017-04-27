@@ -402,6 +402,12 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
             if arch:
                 metrics.meter('success.ready_binary_bucketed.%s' % arch)
         else:
+            # there is a bug with gdb when it tries to retrace crashes from
+            # vim https://sourceware.org/bugzilla/show_bug.cgi?id=21324 so
+            # don't ask for cores from it until its resolved.
+            src_package = data.get('SourcePackage', '')
+            if src_package == 'vim' and release == 'Ubuntu 16.10':
+                return (True, '%s OOPSID' % oops_id)
             # apport requires the following fields to be able to retrace a crash
             # so do not ask for a CORE file if they don't exist
             if not release:
