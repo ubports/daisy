@@ -689,10 +689,11 @@ class Retracer:
             metrics.meter('retrace.failed.foreign')
             retraceable = False
         srcpackage = report.get('SourcePackage', '')
-        if srcpackage == 'vim' and release == 'Ubuntu 16.10':
+        if srcpackage == 'vim' and release in ['Ubuntu 16.10',
+                                               'Ubuntu 17.04']:
             # 2017-03-14 gdb is hanging trying to retrace these so put them at
             # the end of the line.
-            log('Requeueing a Ubuntu 16.10 vim crash.')
+            log('Requeueing an Ubuntu 16.10+ vim crash.')
             self.requeue(msg, oops_id)
             rm_eff(core_file)
             return
