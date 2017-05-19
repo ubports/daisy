@@ -15,10 +15,14 @@ from daisy import config
 from daisy import utils
 from datetime import datetime, timedelta
 
+# get container returns a max of 10000 listings, if an integer is not given
+# lets get everything not 10k.
+limit = None
+unlimited = False
 if len(sys.argv) == 2:
     limit = int(sys.argv[1])
 else:
-    limit = ''
+    unlimited = True
 
 cs = getattr(config, 'core_storage', '')
 if not cs:
@@ -52,7 +56,10 @@ abitago = now - timedelta(7)
 count = 0
 unqueued_count = 0
 
-for container in _cached_swift.get_container(container=bucket):
+for container in \
+    _cached_swift.get_container(container=bucket,
+                                limit=limit,
+                                full_listing=unlimited):
     # the dict is the metadata for the container
     if isinstance(container, dict):
         continue
@@ -84,4 +91,4 @@ for container in _cached_swift.get_container(container=bucket):
             print >>sys.stderr, 'Removed %s core %s from swift' % (release, uuid)
             unqueued_count += 1
             continue
-    print 'Finished, reviewed %i cores, unqueued %i cores.' % (count, unqueued_count)
+    print 'Finished, reviewed %i cores, removed %i cores.' % (count, unqueued_count)
