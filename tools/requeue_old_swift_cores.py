@@ -14,10 +14,13 @@ from pycassa.cassandra.ttypes import NotFoundException
 from daisy import config
 from datetime import datetime, timedelta
 
-if len(sys.argv) == 2:
+limit = None
+queued_limit = None
+if len(sys.argv) == 3:
     limit = int(sys.argv[1])
-else:
-    limit = ''
+    queued_limit = int(sys.argv[2])
+elif len(sys.argv) == 2:
+    limit = int(sys.argv[1])
 
 cs = getattr(config, 'core_storage', '')
 if not cs:
@@ -49,16 +52,14 @@ atexit.register(channel.close)
 now = datetime.utcnow()
 abitago = now - timedelta(7)
 count = 0
+queued_count = 0
 
-for container in _cached_swift.get_container(container=bucket):
+for container in _cached_swift.get_container(container=bucket,
+                                             limit=limit):
     # the dict is the metadata for the container
     if isinstance(container, dict):
         continue
-    if limit:
-        toreview = container[:limit]
-    else:
-        toreview = container
-    for core in toreview:
+    for core in container:
         core_date = datetime.strptime(core['last_modified'],
                                       '%Y-%m-%dT%H:%M:%S.%f')
         uuid = core['name']
@@ -87,4 +88,8 @@ for container in _cached_swift.get_container(container=bucket):
         body.properties['delivery_mode'] = 2
         channel.basic_publish(body, exchange='', routing_key=queue)
         print 'published %s to %s queue' % (uuid, arch)
+        queued_count += 1
+        if queued_limit and queued_count >= queued_limit:
+            print 'reached limit of cores to queue.'
+            break
     print 'Finished, reviewed %i cores.' % count
