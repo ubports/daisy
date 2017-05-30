@@ -80,6 +80,19 @@ for container in _cached_swift.get_container(container=bucket,
             _cached_swift.delete_object(bucket, uuid)
             print >>sys.stderr, 'removed %s from swift' % uuid
             continue
+        failed = False
+        try:
+            fail_reason = oops_fam.get(uuid, columns=['RetraceFailureReason'])['RetraceFailureReason']
+            if fail_reason:
+                failed = True
+        except NotFoundException:
+            pass
+        # we already retraced these but the core wasn't removed for some
+        # reason
+        if failed:
+            _cached_swift.delete_object(bucket, uuid)
+            print >>sys.stderr, 'removed %s from swift' % uuid
+            continue
         queue = 'retrace_%s' % arch
         channel.queue_declare(queue=queue, durable=True, auto_delete=False)
         # msg:provider
