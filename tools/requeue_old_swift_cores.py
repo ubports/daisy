@@ -90,6 +90,7 @@ for container in _cached_swift.get_container(container=bucket,
         # we already retraced these but the core wasn't removed for some
         # reason
         if failed:
+            print >>sys.stderr, 'RetraceFailureReason found for %s' % uuid
             _cached_swift.delete_object(bucket, uuid)
             print >>sys.stderr, 'removed %s from swift' % uuid
             continue
