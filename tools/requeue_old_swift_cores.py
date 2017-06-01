@@ -54,6 +54,17 @@ abitago = now - timedelta(7)
 count = 0
 queued_count = 0
 
+
+def remove_core(bucket, core):
+    try:
+        _cached_swift.delete_object(bucket, core)
+        print >>sys.stderr, 'removed %s from swift' % core
+    except swiftclient.client.ClientException as e:
+        if '404 Not Found' in str(e):
+            # It may have already been removed
+            print >>sys.stderr, '%s not found in swift' % core
+
+
 for container in _cached_swift.get_container(container=bucket,
                                              limit=limit):
     # the dict is the metadata for the container
@@ -73,12 +84,11 @@ for container in _cached_swift.get_container(container=bucket,
             arch = oops_fam.get(uuid, columns=['Architecture'])['Architecture']
         except NotFoundException:
             print >>sys.stderr, 'could not find architecture for %s' % uuid
-            _cached_swift.delete_object(bucket, uuid)
-            print >>sys.stderr, 'removed %s from swift' % uuid
+            remove_core(bucket, uuid)
         # don't waste resources retrying these arches
         if arch in ['', 'ppc64el', 'arm64']:
-            _cached_swift.delete_object(bucket, uuid)
-            print >>sys.stderr, 'removed %s from swift' % uuid
+            print >>sys.stderr, 'architecture not important for %s' % uuid
+            remove_core(bucket, uuid)
             continue
         failed = False
         try:
@@ -91,8 +101,7 @@ for container in _cached_swift.get_container(container=bucket,
         # reason
         if failed:
             print >>sys.stderr, 'RetraceFailureReason found for %s' % uuid
-            _cached_swift.delete_object(bucket, uuid)
-            print >>sys.stderr, 'removed %s from swift' % uuid
+            remove_core(bucket, uuid)
             continue
         queue = 'retrace_%s' % arch
         channel.queue_declare(queue=queue, durable=True, auto_delete=False)
