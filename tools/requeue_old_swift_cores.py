@@ -12,6 +12,7 @@ import sys
 
 from pycassa.cassandra.ttypes import NotFoundException
 from daisy import config
+from daisy import utils
 from datetime import datetime, timedelta
 
 limit = None
