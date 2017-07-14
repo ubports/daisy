@@ -537,7 +537,7 @@ def create_bug(signature, source='', releases=[], hashed=None, lastseen=''):
                        "about a problem regarding %s.  The problem page at "
                        "%s contains more %s." % (source, href, details))
     description += ("\nIf you do not have access to the Ubuntu Error Tracker "
-                   "you can request it at "
+                   "and are a software developer, you can request it at "
                    "http://forms.canonical.com/reports/.")
 
     release_codenames = []
