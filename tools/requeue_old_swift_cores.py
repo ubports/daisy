@@ -85,9 +85,21 @@ for container in _cached_swift.get_container(container=bucket,
         except NotFoundException:
             print >>sys.stderr, 'could not find architecture for %s' % uuid
             remove_core(bucket, uuid)
+            continue
         # don't waste resources retrying these arches
         if arch in ['', 'ppc64el', 'arm64']:
             print >>sys.stderr, 'architecture not important for %s' % uuid
+            remove_core(bucket, uuid)
+            continue
+        release = ''
+        try:
+            release = oops_fam.get(uuid, columns=['DistroRelease'])['DistroRelease']
+        except NotFoundException:
+            print >>sys.stderr, 'could not find release for %s' % uuid
+            remove_core(bucket, uuid)
+            continue
+        if not utils.retraceable_release(release):
+            print >>sys.stderr, 'End of Life release in %s' % uuid
             remove_core(bucket, uuid)
             continue
         failed = False
