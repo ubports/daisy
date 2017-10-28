@@ -9,5 +9,5 @@ deb-src http://archive.ubuntu.com/ubuntu/ artful-proposed main restricted univer
 deb-src http://security.ubuntu.com/ubuntu/ artful-security main restricted universe multiverse
 
 deb http://ddebs.ubuntu.com artful main restricted universe multiverse
-# deb http://ddebs.ubuntu.com artful-updates main restricted universe multiverse
+deb http://ddebs.ubuntu.com artful-updates main restricted universe multiverse
 deb http://ddebs.ubuntu.com artful-proposed main restricted universe multiverse
