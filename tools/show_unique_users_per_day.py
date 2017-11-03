@@ -40,7 +40,9 @@ if __name__ == '__main__':
     print header
     for date in i:
         counts = []
+        total = 0
         for release in releases:
             count = dayusers_cf.get_count('Ubuntu %s:%s' % (release, date))
             counts.append(str(count))
-        print('%s, %s' % (date, ', '.join(counts)))
+            total += count
+        print('%s, %s, %s' % (date, ', '.join(counts), total))
