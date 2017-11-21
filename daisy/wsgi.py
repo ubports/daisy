@@ -105,5 +105,10 @@ def app(environ, start_response):
     else:
         return bad_request_response(start_response, response[1])
 
+import django
+# use a version check so this'll still work with precise
+if django.get_version() == '1.8.7':
+    django.setup()
+
 metrics.record_revno()
 application = utils.wrap_in_oops_wsgi(VersionMiddleware(app))
