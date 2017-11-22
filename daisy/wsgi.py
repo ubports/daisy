@@ -9,6 +9,9 @@ import os
 import re
 import shutil
 
+from django.conf import settings
+settings.configure()
+
 _pool = None
 path_filter = re.compile('[^a-zA-Z0-9-_]')
 
