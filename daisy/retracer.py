@@ -720,7 +720,7 @@ class Retracer:
             # provide it on the cli
             cmd = ['python3', self.apport_retrace_path, report_path,
                    '--core-file', core_file, '--remove-core',
-                   '--sandbox', self.config_dir,
+                   '--sandbox', self.config_dir, '--gdb-sandbox',
                    '--output', '%s.new' % report_path]
             if sandbox:
                 retrace_msg += ' with sandbox-dir %s' % sandbox
