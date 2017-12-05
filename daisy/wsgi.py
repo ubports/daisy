@@ -9,9 +9,6 @@ import os
 import re
 import shutil
 
-from django.conf import settings
-settings.configure()
-
 _pool = None
 path_filter = re.compile('[^a-zA-Z0-9-_]')
 
@@ -111,6 +108,8 @@ def app(environ, start_response):
 import django
 # use a version check so this'll still work with precise
 if django.get_version() == '1.8.7':
+    from django.conf import settings
+    settings.configure()
     django.setup()
 
 metrics.record_revno()
