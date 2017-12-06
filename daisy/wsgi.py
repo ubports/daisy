@@ -104,13 +104,15 @@ def app(environ, start_response):
         return ok_response(start_response, response[1])
     else:
         return bad_request_response(start_response, response[1])
-
-import django
-# use a version check so this'll still work with precise
-if django.get_version() == '1.8.7':
-    from django.conf import settings
-    settings.configure()
-    django.setup()
+try:
+    import django
+    # use a version check so this'll still work with precise
+    if django.get_version() == '1.8.7':
+        from django.conf import settings
+        settings.configure()
+        django.setup()
+except ImportError:
+    pass
 
 metrics.record_revno()
 application = utils.wrap_in_oops_wsgi(VersionMiddleware(app))
