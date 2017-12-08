@@ -45,7 +45,9 @@ pool = pycassa.ConnectionPool(config.cassandra_keyspace,
 oops_fam = pycassa.ColumnFamily(pool, 'OOPS')
 
 _cached_swift.http_conn = None
-connection = amqp.Connection(host=config.amqp_host)
+connection = amqp.Connection(host=config.amqp_host,
+                             userid=config.amqp_username,
+                             password=config.amqp_password)
 channel = connection.channel()
 atexit.register(connection.close)
 atexit.register(channel.close)
