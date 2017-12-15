@@ -797,13 +797,13 @@ class Retracer:
                             if 'failed with exit code -9' in line:
                                 metrics.meter('retrace.failed.gdb_failure.minus_nine')
                                 if failure_storage:
-                                    save_crash(failure_storage, oops_id, core_file)
+                                    self.save_crash(failure_storage, oops_id, core_file)
                                 give_up = True
                                 break
                             if 'failed with exit code -11' in line:
                                 metrics.meter('retrace.failed.gdb_failure.minus_eleven')
                                 if failure_storage:
-                                    save_crash(failure_storage, oops_id, core_file)
+                                    self.save_crash(failure_storage, oops_id, core_file)
                                 give_up = True
                                 break
                             if 'Package download error, try again later' \
@@ -976,7 +976,7 @@ class Retracer:
                 if architecture == 'armhf' and \
                         'RetraceOutdatedPackages' not in report:
                     if failure_storage:
-                        save_crash(failure_storage, oops_id, core_file)
+                        self.save_crash(failure_storage, oops_id, core_file)
 
             if stacktrace_addr_sig and not original_sas:
                 if type(stacktrace_addr_sig) == unicode:
@@ -1043,7 +1043,7 @@ class Retracer:
                     metrics.meter('retrace.missing.%s.%s.stacktrace' %
                                   (release, architecture))
                     if failure_storage:
-                        save_crash(failure_storage, oops_id, core_file)
+                        self.save_crash(failure_storage, oops_id, core_file)
 
                 # Given that we do not as yet keep debugging symbols around for
                 # every package version ever released, it's worth knowing the
@@ -1067,7 +1067,7 @@ class Retracer:
                     metrics.meter('retrace.missing.%s.%s.stacktrace_addr_sig' %
                                   (release, architecture))
                     if failure_storage:
-                        save_crash(failure_storage, oops_id, core_file)
+                        self.save_crash(failure_storage, oops_id, core_file)
 
                 if 'Stacktrace' not in report:
                     failure_reason = 'No stacktrace after retracing'
@@ -1098,7 +1098,7 @@ class Retracer:
                     if architecture == 'armhf' and missing_ddebs \
                             and not outdated_pkgs:
                         if failure_storage:
-                            save_crash(failure_storage, oops_id, core_file)
+                            self.save_crash(failure_storage, oops_id, core_file)
                     if not outdated_pkgs:
                         failure_reason += ' and missing ddebs.'
                     else:
