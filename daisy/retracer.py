@@ -560,7 +560,7 @@ class Retracer:
             return True
         return False
 
-    def save_crash(failure_storage, oops_id, core_file):
+    def save_crash(self, failure_storage, oops_id, core_file):
         log('Saved OOPS %s for manual investigation.' % oops_id)
         # create a new crash with the CoreDump for investigation
         report['CoreDump'] = (core_file,)
