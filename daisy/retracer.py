@@ -560,6 +560,14 @@ class Retracer:
             return True
         return False
 
+    def save_crash(failure_storage, oops_id, core_file):
+        log('Saved OOPS %s for manual investigation.' % oops_id)
+        # create a new crash with the CoreDump for investigation
+        report['CoreDump'] = (core_file,)
+        failed_crash = '%s/%s.crash' % (failure_storage, oops_id)
+        with open(failed_crash, 'wb') as fp:
+            report.write(fp)
+
     @prefix_log_with_amqp_message
     def callback(self, msg):
         self._processing_callback = True
@@ -768,7 +776,7 @@ class Retracer:
 
         try:
             if proc.returncode != 0:
-                missing_pkg = False
+                give_up = False
                 if proc.returncode == 1:
                     # Package download errors return 1
                     log("Apport's return code was 1.")
@@ -780,11 +788,23 @@ class Retracer:
                             # this happens for binaries from packages not in Ubuntu
                             if 'Cannot find package which ships ExecutablePath' \
                                     in line:
-                                missing_pkg = True
+                                give_up = True
                                 break
                             if 'Cannot find package which ships InterpreterPath' \
                                     in line:
-                                missing_pkg = True
+                                give_up = True
+                                break
+                            if 'failed with exit code -9' in line:
+                                metrics.meter('retrace.failed.gdb_failure.minus_nine')
+                                if failure_storage:
+                                    save_crash(failure_storage, oops_id, core_file)
+                                give_up = True
+                                break
+                            if 'failed with exit code -11' in line:
+                                metrics.meter('retrace.failed.gdb_failure.minus_eleven')
+                                if failure_storage:
+                                    save_crash(failure_storage, oops_id, core_file)
+                                give_up = True
                                 break
                             if 'Package download error, try again later' \
                                     in line:
@@ -836,7 +856,7 @@ class Retracer:
                         #        return
                 m = 'Retrace failed (%i), %s'
                 action = 'leaving as failed.'
-                if missing_pkg:
+                if give_up:
                     # we don't want to see this OOPS again so process it
                     self.processed(msg)
                 else:
@@ -956,13 +976,7 @@ class Retracer:
                 if architecture == 'armhf' and \
                         'RetraceOutdatedPackages' not in report:
                     if failure_storage:
-                        log('Saved OOPS %s for manual investigation.' %
-                            oops_id)
-                        # create a new crash with the CoreDump for investigation
-                        report['CoreDump'] = (core_file,)
-                        failed_crash = '%s/%s.crash' % (failure_storage, oops_id)
-                        with open(failed_crash, 'wb') as fp:
-                            report.write(fp)
+                        save_crash(failure_storage, oops_id, core_file)
 
             if stacktrace_addr_sig and not original_sas:
                 if type(stacktrace_addr_sig) == unicode:
@@ -1029,12 +1043,7 @@ class Retracer:
                     metrics.meter('retrace.missing.%s.%s.stacktrace' %
                                   (release, architecture))
                     if failure_storage:
-                        log('Saved OOPS %s for manual investigation.' %
-                            oops_id)
-                        # create a new crash with the CoreDump for investigation
-                        failed_crash = '%s/%s.crash' % (failure_storage, oops_id)
-                        with open(failed_crash, 'wb') as fp:
-                            report.write(fp)
+                        save_crash(failure_storage, oops_id, core_file)
 
                 # Given that we do not as yet keep debugging symbols around for
                 # every package version ever released, it's worth knowing the
@@ -1058,12 +1067,7 @@ class Retracer:
                     metrics.meter('retrace.missing.%s.%s.stacktrace_addr_sig' %
                                   (release, architecture))
                     if failure_storage:
-                        log('Saved OOPS %s for manual investigation.' %
-                            oops_id)
-                        # create a new crash with the CoreDump for investigation
-                        failed_crash = '%s/%s.crash' % (failure_storage, oops_id)
-                        with open(failed_crash, 'wb') as fp:
-                            report.write(fp)
+                        save_crash(failure_storage, oops_id, core_file)
 
                 if 'Stacktrace' not in report:
                     failure_reason = 'No stacktrace after retracing'
@@ -1094,12 +1098,7 @@ class Retracer:
                     if architecture == 'armhf' and missing_ddebs \
                             and not outdated_pkgs:
                         if failure_storage:
-                            log('Saved OOPS %s for manual investigation.' %
-                                oops_id)
-                            # create a new crash with the CoreDump for investigation
-                            failed_crash = '%s/%s.crash' % (failure_storage, oops_id)
-                            with open(failed_crash, 'wb') as fp:
-                                report.write(fp)
+                            save_crash(failure_storage, oops_id, core_file)
                     if not outdated_pkgs:
                         failure_reason += ' and missing ddebs.'
                     else:
