@@ -128,7 +128,7 @@ class ApportException(Exception):
 class Retracer:
     def __init__(self, config_dir, sandbox_dir, architecture, verbose,
                  cache_debs, use_sandbox, cleanup_sandbox, cleanup_debs,
-                 failed=False):
+                 stacktrace_source, failed=False):
         signal.signal(signal.SIGTERM, self.exit_gracefully)
         self._stop_now = False
         self._processing_callback = False
@@ -136,6 +136,7 @@ class Retracer:
         self.config_dir = config_dir
         self.sandbox_dir = sandbox_dir
         self.verbose = verbose
+        self.stacktrace_source = stacktrace_source
         self.architecture = architecture
         self.failed = failed
         self.connection = None
@@ -736,6 +737,8 @@ class Retracer:
             if cache:
                 retrace_msg += ' with cache %s' % cache
                 cmd.extend(['-C', cache])
+            if not self.stacktrace_source:
+                cmd.extend(['--no-stacktrace-source'])
             if self.verbose:
                 cmd.append('-v')
             log(retrace_msg)
@@ -1385,6 +1388,9 @@ def parse_options():
                         help='Directory in which to store cores for manual '
                              'investigation.')
     parser.add_argument('-o', '--output', help='Log messages to a file.')
+    parser.add_argument('--no-stacktrace-source', action='store_false',
+                        dest='stacktrace_source',
+                        help='Do not have apport create a StacktraceSource.')
     parser.add_argument('--retrieve-core',
                         help=('Debug processing a single uuid:provider_id.'
                               'This does not touch Cassandra or the queue.'))
@@ -1434,7 +1440,7 @@ def main():
                             options.architecture, options.verbose,
                             not options.nocache_debs, not options.nouse_sandbox,
                             options.cleanup_sandbox, options.cleanup_debs,
-                            failed=options.failed)
+                            options.stacktrace_source, failed=options.failed)
         if options.retrieve_core:
             parts = options.one_off.split(':', 1)
             path, oops_id = retracer.write_bucket_to_disk(parts[0], parts[1])
