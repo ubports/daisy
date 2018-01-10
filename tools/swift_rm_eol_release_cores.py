@@ -87,7 +87,11 @@ for container in \
             continue
         # don't waste resources retrying these EoL releases
         if not utils.retraceable_release(release):
-            _cached_swift.delete_object(bucket, uuid)
+            try:
+                _cached_swift.delete_object(bucket, uuid)
+            except swiftclient.client.ClientException as e:
+                if '404 Not Found' in str(e):
+                    continue
             print >>sys.stderr, 'Removed %s core %s from swift' % (release, uuid)
             unqueued_count += 1
             continue
