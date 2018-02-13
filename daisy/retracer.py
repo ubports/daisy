@@ -849,7 +849,7 @@ class Retracer:
                 for std in (out, err):
                     for line in std.splitlines():
                         # don't log what we've already logged
-                        if not give_up or not retry:
+                        if not give_up and not retry:
                             log(line)
                         if "Invalid core dump" in line:
                             invalid_core = True
