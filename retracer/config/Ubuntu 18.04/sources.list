@@ -9,5 +9,5 @@ deb-src http://archive.ubuntu.com/ubuntu/ bionic-proposed main restricted univer
 deb-src http://security.ubuntu.com/ubuntu/ bionic-security main restricted universe multiverse
 
 deb http://ddebs.ubuntu.com bionic main restricted universe multiverse
-# deb http://ddebs.ubuntu.com bionic-updates main restricted universe multiverse
+deb http://ddebs.ubuntu.com bionic-updates main restricted universe multiverse
 deb http://ddebs.ubuntu.com bionic-proposed main restricted universe multiverse
