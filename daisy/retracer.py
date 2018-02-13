@@ -848,7 +848,9 @@ class Retracer:
                 invalid_core = False
                 for std in (out, err):
                     for line in std.splitlines():
-                        log(line)
+                        # don't log what we've already logged
+                        if not give_up or not retry:
+                            log(line)
                         if "Invalid core dump" in line:
                             invalid_core = True
                             break
@@ -962,8 +964,8 @@ class Retracer:
                             and not missing_dbgsym_pkg:
                         metrics.meter('retrace.missing.crash_signature.apport_issue')
                         count = int(col.get('RetraceAttempts', 0))
-                        # only requeue this failure type 3 times
-                        if count < 3:
+                        # only requeue this failure type 2 times
+                        if count < 2:
                             count += 1
                             log('Requeueing a possible apport failure (#%s).' % count)
                             self.oops_cf.insert(oops_id, {'RetraceAttempts': '%s' % count})
