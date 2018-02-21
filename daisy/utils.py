@@ -321,7 +321,7 @@ def wrap_in_oops_wsgi(wsgi_handler):
 def retraceable_release(release):
     if release in EOL_RELEASES:
         return False
-    release_re = re.compile('^Ubuntu( RTM)? \d\d.\d\d$')
+    release_re = re.compile('^Ubuntu( RTM| Kylin)? \d\d.\d\d$')
     if release_re.match(release):
         return True
     else:
