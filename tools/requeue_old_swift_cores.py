@@ -53,7 +53,7 @@ atexit.register(connection.close)
 atexit.register(channel.close)
 
 now = datetime.utcnow()
-abitago = now - timedelta(7)
+abitago = now - timedelta(14)
 count = 0
 queued_count = 0
 
@@ -74,24 +74,14 @@ for container in _cached_swift.get_container(container=bucket,
     if isinstance(container, dict):
         continue
     for core in container:
-        core_date = datetime.strptime(core['last_modified'],
-                                      '%Y-%m-%dT%H:%M:%S.%f')
         uuid = core['name']
         count += 1
-        # it may still be in the queue awaiting its first retrace attempt
-        if core_date > abitago:
-            print 'skipping too new core %s' % uuid
-            continue
+        # The age of the core isn't important when evaluating these.
         arch = ''
         try:
             arch = oops_fam.get(uuid, columns=['Architecture'])['Architecture']
         except NotFoundException:
             print >>sys.stderr, 'could not find architecture for %s' % uuid
-            remove_core(bucket, uuid)
-            continue
-        # don't waste resources retrying these arches
-        if arch in ['', 'ppc64el', 'arm64']:
-            print >>sys.stderr, 'architecture not important for %s' % uuid
             remove_core(bucket, uuid)
             continue
         release = ''
@@ -102,7 +92,7 @@ for container in _cached_swift.get_container(container=bucket,
             remove_core(bucket, uuid)
             continue
         if not utils.retraceable_release(release):
-            print >>sys.stderr, 'End of Life release in %s' % uuid
+            print >>sys.stderr, 'Unretraceable or EoL release in %s' % uuid
             remove_core(bucket, uuid)
             continue
         failed = False
@@ -118,15 +108,28 @@ for container in _cached_swift.get_container(container=bucket,
             print >>sys.stderr, 'RetraceFailureReason found for %s' % uuid
             remove_core(bucket, uuid)
             continue
-        queue = 'retrace_%s' % arch
-        channel.queue_declare(queue=queue, durable=True, auto_delete=False)
-        # msg:provider
-        body = amqp.Message('%s:swift' % uuid)
-        # Persistent
-        body.properties['delivery_mode'] = 2
-        channel.basic_publish(body, exchange='', routing_key=queue)
-        print 'published %s to %s queue' % (uuid, arch)
-        queued_count += 1
+        core_date = datetime.strptime(core['last_modified'],
+                                      '%Y-%m-%dT%H:%M:%S.%f')
+        # it may still be in the queue awaiting its first retrace attempt
+        if core_date > abitago:
+            print 'skipping too new core %s' % uuid
+            continue
+        # don't use resources retrying these arches
+        if arch in ['', 'ppc64el', 'arm64', 'armhf']:
+            print >>sys.stderr, 'architecture less important for %s' % uuid
+            remove_core(bucket, uuid)
+            continue
+        # Only requeue things if queued_limit is set
+        if queued_limit and queued_count < queued_limit:
+            queue = 'retrace_%s' % arch
+            channel.queue_declare(queue=queue, durable=True, auto_delete=False)
+            # msg:provider
+            body = amqp.Message('%s:swift' % uuid)
+            # Persistent
+            body.properties['delivery_mode'] = 2
+            channel.basic_publish(body, exchange='', routing_key=queue)
+            print 'published %s to %s queue' % (uuid, arch)
+            queued_count += 1
         if queued_limit and queued_count >= queued_limit:
             print 'reached limit of cores to queue.'
             break
