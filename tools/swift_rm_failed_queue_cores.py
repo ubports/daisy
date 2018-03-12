@@ -13,7 +13,6 @@ import sys
 from pycassa.cassandra.ttypes import NotFoundException
 from daisy import config
 from daisy import utils
-from datetime import datetime, timedelta
 
 # get container returns a max of 10000 listings, if an integer is not given
 # lets get everything not 10k.
@@ -47,8 +46,6 @@ oops_fam = pycassa.ColumnFamily(pool, 'OOPS')
 
 _cached_swift.http_conn = None
 
-now = datetime.utcnow()
-abitago = now - timedelta(7)
 count = 0
 unqueued_count = 0
 
@@ -64,6 +61,7 @@ for container in \
     else:
         toreview = container
     for core in toreview:
+        uuid = core['name']
         count += 1
         try:
             attempts = oops_fam.get(uuid, columns=['RetraceAttempts'])['RetraceAttempts']
