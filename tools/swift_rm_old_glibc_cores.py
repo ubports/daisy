@@ -64,6 +64,13 @@ for container in \
         uuid = core['name']
         count += 1
         try:
+            release = oops_fam.get(uuid, columns=['DistroRelease'])['DistroRelease']
+        except NotFoundException:
+            print 'Could not find DistroRelease for %s' % uuid
+            continue
+        if release != 'Ubuntu 18.04':
+            continue
+        try:
             deps = oops_fam.get(uuid, columns=['Dependencies'])['Dependencies']
         except NotFoundException:
             print 'Could not find Dependencies for %s' % uuid
