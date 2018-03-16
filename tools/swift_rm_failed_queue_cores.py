@@ -68,7 +68,7 @@ for container in \
         except NotFoundException:
             print 'Could not find RetraceAttempts for %s' % uuid
             continue
-        if attempts >= 1:
+        if int(attempts) >= 1:
             _cached_swift.delete_object(bucket, uuid)
             print 'Removed %s from swift' % uuid
             unqueued_count += 1
