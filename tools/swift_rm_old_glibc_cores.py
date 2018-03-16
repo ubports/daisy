@@ -75,9 +75,15 @@ for container in \
         except NotFoundException:
             print 'Could not find Dependencies for %s' % uuid
             continue
-        if 'libc6 2.26-0ubuntu2.1' in deps:
-            _cached_swift.delete_object(bucket, uuid)
-            print 'Removed %s from swift' % uuid
-            unqueued_count += 1
-            continue
+        # don't use an exact version in case people installed it from other
+        # places e.g. libc6 2.26-0ubuntu4 [origin: unknown]
+        if deps:
+            libc = [d for d in deps.split('\n') if d.startswith('libc6 2.26-0')]
+            if not libc:
+                continue
+            elif libc[0].startswith('libc6 2.26-0'):
+                _cached_swift.delete_object(bucket, uuid)
+                print 'Removed %s from swift' % uuid
+                unqueued_count += 1
+                continue
     print 'Finished, reviewed %i cores, removed %i cores.' % (count, unqueued_count)
