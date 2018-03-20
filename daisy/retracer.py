@@ -169,6 +169,8 @@ class Retracer:
     def exit_gracefully(self, signal, frame):
         # Set a flag so that we can give apport-retrace a chance to finish.
         log('Received SIGTERM')
+        # 2018-03-14 do something with the core file
+        # I think we'd need to make msg and oops_ids globals
         self._stop_now = True
         if not self._processing_callback:
             if self.connection:
@@ -1353,8 +1355,8 @@ class Retracer:
     def cleanup_oops(self, oops_id):
         '''Remove no longer needed columns from the OOPS column family for a
            specific OOPS id.'''
-        unneeded_columns = ['Disassembly', 'ProcMaps', 'ProcStatus',
-                            'Registers', 'StacktraceTop']
+        unneeded_columns = ['Disassembly', 'ProcStatus', 'Registers',
+                            'StacktraceTop']
         self.oops_cf.remove(oops_id, columns=unneeded_columns)
 
 def parse_options():
