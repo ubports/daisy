@@ -241,6 +241,14 @@ def submit(_pool, environ, system_token):
         if not addr_sig and arch:
             metrics.meter('missing.missing_sas_%s' % arch)
         metrics.meter('missing.missing_sas')
+
+    # We don't know how many lines of JournalErrors will be useful so limit it
+    # on the receiving end not on the sending one i.e. from whoopsie.
+    jerrors = data.get('JournalErrors', '')
+    if jerrors:
+        jerrors = [line for line in jerrors.split('\n')][-50:]
+        data['JournalErrors'] = '\n'.join(jerrors)
+
     tags = data.get('Tags', '')
 
     package_from_proposed = False
