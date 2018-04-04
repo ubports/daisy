@@ -421,6 +421,16 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
             # so do not ask for a CORE file if they don't exist
             if not release:
                 return (True, '%s OOPSID' % oops_id)
+            # do not ask for a core file for crashes using the old version of
+            # libc6 since they won't be retraceable. LP: #1760207
+            if release == 'Ubuntu 18.04':
+                deps = data.get('Dependencies', '')
+                libc = [d for d in deps.split('\n') if d.startswith('libc6 2.26-0')]
+                try:
+                    if libc[0].startswith('libc6 2.26-0'):
+                        return (True, '%s OOPSID' % oops_id)
+                except KeyError:
+                    pass
             package = report.get('Package', '')
             if not package:
                 return (True, '%s OOPSID' % oops_id)
