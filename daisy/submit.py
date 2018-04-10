@@ -429,7 +429,7 @@ def bucket(_pool, oops_config, oops_id, data, day_key):
                 try:
                     if libc[0].startswith('libc6 2.26-0'):
                         return (True, '%s OOPSID' % oops_id)
-                except KeyError:
+                except (KeyError, IndexError):
                     pass
             package = report.get('Package', '')
             if not package:
